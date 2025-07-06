@@ -1,4 +1,6 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.AspNetCore.Identity;
 
 namespace Sandbox.Models;
 
@@ -13,4 +15,9 @@ public class Article
     public string Contenu { get; set; } = default!;
 
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
+    
+    public string? AuthorId { get; set; } 
+    
+    [ForeignKey(nameof(AuthorId))]
+    public IdentityUser? Author { get; set; }
 }
