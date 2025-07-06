@@ -1,7 +1,13 @@
+using Microsoft.EntityFrameworkCore;
+using Sandbox.Data;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddDbContext<BlogContext>(opt =>
+    opt.UseSqlite("Data Source=blog.db"));
 
 var app = builder.Build();
 

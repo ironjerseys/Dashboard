@@ -1,0 +1,13 @@
+@model Sandbox.Models.Article
+@{
+    ViewData["Title"] = "Supprimer";
+}
+
+<h1>Supprimer</h1>
+<p>Voulez-vous vraiment supprimer l’article « <strong>@Model.Titre</strong> » ?</p>
+
+<form asp-action="Delete" method="post">
+    <input type="hidden" asp-for="Id" />
+    <button type="submit" class="btn btn-danger">Oui, supprimer</button>
+    <a asp-action="Index" class="btn btn-secondary">Non, annuler</a>
+</form>
