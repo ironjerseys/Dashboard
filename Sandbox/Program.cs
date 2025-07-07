@@ -13,10 +13,8 @@ builder.Services.AddDbContext<BlogContext>(opt =>
 builder.Services
     .AddIdentity<IdentityUser, IdentityRole>(options =>
     {
-        // configure password rules, lockout, etc. si besoin
     })
     .AddEntityFrameworkStores<BlogContext>()
-    .AddDefaultUI()                // <-- active les pages Razor /Identity/Account/...
     .AddDefaultTokenProviders();
 
 // 2) Cookie auth pour redirections login/access denied
@@ -43,7 +41,6 @@ builder.Services.AddAuthorization(options =>
 
 // 4) MVC + Razor Pages
 builder.Services.AddControllersWithViews();
-builder.Services.AddRazorPages();
 
 var app = builder.Build();
 
@@ -66,7 +63,6 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
-app.MapRazorPages();   // <- rend disponibles /Identity/Account/Login etc.
 
 // 7) Seed roles et admin
 using (var scope = app.Services.CreateScope())
