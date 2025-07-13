@@ -10,7 +10,7 @@
     {
         <tr>
             <td>@a.Titre</td>
-            <td>@a.DateCreation.ToLocalTime():dd/MM/yyyy</td>
+            <td>@a.DateCreation.ToLocalTime()</td>
             <td>
                 <a asp-action="Details" asp-route-id="@a.Id">Voir</a> |
                 <a asp-action="Edit" asp-route-id="@a.Id">Éditer</a> |

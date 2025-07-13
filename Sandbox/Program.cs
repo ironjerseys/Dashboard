@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Sandbox.Data;
 using Sandbox.Models;
+using Sandbox.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,7 @@ builder.Services
     })
     .AddEntityFrameworkStores<BlogContext>()
     .AddDefaultTokenProviders();
+
 
 // 2) Cookie auth pour redirections login/access denied
 builder.Services.ConfigureApplicationCookie(opts =>
@@ -38,6 +40,8 @@ builder.Services.AddAuthorization(options =>
                 || article.AuthorId == userId;
         }));
 });
+
+builder.Services.AddScoped<IArticleService, ArticleService>();
 
 // 4) MVC + Razor Pages
 builder.Services.AddControllersWithViews();

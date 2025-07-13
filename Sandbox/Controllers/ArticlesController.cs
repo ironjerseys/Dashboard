@@ -6,58 +6,61 @@ using Sandbox.Models;
 
 namespace Sandbox.Controllers;
 
+using Services;
+
 [Authorize]  
 public class ArticlesController : Controller
 {
-    private readonly BlogContext _db;
+    private readonly IArticleService _articleService;
     private readonly IAuthorizationService _auth;
 
-    public ArticlesController(BlogContext db)
+    public ArticlesController(IArticleService articleService, IAuthorizationService auth)
     {
-        _db = db;
+        _articleService = articleService;
+        _auth = auth;
     }
+    
 
     [AllowAnonymous]
     public async Task<IActionResult> Index()
     {
-        return View(await _db.Articles.Include(a => a.Author).OrderByDescending(a => a.DateCreation).ToListAsync());
+        var articles = _articleService.GetArticles().Result;
+        return View(articles);
     }
 
     [AllowAnonymous]
     public async Task<IActionResult> Details(int id)
     {
-        var article = await _db.Articles.FindAsync(id);
-        if (article == null) return NotFound();
+        var article = _articleService.GetArticle(id).Result;
         return View(article);
     }
 
     public IActionResult Create() => View();
-    [HttpPost] public async Task<IActionResult> Create(Article a)
+    [HttpPost] public async Task<IActionResult> Create(Article article)
     {
-        if (!ModelState.IsValid) return View(a);
-        _db.Add(a); await _db.SaveChangesAsync();
+        _articleService.CreateArticle(article);
         return RedirectToAction(nameof(Index));
     }
 
     public async Task<IActionResult> Edit(int id)
     {
-        var article = await _db.Articles.FindAsync(id);
-        if (article == null) return NotFound();
+        Article article = _articleService.GetArticle(id).Result;
         return View(article);    
     }
         
 
-    [HttpPost] public async Task<IActionResult> Edit(int id, Article a)
+    [HttpPost] public async Task<IActionResult> Edit(int id, Article article)
     {
-        if (id != a.Id) return NotFound();
-        if (!ModelState.IsValid) return View(a);
-        _db.Update(a); await _db.SaveChangesAsync();
+        if (id != article.Id) return NotFound();
+        if (!ModelState.IsValid) return View(article);
+        _articleService.UpdateArticle(article);
         return RedirectToAction(nameof(Index));
     }
-
+    
+    [HttpGet]
     public async Task<IActionResult> Delete(int id)
     {
-        var article = await _db.Articles.FindAsync(id);
+        Article article = _articleService.GetArticle(id).Result;
         if (article == null) return NotFound();
         return View(article);
     }
@@ -65,11 +68,7 @@ public class ArticlesController : Controller
     [HttpPost, ActionName("Delete")] 
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-        var art = await _db.Articles.FindAsync(id);
-        if (art is null) return NotFound();
-        _db.Remove(art); await _db.SaveChangesAsync();
+        await _articleService.Delete(id);
         return RedirectToAction(nameof(Index));
     }
-
- 
 }
