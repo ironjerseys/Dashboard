@@ -2,20 +2,22 @@
 @{
     ViewData["Title"] = "Articles";
 }
-<h1>Articles</h1>
-<a class="btn btn-primary mb-3" asp-action="Create">Nouvel article</a>
+<div class="container pt-4">
+    <h1>Articles</h1>
+    <a class="btn btn-primary mb-3" asp-action="Create">Nouvel article</a>
 
-<table class="table table-striped">
-    @foreach (var a in Model)
-    {
-        <tr>
-            <td>@a.Titre</td>
-            <td>@a.DateCreation.ToLocalTime()</td>
-            <td>
-                <a asp-action="Details" asp-route-id="@a.Id">Voir</a> |
-                <a asp-action="Edit" asp-route-id="@a.Id">Éditer</a> |
-                <a asp-action="Delete" asp-route-id="@a.Id">Supprimer</a>
-            </td>
-        </tr>
-    }
-</table>
+    <table class="table table-striped">
+        @foreach (var a in Model)
+        {
+            <tr>
+                <td>@a.Titre</td>
+                <td>@a.DateCreation.ToLocalTime()</td>
+                <td>
+                    <a asp-action="Details" asp-route-id="@a.Id">Voir</a> |
+                    <a asp-action="Edit" asp-route-id="@a.Id">Éditer</a> |
+                    <a asp-action="Delete" asp-route-id="@a.Id">Supprimer</a>
+                </td>
+            </tr>
+        }
+    </table>
+</div>
