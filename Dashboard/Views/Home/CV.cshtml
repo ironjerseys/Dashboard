@@ -1,6 +1,74 @@
-﻿@{
+﻿@model IEnumerable<Dashboard.Models.Experience>
+@{
     ViewData["Title"] = "CV";
+    // Map équivalent à getTechClass(techno)
+    string GetTechClass(string techno)
+    {
+        if (string.IsNullOrWhiteSpace(techno)) return "techno-default";
+        var key = techno.Trim().ToLowerInvariant();
+        return key switch
+        {
+            "c#" => "techno-csharp",
+            "javascript" => "techno-javascript",
+            "angular" => "techno-angular",
+            ".net core" => "techno-dotnet",
+            "sql server" => "techno-sql-server",
+            "azure devops" => "techno-azure-devops",
+            "ci/cd" => "techno-cicd",
+            "php" => "techno-php",
+            "mysql" => "techno-mysql",
+            "python" => "techno-python",
+            "vba" => "techno-vba",
+            "gitlab" => "techno-gitlab",
+            "asp.net" => "techno-asp",
+            _ => "techno-default"
+        };
+    }
 }
-<h1>@ViewData["Title"]</h1>
 
-CV
+<link rel="stylesheet" href="~/css/cv.css" asp-append-version="true" />
+
+<div class="container">
+    @* Équivalent du *ngFor Angular *@
+    @{
+        var index = 0;
+    }
+    @foreach (var exp in Model)
+    {
+        <div class="item" data-index="@index">
+            <h2>@exp.Titre</h2>
+            <h3>@exp.Entreprise</h3>
+            <p><strong>Période :</strong> @exp.Periode</p>
+            <div>@Html.Raw(exp.Description)</div>
+            <div class="technos">
+                @foreach (var techno in exp.Technos)
+                {
+                    <span class="@GetTechClass(techno)">@techno</span>
+                }
+            </div>
+        </div>
+        index++;
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // IntersectionObserver pour ajouter/retirer la classe fade-in
+        document.addEventListener('DOMContentLoaded', function () {
+          const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('fade-in');
+              } else {
+                entry.target.classList.remove('fade-in');
+              }
+            });
+          }, { threshold: 0.3 });
+
+          document.querySelectorAll('.item').forEach((el, i) => {
+            el.setAttribute('data-index', String(i));
+            observer.observe(el);
+          });
+        });
+    </script>
+}
