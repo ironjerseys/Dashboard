@@ -137,39 +137,7 @@ public class HomeController : Controller
         return View();
     }
 
-    public IActionResult Quiz()
-    {
-        var path = Path.Combine(_env.WebRootPath, "questions.json");
-        if (!System.IO.File.Exists(path))
-        {
-            return View(new List<Question>());
-        }
-
-        var json = System.IO.File.ReadAllText(path);
-
-        // Le JSON a des clés en PascalCase (Id, Question, Choices...).
-        var raw = JsonSerializer.Deserialize<List<JsonQuestion>>(json, new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true
-        }) ?? new List<JsonQuestion>();
-
-        // Map vers notre modèle Question (QuestionText au lieu de Question)
-        var model = new List<Question>();
-        foreach (var q in raw)
-        {
-            model.Add(new Question
-            {
-                Id = q.Id,
-                QuestionText = q.Question,
-                Choices = q.Choices ?? new List<string>(),
-                CorrectAnswer = q.CorrectAnswer,
-                Explanation = q.Explanation
-            });
-        }
-
-        return View(model);
-    }
-
+    
     public IActionResult Privacy()
     {
         return View();

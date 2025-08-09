@@ -41,10 +41,14 @@ builder.Services.AddAuthorization(options =>
         }));
 });
 
+// Services
 builder.Services.AddScoped<IArticleService, ArticleService>();
+builder.Services.AddScoped<IQuizService, QuizService>();
 
 // 4) MVC + Razor Pages
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddSession();
 
 var app = builder.Build();
 
@@ -58,7 +62,7 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
-
+app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
