@@ -18,6 +18,21 @@ public class HomeController : Controller
         return View();
     }
 
+    public IActionResult CV()
+    {
+        return View();
+    }
+
+    public IActionResult Creations()
+    {
+        return View();
+    }
+
+    public IActionResult Articles()
+    {
+        return View();
+    }
+
     public IActionResult Privacy()
     {
         return View();
