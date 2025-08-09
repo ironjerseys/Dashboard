@@ -1,6 +1,6 @@
+using Dashboard.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Dashboard.Models;
 
 namespace Dashboard.Controllers
 {
@@ -11,7 +11,7 @@ namespace Dashboard.Controllers
 
         public AccountController(UserManager<IdentityUser> um, SignInManager<IdentityUser> sm)
         {
-            _userMgr   = um;
+            _userMgr = um;
             _signInMgr = sm;
         }
 
@@ -24,7 +24,7 @@ namespace Dashboard.Controllers
             if (!ModelState.IsValid) return View(vm);
 
             var user = new IdentityUser(vm.Email) { Email = vm.Email };
-            var res  = await _userMgr.CreateAsync(user, vm.Password);
+            var res = await _userMgr.CreateAsync(user, vm.Password);
             if (!res.Succeeded)
             {
                 foreach (var e in res.Errors)
@@ -33,7 +33,7 @@ namespace Dashboard.Controllers
             }
 
             await _signInMgr.SignInAsync(user, isPersistent: false);
-            return RedirectToAction("Index","Home");
+            return RedirectToAction("Index", "Home");
         }
 
         [HttpGet]
@@ -49,7 +49,7 @@ namespace Dashboard.Controllers
                 vm.Email, vm.Password, vm.RememberMe, lockoutOnFailure: false
             );
             if (res.Succeeded)
-                return Redirect(vm.ReturnUrl ?? Url.Action("Index","Home")!);
+                return Redirect(vm.ReturnUrl ?? Url.Action("Index", "Home")!);
 
             ModelState.AddModelError("", "Identifiants invalides");
             return View(vm);
@@ -59,7 +59,7 @@ namespace Dashboard.Controllers
         public async Task<IActionResult> Logout()
         {
             await _signInMgr.SignOutAsync();
-            return RedirectToAction("Index","Home");
+            return RedirectToAction("Index", "Home");
         }
 
         public IActionResult AccessDenied() => View();

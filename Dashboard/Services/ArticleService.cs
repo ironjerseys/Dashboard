@@ -4,7 +4,8 @@ using Data;
 using Microsoft.EntityFrameworkCore;
 using Models;
 
-public interface IArticleService {
+public interface IArticleService
+{
     Task<IEnumerable<Article>> GetArticles();
     Task<Article> GetArticle(int id);
     Task CreateArticle(Article article);
@@ -12,10 +13,11 @@ public interface IArticleService {
     Task Delete(int id);
 }
 
-public class ArticleService : IArticleService{
-    
+public class ArticleService : IArticleService
+{
+
     private readonly BlogContext _db;
-    
+
     public ArticleService(BlogContext db)
     {
         _db = db;
@@ -30,7 +32,7 @@ public class ArticleService : IArticleService{
     {
         return await _db.Articles.FindAsync(id);
     }
-    
+
     // Creat article
     public async Task CreateArticle(Article article)
     {

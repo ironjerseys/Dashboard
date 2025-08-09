@@ -1,7 +1,6 @@
 using Dashboard.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
-using System.Text.Json;
 
 namespace Dashboard.Controllers;
 
@@ -137,7 +136,7 @@ public class HomeController : Controller
         return View();
     }
 
-    
+
     public IActionResult Privacy()
     {
         return View();

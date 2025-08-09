@@ -1,9 +1,9 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Dashboard.Data;
 using Dashboard.Models;
 using Dashboard.Services;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 

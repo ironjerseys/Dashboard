@@ -1,14 +1,12 @@
+using Dashboard.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Dashboard.Data;
-using Dashboard.Models;
 
 namespace Dashboard.Controllers;
 
 using Services;
 
-[Authorize]  
+[Authorize]
 public class ArticlesController : Controller
 {
     private readonly IArticleService _articleService;
@@ -19,7 +17,7 @@ public class ArticlesController : Controller
         _articleService = articleService;
         _auth = auth;
     }
-    
+
 
     [AllowAnonymous]
     public async Task<IActionResult> Index()
@@ -36,7 +34,8 @@ public class ArticlesController : Controller
     }
 
     public IActionResult Create() => View();
-    [HttpPost] public async Task<IActionResult> Create(Article article)
+    [HttpPost]
+    public async Task<IActionResult> Create(Article article)
     {
         _articleService.CreateArticle(article);
         return RedirectToAction(nameof(Index));
@@ -45,18 +44,19 @@ public class ArticlesController : Controller
     public async Task<IActionResult> Edit(int id)
     {
         Article article = _articleService.GetArticle(id).Result;
-        return View(article);    
+        return View(article);
     }
-        
 
-    [HttpPost] public async Task<IActionResult> Edit(int id, Article article)
+
+    [HttpPost]
+    public async Task<IActionResult> Edit(int id, Article article)
     {
         if (id != article.Id) return NotFound();
         if (!ModelState.IsValid) return View(article);
         _articleService.UpdateArticle(article);
         return RedirectToAction(nameof(Index));
     }
-    
+
     [HttpGet]
     public async Task<IActionResult> Delete(int id)
     {
@@ -65,7 +65,7 @@ public class ArticlesController : Controller
         return View(article);
     }
 
-    [HttpPost, ActionName("Delete")] 
+    [HttpPost, ActionName("Delete")]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         await _articleService.Delete(id);
