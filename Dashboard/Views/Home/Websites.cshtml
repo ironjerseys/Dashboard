@@ -1,0 +1,50 @@
+﻿@model IEnumerable<Dashboard.Models.Website>
+@{
+    ViewData["Title"] = "Websites";
+}
+<link rel="stylesheet" href="~/css/websites.css" asp-append-version="true" />
+
+<div class="container">
+    @{ var i = 0; }
+    @foreach (var website in Model)
+    {
+        var isRemoved = string.IsNullOrWhiteSpace(website.Url);
+        <div class="item @(isRemoved ? "removed" : "")" data-index="@i">
+            <h2>@website.Name</h2>
+            <img src="@Url.Content($"~/images/{website.Image}")" alt="@website.Name" />
+            <div>@Html.Raw(website.DescriptionHtml)</div>
+
+            @if (!isRemoved)
+            {
+                <p>
+                    Visiter le site web:
+                    <a href="@website.Url" target="_blank" rel="noopener noreferrer">@website.Url</a>
+                </p>
+            }
+            else
+            {
+                <p><em>Ce site n'est plus disponible.</em></p>
+            }
+        </div>
+        i++;
+    }
+</div>
+
+@section Scripts {
+<script>
+  // Ajoute/retire la classe fade-in quand .item entre/sort du viewport
+  document.addEventListener('DOMContentLoaded', function () {
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add('fade-in');
+        else entry.target.classList.remove('fade-in');
+      });
+    }, { threshold: 0.3 });
+
+    document.querySelectorAll('.item').forEach((el, idx) => {
+      el.setAttribute('data-index', String(idx));
+      observer.observe(el);
+    });
+  });
+</script>
+}

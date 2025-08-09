@@ -1,0 +1,32 @@
+/* Élément fade-in par défaut */
+.item {
+    transition: opacity 1s ease;
+    margin: 30px 0px;
+    padding: 30px;
+    background: rgba(60, 60, 60, .5);
+    border-radius: 20px;
+}
+
+a {
+    display: inline-block;
+    text-decoration: none;
+    color: white;
+    /* background-color: #007bff; */
+    padding: 10px 20px;
+    border-radius: 4px;
+    border: white 1px solid;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    margin: 10px;
+}
+
+    a:hover {
+        background-color: #0056b3;
+    }
+
+    a.disabled {
+        pointer-events: none;
+        background-color: #6c757d;
+        color: #dcdcdc;
+        cursor: not-allowed;
+    }

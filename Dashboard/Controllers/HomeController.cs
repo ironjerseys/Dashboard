@@ -1,16 +1,19 @@
-using System.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
 using Dashboard.Models;
+using Microsoft.AspNetCore.Mvc;
+using System.Diagnostics;
+using System.Text.Json;
 
 namespace Dashboard.Controllers;
 
 public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
+    private readonly IWebHostEnvironment _env;
 
-    public HomeController(ILogger<HomeController> logger)
+    public HomeController(ILogger<HomeController> logger, IWebHostEnvironment env)
     {
         _logger = logger;
+        _env = env;
     }
 
     public IActionResult Index()
@@ -99,14 +102,72 @@ public class HomeController : Controller
         return View(experiences);
     }
 
-    public IActionResult Creations()
+    public IActionResult Websites()
     {
-        return View();
+        var websites = new List<Website>
+            {
+                new Website
+                {
+                    Name = "Chess Results Stats",
+                    DescriptionHtml = "<p>J'ai transformé Chess Results Stats Chess Multitool, une application mobile sur Google Play dans un premier temps, avec quelques features supplémentaires.</p><p>J'ai développé l'application avec .NET MAUI.</p><p>Mon but est de développer mes compétences en développement mobile pour savoir créér une app, la déployer sur un store d'applications, et la monétiser.</p>",
+                    Url = "https://play.google.com/store/apps/details?id=com.companyname.chessmultitool&hl=en",
+                    Image = "chessmultitool.png"
+                },
+                new Website
+                {
+                    Name = "Chess Results Stats - Non maintenu",
+                    DescriptionHtml = "<p>Chess Results Stats est un site pour analyser des données fournies par Chess.com, le site d'échec en ligne le plus utilisé dans le monde.</p><p>Il part d'un projet scolaire où je devais  manipuler des données avec LinQ, je l'ai donc réalisé en .NET et Angular, j'ai stocké le code sur GitHub et j'ai déployé le site sur Azure avec une pipeline CI/CD GitHub Actions.</p><p>J'ai profité de ce projet pour tester différentes stacks techniques, j'ai refait le projet avec la MERN stack, MongoDB Express React et Node.JS.</p><p>La première version consistait à exporter un fichier de Chess.com et l'uploader sur mon site, pour visualiser quelques résultats clés. Avec la deuxième version j'ai ajouté une base de donnée pour stocker les résultats, remplacé les quelques résultats clés par des graphs avec Chart.JS et remplacé le download/upload de fichier par un appel à l'API Ches.com.</p><p>J'ai ensuite réécris le site en Java / Angular, pour enfin revenir à .NET / Angular, et j'ai remplacé la base de donnée MongoDB par une base de donnée SQL Server hébergée sur Azure.</p>",
+                    Url = "https://chessresultsstats.com/",
+                    Image = "chessresultsstats.png"
+                },
+                new Website
+                {
+                    Name = "Le site a été intégré à Chess Results Stats",
+                    DescriptionHtml = "<p>C'est quoi l'ouverture est un site permettant de visualiser les ouvertures les plus connues et quelques pièges d'ouverture. J'ai développé le site en Python avec Django, un framework que je voulais découvrir depuis longtemps, et une base de données PostgreSQL.</p><p>Le code est sur GitHub et le site est déployé sur Azure avec une pipeline CI/CD GitHub Actions.</p>",
+                    Url = "", // vide = retiré
+                    Image = "cestquoilouverture.png"
+                }
+            };
+
+        return View(websites);
     }
 
     public IActionResult Articles()
     {
         return View();
+    }
+
+    public IActionResult Quiz()
+    {
+        var path = Path.Combine(_env.WebRootPath, "questions.json");
+        if (!System.IO.File.Exists(path))
+        {
+            return View(new List<Question>());
+        }
+
+        var json = System.IO.File.ReadAllText(path);
+
+        // Le JSON a des clés en PascalCase (Id, Question, Choices...).
+        var raw = JsonSerializer.Deserialize<List<JsonQuestion>>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        }) ?? new List<JsonQuestion>();
+
+        // Map vers notre modèle Question (QuestionText au lieu de Question)
+        var model = new List<Question>();
+        foreach (var q in raw)
+        {
+            model.Add(new Question
+            {
+                Id = q.Id,
+                QuestionText = q.Question,
+                Choices = q.Choices ?? new List<string>(),
+                CorrectAnswer = q.CorrectAnswer,
+                Explanation = q.Explanation
+            });
+        }
+
+        return View(model);
     }
 
     public IActionResult Privacy()
@@ -119,4 +180,14 @@ public class HomeController : Controller
     {
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
+}
+
+
+public class JsonQuestion
+{
+    public int Id { get; set; }
+    public string Question { get; set; }
+    public List<string> Choices { get; set; }
+    public int CorrectAnswer { get; set; }
+    public string Explanation { get; set; }
 }
