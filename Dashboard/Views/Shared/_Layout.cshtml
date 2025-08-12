@@ -30,7 +30,7 @@
                                 Home
                             </a>
                         </li>
-               
+
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Home" asp-action="CV">
                                 CV
@@ -41,44 +41,40 @@
                                 Creations
                             </a>
                         </li>
-                  
+
                     </ul>
                     <ul class="navbar-nav ms-auto align-items-center">
-                        @if (User.Identity?.IsAuthenticated ?? false)
-                        {
-                            <li class="nav-item">
-                                <span class="navbar-text me-3">@User.Identity.Name</span>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Articles" asp-action="Index">
-                                    Gestion Articles
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Articles">
-                                    Articles
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Quiz" asp-action="Index">
-                                    Quiz
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
-                                    <button type="submit" class="nav-link btn btn-link">Déconnexion</button>
-                                </form>
-                            </li>
-                        }
-                        else
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Account" asp-action="Register">Inscription</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Account" asp-action="Login">Connexion</a>
-                            </li>
-                        }
+
+             
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Articles" asp-action="Index">
+                                Gestion Articles
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Articles">
+                                Articles
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Quiz" asp-action="Index">
+                                Quiz
+                            </a>
+                        </li>
+               @*          <li class="nav-item">
+                            <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                                <button type="submit" class="nav-link btn btn-link">Déconnexion</button>
+                            </form>
+                        </li> *@
+
+                      
+             @*            <li class="nav-item">
+                            <a class="nav-link" asp-controller="Account" asp-action="Register">Inscription</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Account" asp-action="Login">Connexion</a>
+                        </li> *@
+                     
                     </ul>
                 </div>
             </div>
