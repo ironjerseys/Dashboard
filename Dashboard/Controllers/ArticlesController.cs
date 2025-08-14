@@ -33,7 +33,11 @@ public class ArticlesController : Controller
         return View(article);
     }
 
-    public IActionResult Create() => View();
+    public IActionResult Create()
+    {
+        return View();
+    } 
+
     [HttpPost]
     public async Task<IActionResult> Create(Article article)
     {

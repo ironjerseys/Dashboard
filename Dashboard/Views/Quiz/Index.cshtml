@@ -2,7 +2,6 @@
 @{
     ViewData["Title"] = "Quiz";
 }
-<link rel="stylesheet" href="~/css/quiz.css" asp-append-version="true" />
 
 <div class="container">
     <div class="item">
@@ -61,10 +60,6 @@
                 @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-primary mt-3">Suivant</button>
             </form>
-   @*          <form asp-action="Restart" method="post" class="d-inline">
-                @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-primary mt-3">Recommencer</button>
-            </form> *@
         }
     </div>
 </div>

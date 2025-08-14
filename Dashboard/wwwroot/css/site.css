@@ -35,3 +35,87 @@ body {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+.item {
+    opacity: 0;
+    transition: opacity 1s ease;
+    margin: 150px 0px;
+    padding: 30px;
+    background: rgba(60, 60, 60, .5);
+    border-radius: 20px;
+}
+
+/* Quand l'élément devient visible */
+.item.fade-in {
+    opacity: 1;
+}
+
+img {
+    width: 100%;
+}
+
+.removed {
+    color: red;
+}
+
+
+.technos span {
+    display: inline-block;
+    margin: 5px;
+    padding: 5px 10px;
+    font-size: 0.9rem;
+    border-radius: 5px;
+}
+
+.techno-csharp {
+    background-color: #823eb7;
+}
+
+.techno-javascript {
+    background-color: #f7df1e;
+    color: black;
+}
+
+.techno-dotnet {
+    background-color: #512bd4;
+}
+
+.techno-azure-devops {
+    background-color: #0078d7;
+}
+
+.techno-asp {
+    background-color: #0078d7;
+}
+
+.techno-cicd {
+    background-color: #4caf50;
+}
+
+.techno-sql-server {
+    background-color: #cc2927;
+}
+
+.techno-php {
+    background-color: #777bb4;
+}
+
+.techno-mysql {
+    background-color: #f29111;
+}
+
+.techno-python {
+    background-color: #3572a5;
+}
+
+.techno-vba {
+    background-color: #217346;
+}
+
+.techno-gitlab {
+    background-color: #f29111;
+}
+
+.techno-angular {
+    background-color: #F70746;
+}

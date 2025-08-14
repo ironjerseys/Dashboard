@@ -2,10 +2,11 @@
 @{
     ViewData["Title"] = "Websites";
 }
-<link rel="stylesheet" href="~/css/websites.css" asp-append-version="true" />
 
 <div class="container">
-    @{ var i = 0; }
+    @{
+        var i = 0;
+    }
     @foreach (var website in Model)
     {
         var isRemoved = string.IsNullOrWhiteSpace(website.Url);
@@ -29,22 +30,3 @@
         i++;
     }
 </div>
-
-@section Scripts {
-<script>
-  // Ajoute/retire la classe fade-in quand .item entre/sort du viewport
-  document.addEventListener('DOMContentLoaded', function () {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) entry.target.classList.add('fade-in');
-        else entry.target.classList.remove('fade-in');
-      });
-    }, { threshold: 0.3 });
-
-    document.querySelectorAll('.item').forEach((el, idx) => {
-      el.setAttribute('data-index', String(idx));
-      observer.observe(el);
-    });
-  });
-</script>
-}

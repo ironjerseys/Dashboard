@@ -26,10 +26,8 @@
     }
 }
 
-<link rel="stylesheet" href="~/css/cv.css" asp-append-version="true" />
 
 <div class="container">
-    @* Équivalent du *ngFor Angular *@
     @{
         var index = 0;
     }
@@ -50,25 +48,3 @@
         index++;
     }
 </div>
-
-@section Scripts {
-    <script>
-        // IntersectionObserver pour ajouter/retirer la classe fade-in
-        document.addEventListener('DOMContentLoaded', function () {
-          const observer = new IntersectionObserver((entries) => {
-            entries.forEach((entry) => {
-              if (entry.isIntersecting) {
-                entry.target.classList.add('fade-in');
-              } else {
-                entry.target.classList.remove('fade-in');
-              }
-            });
-          }, { threshold: 0.3 });
-
-          document.querySelectorAll('.item').forEach((el, i) => {
-            el.setAttribute('data-index', String(i));
-            observer.observe(el);
-          });
-        });
-    </script>
-}
