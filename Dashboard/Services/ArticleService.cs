@@ -25,7 +25,8 @@ public class ArticleService : IArticleService
 
     public async Task<IEnumerable<Article>> GetArticles()
     {
-        return await _db.Articles.Include(a => a.Author).OrderByDescending(a => a.DateCreation).ToListAsync();
+        var r = await _db.Articles.Include(a => a.Author).OrderByDescending(a => a.DateCreation).ToListAsync();
+        return r;
     }
 
     public async Task<Article> GetArticle(int id)

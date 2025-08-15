@@ -22,14 +22,14 @@ public class ArticlesController : Controller
     [AllowAnonymous]
     public async Task<IActionResult> Index()
     {
-        var articles = _articleService.GetArticles().Result;
+        var articles = await _articleService.GetArticles();
         return View(articles);
     }
 
     [AllowAnonymous]
     public async Task<IActionResult> Details(int id)
     {
-        var article = _articleService.GetArticle(id).Result;
+        var article = await _articleService.GetArticle(id);
         return View(article);
     }
 
