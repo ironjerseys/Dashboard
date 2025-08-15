@@ -26,6 +26,12 @@ public class ArticlesController : Controller
         return View(articles);
     }
 
+    public async Task<IActionResult> ArticlesManagement()
+    {
+        var articles = await _articleService.GetArticles();
+        return View("ArticlesManagement", articles);
+    }
+
     [AllowAnonymous]
     public async Task<IActionResult> Details(int id)
     {
