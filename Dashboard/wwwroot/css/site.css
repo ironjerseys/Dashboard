@@ -79,6 +79,31 @@ img {
     color: red;
 }
 
+/* Rendre l'arrière-plan du tableau et des cellules transparent */
+.table {
+    --bs-table-bg: transparent;
+    --bs-table-striped-bg: transparent; /* si tu as .table-striped */
+    --bs-table-hover-bg: rgba(255,255,255,0.08); /* optionnel, ou transparent */
+    background-color: transparent !important; /* pour l'élément <table> lui-même */
+}
+
+
+/* Les cellules reçoivent un background via Bootstrap : on force transparent */
+.table > :not(caption) > * > * {
+    background-color: transparent !important;
+}
+
+.form-control,
+.form-control:focus,
+textarea.form-control,
+.form-select,
+.form-select:focus {
+    color: inherit; /* ou #fff si fond sombre */
+    box-shadow: none; /* option: retire le glow bleu */
+    background: rgba(60, 60, 60, .5) !important;
+    border-radius: 20px;
+}
+
 
 .technos span {
     display: inline-block;
