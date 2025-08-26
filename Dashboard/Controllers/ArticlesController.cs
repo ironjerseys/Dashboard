@@ -47,7 +47,8 @@ public class ArticlesController : Controller
     [HttpPost]
     public async Task<IActionResult> Create(Article article)
     {
-        _articleService.CreateArticle(article);
+        if (!ModelState.IsValid) return View(article);
+        await _articleService.CreateArticle(article);
         return RedirectToAction(nameof(Index));
     }
 

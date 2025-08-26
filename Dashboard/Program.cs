@@ -18,9 +18,9 @@ Directory.CreateDirectory(dataDir);
 var dbPath = Path.Combine(dataDir, "blog.db");
 // ============================================
 
-// 1) DbContext SQLite + Identity
-builder.Services.AddDbContext<BlogContext>(opt =>
-    opt.UseSqlite($"Data Source={dbPath}"));
+// 1) 
+var cs = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContext<BlogContext>(opt => opt.UseSqlServer(cs));
 
 builder.Services
     .AddIdentity<IdentityUser, IdentityRole>(options => { })
