@@ -1,0 +1,31 @@
+﻿version: '3.4'
+
+services:
+  dashboard:
+    image: ${DOCKER_REGISTRY-}dashboard
+    build:
+      context: .
+      dockerfile: Dashboard/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sql,1433;Database=DashboardDb;User Id=sa;Password=YourStrong!Passw0rd;Encrypt=False;TrustServerCertificate=True
+    depends_on:
+      - sql
+    ports:
+      - "8080:8080"   # http://localhost:8080
+
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sql
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=YourStrong!Passw0rd   # ← change-le !
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"   # pour SSMS (tu peux l’enlever en prod)
+    volumes:
+      - mssql-data:/var/opt/mssql
+    restart: unless-stopped
+
+volumes:
+  mssql-data:
