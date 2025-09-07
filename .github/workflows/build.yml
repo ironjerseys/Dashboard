@@ -30,5 +30,3 @@ jobs:
             joris81/dashboard:latest
             joris81/dashboard:main
             joris81/dashboard:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
