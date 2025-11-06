@@ -1,0 +1,136 @@
+@model IEnumerable<Dashboard.Models.Goal>
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    ViewData["Title"] = "Objectifs";
+    int year = (int)ViewBag.Year;
+    int month = (int)ViewBag.Month;
+    var map = (Dictionary<DateOnly, bool>)ViewData["MonthMap"]!;
+}
+<h1>Objectifs</h1>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-year="@(month==1?year-1:year)" asp-route-month="@(month==1?12:month-1)">«</a>
+        <strong>@(new DateTime(year, month, 1).ToString("MMMM yyyy"))</strong>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-year="@(month==12?year+1:year)" asp-route-month="@(month==12?1:month+1)">»</a>
+    </div>
+</div>
+
+<div class="table-responsive mb-4">
+<table class="table table-bordered text-center align-middle" style="table-layout: fixed;">
+    <thead>
+        <tr>
+            <th>Lun</th><th>Mar</th><th>Mer</th><th>Jeu</th><th>Ven</th><th>Sam</th><th>Dim</th>
+        </tr>
+    </thead>
+    <tbody>
+        @{
+            var firstDay = new DateTime(year, month, 1);
+            var startCol = ((int)firstDay.DayOfWeek + 6) % 7; // Monday=0
+            var daysInMonth = DateTime.DaysInMonth(year, month);
+            var day = 1;
+        }
+        @for (var row = 0; row < 6 && day <= daysInMonth; row++)
+        {
+            <tr>
+                @for (var col = 0; col < 7; col++)
+                {
+                    if (row == 0 && col < startCol || day > daysInMonth)
+                    {
+                        <td class="bg-light"></td>
+                    }
+                    else
+                    {
+                        var date = new DateOnly(year, month, day);
+                        var met = map.TryGetValue(date, out var m) && m;
+                        var cls = met ? "bg-success-subtle" : "bg-danger-subtle";
+                        <td class="@cls">
+                            <div>@day</div>
+                        </td>
+                        day++;
+                    }
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+</div>
+
+<div class="row">
+    <div class="col-lg-7">
+        <h3>Mes objectifs du mois</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Semaine (lundi)</th>
+                    <th>Titre</th>
+                    <th>Article</th>
+                    <th>Fait</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var g in Model)
+                {
+                    <tr>
+                        <td>@g.WeekStart.ToString("yyyy-MM-dd")</td>
+                        <td>
+                            <div class="fw-bold">@g.Titre</div>
+                            <div>@g.Description</div>
+                        </td>
+                        <td>
+                            @if (g.ArticleId.HasValue)
+                            {
+                                <a asp-controller="Articles" asp-action="Details" asp-route-id="@g.ArticleId">Voir</a>
+                            }
+                        </td>
+                        <td>
+                            <form asp-action="ToggleDone" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@g.Id" />
+                                <button class="btn btn-sm @(g.IsDone ? "btn-success" : "btn-outline-secondary")" title="Basculer">
+                                    @(g.IsDone ? "Oui" : "Non")
+                                </button>
+                            </form>
+                        </td>
+                        <td>
+                            <form asp-action="UpdateArticle" method="post" class="d-flex gap-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@g.Id" />
+                                <select name="articleId" class="form-select form-select-sm" asp-items="(IEnumerable<SelectListItem>)ViewBag.Articles">
+                                    <option value="">-- Aucun --</option>
+                                </select>
+                                <button class="btn btn-sm btn-outline-primary">Lier</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="col-lg-5">
+        <h3>Nouvel objectif</h3>
+        <form asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+            <div class="mb-2">
+                <label class="form-label">Titre</label>
+                <input name="titre" class="form-control" required />
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control"></textarea>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Semaine (lundi)</label>
+                <input type="date" name="weekStart" class="form-control" value="@DateOnly.FromDateTime(DateTime.Now).ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Article (optionnel)</label>
+                <select name="articleId" class="form-select" asp-items="(IEnumerable<SelectListItem>)ViewBag.Articles">
+                    <option value="">-- Aucun --</option>
+                </select>
+            </div>
+            <button class="btn btn-primary">Créer</button>
+        </form>
+    </div>
+</div>

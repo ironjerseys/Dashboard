@@ -30,8 +30,8 @@ builder.Services
 // 2) Cookie auth
 builder.Services.ConfigureApplicationCookie(opts =>
 {
-    opts.LoginPath = "/Identity/Account/Login";
-    opts.AccessDeniedPath = "/Identity/Account/AccessDenied";
+    opts.LoginPath = "/Account/Login";
+    opts.AccessDeniedPath = "/Account/AccessDenied";
 });
 
 // 3) Authorization policies
@@ -51,6 +51,12 @@ builder.Services.AddAuthorization(options =>
 // Services
 builder.Services.AddScoped<IArticleService, ArticleService>();
 builder.Services.AddScoped<IQuizService, QuizService>();
+
+// Goals services
+builder.Services.AddScoped<IGoalService, GoalService>();
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.AddHostedService<GoalReminderService>();
 
 // 4) MVC + Session
 builder.Services.AddControllersWithViews();

@@ -1,6 +1,7 @@
 ﻿version: '3.4'
 
 services:
+
   dashboard:
     image: ${DOCKER_REGISTRY-}dashboard
     build:
@@ -25,7 +26,7 @@ services:
     ports:
       - "1433:1433"   # pour SSMS (tu peux l’enlever en prod)
     volumes:
-      - dashboard_mssql-data:/var/opt/mssql
+      - mssql-data:/var/opt/mssql
     restart: unless-stopped
 
 volumes:

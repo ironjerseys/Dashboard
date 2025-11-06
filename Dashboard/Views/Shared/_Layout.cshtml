@@ -26,7 +26,7 @@
                 </button>
 
                 <div class="collapse navbar-collapse" id="mainNavbar">
-                    <!-- Gauche : tes liens fixes -->
+                    <!-- Gauche : liens fixes -->
 
                     <ul class="navbar-nav me-auto mb-2 mb-sm-0">
                         <li class="nav-item">
@@ -40,17 +40,13 @@
                             </a>
                         </li>
                     </ul>
+
                     <ul class="navbar-nav ms-auto align-items-center">
                         @if (User.Identity?.IsAuthenticated ?? false)
                         {
                             <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Articles" asp-action="Index">
-                                    Articles
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Articles" asp-action="ArticlesManagement">
-                                    Gestion Articles
+                                <a class="nav-link" asp-area="" asp-controller="Goals" asp-action="Index">
+                                    Objectifs
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -58,19 +54,46 @@
                                     Quiz
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Account" asp-action="Register">Inscription</a>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Articles
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li>
+                                        <a class="dropdown-item" asp-area="" asp-controller="Articles" asp-action="Index">Articles</a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-area="" asp-controller="Articles" asp-action="ArticlesManagement">Gestion Articles</a>
+                                    </li>
+                                </ul>
                             </li>
+                        }
+
+                        <!-- Menu Connexion -->
+                        @if (!(User.Identity?.IsAuthenticated ?? false))
+                        {
+                            <!-- Non connecté: simple lien Connexion -->
                             <li class="nav-item">
-                                <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
-                                    <button type="submit" class="nav-link btn btn-link">Déconnexion</button>
-                                </form>
+                                <a class="nav-link text-white" asp-controller="Account" asp-action="Login">Connexion</a>
                             </li>
                         }
                         else
                         {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Account" asp-action="Login">Connexion</a>
+                            <!-- Connecté: dropdown avec Inscription + Déconnexion -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Connexion
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Account" asp-action="Register">Inscription</a>
+                                    </li>
+                                    <li>
+                                        <form asp-controller="Account" asp-action="Logout" method="post">
+                                            <button type="submit" class="dropdown-item">Déconnexion</button>
+                                        </form>
+                                    </li>
+                                </ul>
                             </li>
                         }
                     </ul>
