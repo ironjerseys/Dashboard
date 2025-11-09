@@ -62,7 +62,8 @@
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th>Semaine (lundi)</th>
+                    <th>Début</th>
+                    <th>Fin</th>
                     <th>Titre</th>
                     <th>Article</th>
                     <th>Fait</th>
@@ -73,7 +74,8 @@
                 @foreach (var g in Model)
                 {
                     <tr>
-                        <td>@g.WeekStart.ToString("yyyy-MM-dd")</td>
+                        <td>@g.Debut.ToString("yyyy-MM-dd")</td>
+                        <td>@g.Fin.ToString("yyyy-MM-dd")</td>
                         <td>
                             <div class="fw-bold">@g.Titre</div>
                             <div>@g.Description</div>
@@ -121,8 +123,12 @@
                 <textarea name="description" class="form-control"></textarea>
             </div>
             <div class="mb-2">
-                <label class="form-label">Semaine (lundi)</label>
-                <input type="date" name="weekStart" class="form-control" value="@DateOnly.FromDateTime(DateTime.Now).ToString("yyyy-MM-dd")" />
+                <label class="form-label">Début</label>
+                <input type="date" name="debut" class="form-control" value="@DateOnly.FromDateTime(DateTime.Now).ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Fin</label>
+                <input type="date" name="fin" class="form-control" value="@DateOnly.FromDateTime(DateTime.Now).AddDays(7).ToString("yyyy-MM-dd")" />
             </div>
             <div class="mb-2">
                 <label class="form-label">Article (optionnel)</label>

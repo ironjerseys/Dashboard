@@ -13,15 +13,18 @@ public class Goal
     [MaxLength(2000)]
     public string? Description { get; set; }
 
-    // Identifie la semaine (lundi) pour laquelle s'applique l'objectif
+    // Nouvelle période: Début et Fin (inclus)
     [DataType(DataType.Date)]
-    public DateOnly WeekStart { get; set; }
+    public DateOnly Debut { get; set; }
+
+    [DataType(DataType.Date)]
+    public DateOnly Fin { get; set; }
 
     // Lien optionnel vers un article (compte-rendu)
     public int? ArticleId { get; set; }
     public Article? Article { get; set; }
 
-    // Statut d'atteinte de l'objectif sur la semaine
+    // Statut d'atteinte de l'objectif sur la période
     public bool IsDone { get; set; }
 
     // Propriétaire

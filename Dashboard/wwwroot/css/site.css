@@ -79,7 +79,7 @@ img {
     color: red;
 }
 
-/* Rendre l'arrière-plan du tableau et des cellules transparent */
+/* Tableau global rendu transparent (sauf calendrier ciblé plus bas) */
 .table {
     --bs-table-bg: transparent;
     --bs-table-striped-bg: transparent; /* si tu as .table-striped */
@@ -93,6 +93,41 @@ img {
     background-color: transparent !important;
 }
 
+/* Exceptions pour le calendrier */
+.calendar.table > :not(caption) > * > * {
+    background-color: initial !important;
+}
+
+.calendar td.bg-danger {
+    background-color:#dc3545 !important;
+    color:#fff !important;
+}
+
+.calendar td.bg-success {
+    background-color:#198754 !important;
+    color:#fff !important;
+}
+
+.calendar td.bg-light {
+/*    background-color:#f8f9fa !important;
+*/    color:#000 !important;
+}
+
+/* En-tête calendrier transparent */
+.calendar .d-flex.bg-primary {
+    background: transparent !important;
+}
+
+/* Tbody calendrier transparent (bordures conservées) */
+.calendar table tbody {
+    background: transparent !important;
+}
+
+/* Todo list transparent */
+#todo-list {
+    background: transparent !important;
+}
+
 .form-control,
 .form-control:focus,
 textarea.form-control,
@@ -102,68 +137,6 @@ textarea.form-control,
     box-shadow: none; /* option: retire le glow bleu */
     background: rgba(60, 60, 60, .5) !important;
     border-radius: 20px;
-}
-
-
-.technos span {
-    display: inline-block;
-    margin: 5px;
-    padding: 5px 10px;
-    font-size: 0.9rem;
-    border-radius: 5px;
-}
-
-.techno-csharp {
-    background-color: #823eb7;
-}
-
-.techno-javascript {
-    background-color: #f7df1e;
-    color: black;
-}
-
-.techno-dotnet {
-    background-color: #512bd4;
-}
-
-.techno-azure-devops {
-    background-color: #0078d7;
-}
-
-.techno-asp {
-    background-color: #0078d7;
-}
-
-.techno-cicd {
-    background-color: #4caf50;
-}
-
-.techno-sql-server {
-    background-color: #cc2927;
-}
-
-.techno-php {
-    background-color: #777bb4;
-}
-
-.techno-mysql {
-    background-color: #f29111;
-}
-
-.techno-python {
-    background-color: #3572a5;
-}
-
-.techno-vba {
-    background-color: #217346;
-}
-
-.techno-gitlab {
-    background-color: #f29111;
-}
-
-.techno-angular {
-    background-color: #F70746;
 }
 
 

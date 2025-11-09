@@ -1,0 +1,9 @@
+@model Dashboard.Models.Todo
+@{
+    ViewData["Title"] = "Détail de la tâche";
+}
+<h1>@Model.Description</h1>
+<div class="mt-3">
+    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Éditer</a>
+    <a asp-controller="Dashboard" asp-action="Index" class="btn btn-secondary">Retour</a>
+</div>

@@ -51,14 +51,15 @@ builder.Services.AddAuthorization(options =>
 // Services
 builder.Services.AddScoped<IArticleService, ArticleService>();
 builder.Services.AddScoped<IQuizService, QuizService>();
-
-// Goals services
 builder.Services.AddScoped<IGoalService, GoalService>();
+builder.Services.AddScoped<ITodoService, TodoService>();
+
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.Configure<ReminderOptions>(builder.Configuration.GetSection("Reminder"));
 builder.Services.AddHostedService<GoalReminderService>();
 
-// 4) MVC + Session
+// 4) MVC + Session + API controllers
 builder.Services.AddControllersWithViews();
 builder.Services.AddSession();
 
@@ -82,15 +83,15 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+app.MapControllers();
 
-// 7) Migrations + seed rôles/admin (dans un try/catch pour éviter 500.30)
+// 7) Migrations + seed rôles/admin
 using (var scope = app.Services.CreateScope())
 {
     var sp = scope.ServiceProvider;
     var logger = sp.GetRequiredService<ILogger<Program>>();
     try
     {
-        // Applique/Crée le schéma dans D:\home\site\data\blog.db (Azure) ou App_Data/blog.db (local)
         var db = sp.GetRequiredService<BlogContext>();
         await db.Database.MigrateAsync();
 
@@ -114,7 +115,6 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         logger.LogError(ex, "Erreur au démarrage (migration/seed)");
-        // en prod, on log seulement pour éviter un crash 500.30
     }
 }
 
