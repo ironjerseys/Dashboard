@@ -1,4 +1,3 @@
-using Dashboard.Models;
 using Dashboard.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;

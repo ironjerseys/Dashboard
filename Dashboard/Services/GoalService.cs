@@ -1,5 +1,5 @@
 using Dashboard.Data;
-using Dashboard.Models;
+using Dashboard.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Dashboard.Services;

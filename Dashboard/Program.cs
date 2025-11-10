@@ -1,5 +1,5 @@
 using Dashboard.Data;
-using Dashboard.Models;
+using Dashboard.Entities;
 using Dashboard.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

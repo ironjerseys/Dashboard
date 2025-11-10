@@ -1,3 +1,4 @@
+using Dashboard.Entities;
 using Dashboard.Models;
 using Dashboard.Services;
 using Microsoft.AspNetCore.Authorization;

@@ -1,9 +1,9 @@
-using Dashboard.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Dashboard.Controllers;
 
+using Dashboard.Entities;
 using Services;
 
 [Authorize]

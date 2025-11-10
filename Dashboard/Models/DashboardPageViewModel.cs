@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Dashboard.Models;
+using Dashboard.Entities;
 
 namespace Dashboard.Models;
 

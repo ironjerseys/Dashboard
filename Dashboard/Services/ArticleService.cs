@@ -1,5 +1,6 @@
 namespace Dashboard.Services;
 
+using Dashboard.Entities;
 using Data;
 using Microsoft.EntityFrameworkCore;
 using Models;

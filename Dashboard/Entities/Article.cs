@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Dashboard.Models;
+namespace Dashboard.Entities;
 
 public class Article
 {

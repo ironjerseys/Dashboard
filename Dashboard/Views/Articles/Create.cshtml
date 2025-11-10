@@ -1,4 +1,4 @@
-@model Dashboard.Models.Article
+@model Article
 @{
     ViewData["Title"] = "Nouvel article";
 }
@@ -8,6 +8,7 @@
 
 <form asp-action="Create" class="mt-3">
     @using System.Security.Claims
+@using Dashboard.Entities
     <div class="mb-3">
         <label asp-for="Titre" class="form-label"></label>
         <input asp-for="Titre" class="form-control"/>
