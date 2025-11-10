@@ -24,6 +24,12 @@ public class AIChessLogs
     [MaxLength(16)] public string? BestMoveUci { get; set; } // ex: e2e4
     public int? BestScoreCp { get; set; }                    // score en centi-pions
 
+
+    public long GeneratedMovesTotal { get; set; }      // total coups générés (arbre)
+    public long NodesVisited { get; set; }             // nœuds visités
+    public long LeafEvaluations { get; set; }          // feuilles évaluées
+
+
     // Détails des évaluations par coup (JSON: [{ "moveUci":"e2e4", "scoreCp":34 }, ...])
     [Column(TypeName = "nvarchar(max)")]
     public string? EvaluatedMovesJson { get; set; }

@@ -30,7 +30,7 @@ public class AIChessLogsApiController : ControllerBase
         try
         {
             var id = await _svc.AddAsync(dto);
-            await Log("Info", "Stored", $"Log enregistré Id={id}");
+            await Log("Info", "Stored", $"Log Id={id}; Depth={dto.SearchDepth}; DurMs={dto.DurationMs}; Legal={dto.LegalMovesCount}; Eval={dto.EvaluatedMovesCount}; GenTotal={dto.GeneratedMovesTotal}; Nodes={dto.NodesVisited}; Leafs={dto.LeafEvaluations}; Best={dto.BestMoveUci}; Score={dto.BestScoreCp}");
             return Created($"/api/aichesslogs/{id}", new { id });
         }
         catch (Exception ex)
