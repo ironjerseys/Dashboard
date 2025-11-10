@@ -1,0 +1,39 @@
+@model IEnumerable<Dashboard.Entities.AIChessLogs>
+@{
+    ViewData["Title"] = "AIChessLogs";
+}
+<h1>AIChessLogs</h1>
+<p class="text-muted">Derniers logs (max 500)</p>
+<div class="table-responsive">
+<table class="table table-sm table-striped">
+    <thead>
+        <tr>
+            <th>UTC</th>
+            <th>Type</th>
+            <th>Depth</th>
+            <th>Dur (ms)</th>
+            <th>Legal</th>
+            <th>Eval</th>
+            <th>Best</th>
+            <th>Score (cp)</th>
+            <th>Evaluated JSON</th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var l in Model)
+    {
+        <tr>
+            <td>@l.TimestampUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+            <td>@l.Type</td>
+            <td>@l.SearchDepth</td>
+            <td>@l.DurationMs</td>
+            <td>@l.LegalMovesCount</td>
+            <td>@l.EvaluatedMovesCount</td>
+            <td>@l.BestMoveUci</td>
+            <td>@l.BestScoreCp</td>
+            <td><code class="small" style="white-space:pre-wrap;">@l.EvaluatedMovesJson</code></td>
+        </tr>
+    }
+    </tbody>
+</table>
+</div>

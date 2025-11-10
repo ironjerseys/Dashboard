@@ -1,6 +1,7 @@
 using Dashboard.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Dashboard.Entities; // updated namespace for Todo entity
 
 namespace Dashboard.Controllers;
 
@@ -27,7 +28,7 @@ public class TodosController : Controller
         {
             ModelState.AddModelError("Description", "La description est requise");
             var todo = await _svc.GetAsync(id);
-            return View(todo ?? new Models.Todo { Id = id, Description = description ?? string.Empty });
+            return View(todo ?? new Todo { Id = id, Description = description ?? string.Empty });
         }
         var ok = await _svc.UpdateAsync(id, description);
         if (!ok) return NotFound();

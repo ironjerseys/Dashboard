@@ -1,3 +1,4 @@
+using Dashboard.Models;
 using Dashboard.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -13,6 +14,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<Todo> Todos => Set<Todo>();
     public DbSet<LogEntry> Logs => Set<LogEntry>();
+    public DbSet<AIChessLogs> AIChessLogs => Set<AIChessLogs>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -25,7 +27,6 @@ public class BlogContext : IdentityDbContext<IdentityUser>
              .WithMany()
              .HasForeignKey(g => g.ArticleId)
              .OnDelete(DeleteBehavior.SetNull);
-            // Index adapté au nouveau modèle période
             e.HasIndex(g => new { g.OwnerId, g.Debut, g.Fin });
         });
 
@@ -34,6 +35,13 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             e.HasIndex(l => l.TimestampUtc);
             e.HasIndex(l => l.Level);
             e.HasIndex(l => l.Source);
+        });
+
+        builder.Entity<AIChessLogs>(e =>
+        {
+            e.HasIndex(x => x.TimestampUtc);
+            e.Property(x => x.Type).HasMaxLength(32);
+            e.Property(x => x.BestMoveUci).HasMaxLength(16);
         });
     }
 }
