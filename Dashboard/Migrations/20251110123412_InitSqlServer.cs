@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Dashboard.Migrations
 {
     /// <inheritdoc />
-    public partial class Init : Migration
+    public partial class InitSqlServer : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -51,21 +51,35 @@ namespace Dashboard.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Goals",
+                name: "Logs",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    Titre = table.Column<string>(type: "nvarchar(160)", maxLength: 160, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
-                    Kind = table.Column<int>(type: "int", nullable: false),
-                    Cible = table.Column<int>(type: "int", nullable: false),
-                    OwnerId = table.Column<string>(type: "nvarchar(450)", maxLength: 450, nullable: true),
-                    HeureRappelLocal = table.Column<int>(type: "int", nullable: true)
+                    TimestampUtc = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Level = table.Column<string>(type: "nvarchar(32)", maxLength: 32, nullable: false),
+                    Source = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: false),
+                    Event = table.Column<string>(type: "nvarchar(128)", maxLength: 128, nullable: true),
+                    Message = table.Column<string>(type: "nvarchar(2048)", maxLength: 2048, nullable: true),
+                    Data = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Exception = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Goals", x => x.Id);
+                    table.PrimaryKey("PK_Logs", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Todos",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Todos", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -196,32 +210,28 @@ namespace Dashboard.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "GoalLogs",
+                name: "Goals",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    GoalId = table.Column<int>(type: "int", nullable: false),
+                    Titre = table.Column<string>(type: "nvarchar(160)", maxLength: 160, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
+                    Debut = table.Column<DateOnly>(type: "date", nullable: false),
+                    Fin = table.Column<DateOnly>(type: "date", nullable: false),
                     ArticleId = table.Column<int>(type: "int", nullable: true),
-                    Date = table.Column<DateOnly>(type: "date", nullable: false),
-                    Valeur = table.Column<int>(type: "int", nullable: false),
-                    CompteRendu = table.Column<string>(type: "nvarchar(4000)", maxLength: 4000, nullable: true)
+                    IsDone = table.Column<bool>(type: "bit", nullable: false),
+                    OwnerId = table.Column<string>(type: "nvarchar(450)", maxLength: 450, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_GoalLogs", x => x.Id);
+                    table.PrimaryKey("PK_Goals", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_GoalLogs_Articles_ArticleId",
+                        name: "FK_Goals_Articles_ArticleId",
                         column: x => x.ArticleId,
                         principalTable: "Articles",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_GoalLogs_Goals_GoalId",
-                        column: x => x.GoalId,
-                        principalTable: "Goals",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
@@ -269,14 +279,29 @@ namespace Dashboard.Migrations
                 filter: "[NormalizedUserName] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_GoalLogs_ArticleId",
-                table: "GoalLogs",
+                name: "IX_Goals_ArticleId",
+                table: "Goals",
                 column: "ArticleId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_GoalLogs_GoalId_Date",
-                table: "GoalLogs",
-                columns: new[] { "GoalId", "Date" });
+                name: "IX_Goals_OwnerId_Debut_Fin",
+                table: "Goals",
+                columns: new[] { "OwnerId", "Debut", "Fin" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Logs_Level",
+                table: "Logs",
+                column: "Level");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Logs_Source",
+                table: "Logs",
+                column: "Source");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Logs_TimestampUtc",
+                table: "Logs",
+                column: "TimestampUtc");
         }
 
         /// <inheritdoc />
@@ -298,16 +323,19 @@ namespace Dashboard.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
-                name: "GoalLogs");
+                name: "Goals");
+
+            migrationBuilder.DropTable(
+                name: "Logs");
+
+            migrationBuilder.DropTable(
+                name: "Todos");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
                 name: "Articles");
-
-            migrationBuilder.DropTable(
-                name: "Goals");
 
             migrationBuilder.DropTable(
                 name: "AspNetUsers");
