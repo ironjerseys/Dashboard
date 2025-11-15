@@ -1,4 +1,4 @@
-using Dashboard.Models;
+ï»¿using Dashboard.Models;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 
@@ -26,34 +26,34 @@ public class HomeController : Controller
             {
                 new Experience
                 {
-                    Titre = "Développeur .NET",
+                    Titre = "DÃ©veloppeur .NET",
                     LogoEntreprise = string.Empty,
                     Entreprise = "Adentis",
                     Periode = "Mars 2024 - Maintenant",
-                    Description = "<p>J'ai travaillé comme développeur .NET pour le Crédit Agricole dans le cadre d'une refonte d'un grand nombre d'applications à réécrire en C# .NET 8.0</p>",
+                    Description = "<p>J'ai travaillÃ© comme dÃ©veloppeur .NET pour le CrÃ©dit Agricole dans le cadre d'une refonte d'un grand nombre d'applications Ã  rÃ©Ã©crire en C# .NET 8.0</p>",
                     Technos = new List<string>{ "C#", ".NET Core", "ASP.NET", "GitLab", "CI/CD", "SQL Server" }
                 },
                 new Experience
                 {
-                    Titre = "Développeur .NET",
+                    Titre = "DÃ©veloppeur .NET",
                     LogoEntreprise = string.Empty,
                     Entreprise = "Alten",
-                    Periode = "Octobre 2024 - Février 2024",
-                    Description = "<p>J'ai travaillé comme développeur .NET à la Direction des Systèmes d'Information pour Doxallia, filiale du Crédit Agricole, principalement sur une API C# .NET 8.0 avec une importante partie DevOps.</p><p>Pour la mise en production de l'API j'ai installé et configuré les serveurs IIS et créé la pipeline CI/CD Azure Devops Server. J'ai aussi participé à la sécurisation du SI, notamment dans le développement et la gestion des flux entre les serveurs de la plateforme sur laquelle je travaillais. Mon travail consistait aussi à maintenir les serveurs applicatifs et serveurs de bases de données de ma plateforme</p>",
+                    Periode = "Octobre 2024 - FÃ©vrier 2024",
+                    Description = "<p>J'ai travaillÃ© comme dÃ©veloppeur .NET Ã  la Direction des SystÃ¨mes d'Information pour Doxallia, filiale du CrÃ©dit Agricole, principalement sur une API C# .NET 8.0 avec une importante partie DevOps.</p><p>Pour la mise en production de l'API j'ai installÃ© et configurÃ© les serveurs IIS et crÃ©Ã© la pipeline CI/CD Azure Devops Server. J'ai aussi participÃ© Ã  la sÃ©curisation du SI, notamment dans le dÃ©veloppement et la gestion des flux entre les serveurs de la plateforme sur laquelle je travaillais. Mon travail consistait aussi Ã  maintenir les serveurs applicatifs et serveurs de bases de donnÃ©es de ma plateforme</p>",
                     Technos = new List<string>{ "C#", ".NET Core", "Azure DevOps", "CI/CD", "SQL Server" }
                 },
                 new Experience
                 {
-                    Titre = "Développeur .NET",
+                    Titre = "DÃ©veloppeur .NET",
                     LogoEntreprise = string.Empty,
                     Entreprise = "BPCE-IT",
                     Periode = "Septembre 2022 - Aout 2024",
-                    Description = "<p>J'ai travaillé en alternance chez BPCE-IT sur la refonte d’un logiciel pour le helpdesk, de .NET Framework 4.8 vers .NET Core 6.0 et la création d'une nouvelle architecture.</p><p>Le helpdesk BPCE-IT utilise ce logiciel pour effectuer des diagnostics, modifier les parametres de la machine distante, ouvrir un ticket avec des informations préremplies ou prendre la main à distance, et a besoin d'un logiciel à la fois fiable et rapide.</p><p>La codebase était ancienne avec beaucoup de code legacy, le logiciel était en .NET Framework 4.8 et était très buggé. J'ai développé la nouvelle version en .NET Core 6.0. J'ai aussi développé une API RESTful pour s'interfacer avec les bases de données suite à la fermeture des flux, liée à la sécurisation du SI.</p>",
+                    Description = "<p>J'ai travaillÃ© en alternance chez BPCE-IT sur la refonte dâ€™un logiciel pour le helpdesk, de .NET Framework 4.8 vers .NET Core 6.0 et la crÃ©ation d'une nouvelle architecture.</p><p>Le helpdesk BPCE-IT utilise ce logiciel pour effectuer des diagnostics, modifier les parametres de la machine distante, ouvrir un ticket avec des informations prÃ©remplies ou prendre la main Ã  distance, et a besoin d'un logiciel Ã  la fois fiable et rapide.</p><p>La codebase Ã©tait ancienne avec beaucoup de code legacy, le logiciel Ã©tait en .NET Framework 4.8 et Ã©tait trÃ¨s buggÃ©. J'ai dÃ©veloppÃ© la nouvelle version en .NET Core 6.0. J'ai aussi dÃ©veloppÃ© une API RESTful pour s'interfacer avec les bases de donnÃ©es suite Ã  la fermeture des flux, liÃ©e Ã  la sÃ©curisation du SI.</p>",
                     Technos = new List<string>{ "C#", ".NET Core", "SQL Server" }
                 },
                 new Experience
                 {
-                    Titre = "Master Ingénieur logiciel",
+                    Titre = "Master IngÃ©nieur logiciel",
                     LogoEntreprise = string.Empty,
                     Entreprise = "IPI Groupe IGS",
                     Periode = "Septembre 2022 - Aout 2024",
@@ -62,16 +62,16 @@ public class HomeController : Controller
                 },
                 new Experience
                 {
-                    Titre = "Développeur Fullstack",
+                    Titre = "DÃ©veloppeur Fullstack",
                     LogoEntreprise = string.Empty,
                     Entreprise = "CREA2F",
-                    Periode = "Juin 2021 - Décembre 2021",
-                    Description = "<p>J'ai travaillé en CDD chez CREA2F, une agence de communication spécialisée dans les solutions web, en tant que développeur Fullstack Javascript PHP pour créer des sites vitrines et des CMS.</p><p>J'ai eu l'opportunité de travailler sur plusieurs projets pour différents clients. Je gérais à la fois le développement frontend et backend, mais aussi la mise en production. J'ai travaillé avec du Javascript et du PHP.</p><p>Cette expérience a confirmé mon choix de devenir développeur et j'ai finalement décidé de développer mes compétences avec un Master Ingénieur Logiciel.</p>",
+                    Periode = "Juin 2021 - DÃ©cembre 2021",
+                    Description = "<p>J'ai travaillÃ© en CDD chez CREA2F, une agence de communication spÃ©cialisÃ©e dans les solutions web, en tant que dÃ©veloppeur Fullstack Javascript PHP pour crÃ©er des sites vitrines et des CMS.</p><p>J'ai eu l'opportunitÃ© de travailler sur plusieurs projets pour diffÃ©rents clients. Je gÃ©rais Ã  la fois le dÃ©veloppement frontend et backend, mais aussi la mise en production. J'ai travaillÃ© avec du Javascript et du PHP.</p><p>Cette expÃ©rience a confirmÃ© mon choix de devenir dÃ©veloppeur et j'ai finalement dÃ©cidÃ© de dÃ©velopper mes compÃ©tences avec un Master IngÃ©nieur Logiciel.</p>",
                     Technos = new List<string>{ "Angular", "PHP", "MySQL" }
                 },
                 new Experience
                 {
-                    Titre = "Bac +3 Développement Backend",
+                    Titre = "Bac +3 DÃ©veloppement Backend",
                     LogoEntreprise = string.Empty,
                     Entreprise = "Openclassrooms",
                     Periode = "Janvier 2020 - Aout 2022",
@@ -83,13 +83,13 @@ public class HomeController : Controller
                     Titre = "Analyste Restrictions d'Investissement",
                     LogoEntreprise = string.Empty,
                     Entreprise = "Caceis Luxembourg",
-                    Periode = "Janvier 2019 - Décembre 2020",
-                    Description = "<p>J'ai travaillé en tant qu'analyste en restrictions d'investissement chez CACEIS, une filiale du Crédit Agricole spécialisée dans les services aux investisseurs.</p><p>Mon rôle d'analyste en restrictions d'investissement consistait à monitorer des portefeuilles financiers grâce à un logiciel spécialisé. Quand des données étaient manquantes il fallait exporter les résultats sur Excel et refaire les calculs avec les nouvelles données. J'ai créé des macros VBA et des scripts Python pour automatiser ces calculs pour gagner du temps mais aussi de la fiabilité.</p><p>Ces automatisations m'ont permis de gagner du temps, ce qui m'a permis de passer plus de temps à programmer, et j'ai finalement décidé d'en faire un travail à temps plein et de devenir développeur.</p>",
+                    Periode = "Janvier 2019 - DÃ©cembre 2020",
+                    Description = "<p>J'ai travaillÃ© en tant qu'analyste en restrictions d'investissement chez CACEIS, une filiale du CrÃ©dit Agricole spÃ©cialisÃ©e dans les services aux investisseurs.</p><p>Mon rÃ´le d'analyste en restrictions d'investissement consistait Ã  monitorer des portefeuilles financiers grÃ¢ce Ã  un logiciel spÃ©cialisÃ©. Quand des donnÃ©es Ã©taient manquantes il fallait exporter les rÃ©sultats sur Excel et refaire les calculs avec les nouvelles donnÃ©es. J'ai crÃ©Ã© des macros VBA et des scripts Python pour automatiser ces calculs pour gagner du temps mais aussi de la fiabilitÃ©.</p><p>Ces automatisations m'ont permis de gagner du temps, ce qui m'a permis de passer plus de temps Ã  programmer, et j'ai finalement dÃ©cidÃ© d'en faire un travail Ã  temps plein et de devenir dÃ©veloppeur.</p>",
                     Technos = new List<string>{ "Python", "VBA" }
                 },
                 new Experience
                 {
-                    Titre = "Master Finance de marché - Trading",
+                    Titre = "Master Finance de marchÃ© - Trading",
                     LogoEntreprise = string.Empty,
                     Entreprise = "ESG Finance Paris",
                     Periode = "Septembre 2016 - Aout 2018",
@@ -108,22 +108,22 @@ public class HomeController : Controller
                 new Website
                 {
                     Name = "Chess Results Stats",
-                    DescriptionHtml = "<p>J'ai transformé Chess Results Stats Chess Multitool, une application mobile sur Google Play dans un premier temps, avec quelques features supplémentaires.</p><p>J'ai développé l'application avec .NET MAUI.</p><p>Mon but est de développer mes compétences en développement mobile pour savoir créér une app, la déployer sur un store d'applications, et la monétiser.</p>",
+                    DescriptionHtml = "<p>J'ai transformÃ© Chess Results Stats Chess Multitool, une application mobile sur Google Play dans un premier temps, avec quelques features supplÃ©mentaires.</p><p>J'ai dÃ©veloppÃ© l'application avec .NET MAUI.</p><p>Mon but est de dÃ©velopper mes compÃ©tences en dÃ©veloppement mobile pour savoir crÃ©Ã©r une app, la dÃ©ployer sur un store d'applications, et la monÃ©tiser.</p>",
                     Url = "https://play.google.com/store/apps/details?id=com.companyname.chessmultitool&hl=en",
                     Image = "chessmultitool.png"
                 },
                 new Website
                 {
                     Name = "Chess Results Stats - Non maintenu",
-                    DescriptionHtml = "<p>Chess Results Stats est un site pour analyser des données fournies par Chess.com, le site d'échec en ligne le plus utilisé dans le monde.</p><p>Il part d'un projet scolaire où je devais  manipuler des données avec LinQ, je l'ai donc réalisé en .NET et Angular, j'ai stocké le code sur GitHub et j'ai déployé le site sur Azure avec une pipeline CI/CD GitHub Actions.</p><p>J'ai profité de ce projet pour tester différentes stacks techniques, j'ai refait le projet avec la MERN stack, MongoDB Express React et Node.JS.</p><p>La première version consistait à exporter un fichier de Chess.com et l'uploader sur mon site, pour visualiser quelques résultats clés. Avec la deuxième version j'ai ajouté une base de donnée pour stocker les résultats, remplacé les quelques résultats clés par des graphs avec Chart.JS et remplacé le download/upload de fichier par un appel à l'API Ches.com.</p><p>J'ai ensuite réécris le site en Java / Angular, pour enfin revenir à .NET / Angular, et j'ai remplacé la base de donnée MongoDB par une base de donnée SQL Server hébergée sur Azure.</p>",
+                    DescriptionHtml = "<p>Chess Results Stats est un site pour analyser des donnÃ©es fournies par Chess.com, le site d'Ã©chec en ligne le plus utilisÃ© dans le monde.</p><p>Il part d'un projet scolaire oÃ¹ je devais  manipuler des donnÃ©es avec LinQ, je l'ai donc rÃ©alisÃ© en .NET et Angular, j'ai stockÃ© le code sur GitHub et j'ai dÃ©ployÃ© le site sur Azure avec une pipeline CI/CD GitHub Actions.</p><p>J'ai profitÃ© de ce projet pour tester diffÃ©rentes stacks techniques, j'ai refait le projet avec la MERN stack, MongoDB Express React et Node.JS.</p><p>La premiÃ¨re version consistait Ã  exporter un fichier de Chess.com et l'uploader sur mon site, pour visualiser quelques rÃ©sultats clÃ©s. Avec la deuxiÃ¨me version j'ai ajoutÃ© une base de donnÃ©e pour stocker les rÃ©sultats, remplacÃ© les quelques rÃ©sultats clÃ©s par des graphs avec Chart.JS et remplacÃ© le download/upload de fichier par un appel Ã  l'API Ches.com.</p><p>J'ai ensuite rÃ©Ã©cris le site en Java / Angular, pour enfin revenir Ã  .NET / Angular, et j'ai remplacÃ© la base de donnÃ©e MongoDB par une base de donnÃ©e SQL Server hÃ©bergÃ©e sur Azure.</p>",
                     Url = "https://chessresultsstats.com/",
                     Image = "chessresultsstats.png"
                 },
                 new Website
                 {
-                    Name = "Le site a été intégré à Chess Results Stats",
-                    DescriptionHtml = "<p>C'est quoi l'ouverture est un site permettant de visualiser les ouvertures les plus connues et quelques pièges d'ouverture. J'ai développé le site en Python avec Django, un framework que je voulais découvrir depuis longtemps, et une base de données PostgreSQL.</p><p>Le code est sur GitHub et le site est déployé sur Azure avec une pipeline CI/CD GitHub Actions.</p>",
-                    Url = "", // vide = retiré
+                    Name = "Le site a Ã©tÃ© intÃ©grÃ© Ã  Chess Results Stats",
+                    DescriptionHtml = "<p>C'est quoi l'ouverture est un site permettant de visualiser les ouvertures les plus connues et quelques piÃ¨ges d'ouverture. J'ai dÃ©veloppÃ© le site en Python avec Django, un framework que je voulais dÃ©couvrir depuis longtemps, et une base de donnÃ©es PostgreSQL.</p><p>Le code est sur GitHub et le site est dÃ©ployÃ© sur Azure avec une pipeline CI/CD GitHub Actions.</p>",
+                    Url = "", // vide = retirÃ©
                     Image = "cestquoilouverture.png"
                 }
             };
