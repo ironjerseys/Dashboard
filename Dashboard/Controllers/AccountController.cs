@@ -33,7 +33,7 @@ public class AccountController : Controller
         }
 
         await _signInMgr.SignInAsync(user, isPersistent: false);
-        return RedirectToAction("Index", "Home");
+        return RedirectToAction("Index", "Dashboard");
     }
 
     [HttpGet]
@@ -49,7 +49,7 @@ public class AccountController : Controller
             vm.Email, vm.Password, vm.RememberMe, lockoutOnFailure: false
         );
         if (res.Succeeded)
-            return Redirect(vm.ReturnUrl ?? Url.Action("Index", "Home")!);
+            return Redirect(vm.ReturnUrl ?? Url.Action("Index", "Dashboard")!);
 
         ModelState.AddModelError("", "Identifiants invalides");
         return View(vm);

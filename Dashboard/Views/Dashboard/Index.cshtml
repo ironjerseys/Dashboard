@@ -62,11 +62,9 @@
             <ul id="todo-list" class="list-group">
                 @foreach (var t in Model.Todos)
                 {
-                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent" data-id="@t.Id">
+                    <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent todo-item" data-id="@t.Id" style="cursor:pointer">
                         <span style="color: white">@t.Description</span>
-                  
                         <div class="btn-group btn-group-sm">
-                            <a class="btn btn-outline-secondary" asp-controller="Todos" asp-action="Details" asp-route-id="@t.Id">Ouvrir</a>
                             <a class="btn btn-outline-secondary" asp-controller="Todos" asp-action="Edit" asp-route-id="@t.Id">✎</a>
                             <button class="btn btn-outline-danger del-btn" type="button">×</button>
                         </div>
@@ -194,28 +192,31 @@
    listEl.innerHTML = '';
    for(const t of data){
      const li = document.createElement('li');
-     li.className='list-group-item d-flex justify-content-between align-items-center';
+     li.className='list-group-item d-flex justify-content-between align-items-center bg-transparent todo-item';
+     li.style.cursor='pointer';
      li.dataset.id = t.id;
-     li.innerHTML = `<span>${t.description}</span>`+
-                    `<div class='btn-group btn-group-sm'>`+
-                    `<a class='btn btn-outline-secondary' href='/Todos/Details/${t.id}'>Ouvrir</a>`+
-                    `<a class='btn btn-outline-secondary' href='/Todos/Edit/${t.id}'>✎</a>`+
-                    `<button class='btn btn-outline-danger del-btn' type='button'>×</button>`+
+     li.innerHTML = `<span>${t.description}</span>` +
+                    `<div class='btn-group btn-group-sm'>` +
+                    `<a class='btn btn-outline-secondary' href='/Todos/Edit/${t.id}'>✎</a>` +
+                    `<button class='btn btn-outline-danger del-btn' type='button'>×</button>` +
                     `</div>`;
      listEl.appendChild(li);
    }
  }
  listEl.addEventListener('click', async e => {
-   const btn = e.target.closest('button');
-   if(!btn) return;
-   const li = btn.closest('li');
+   const delBtn = e.target.closest('button.del-btn');
+   const li = e.target.closest('li.todo-item');
+   if(!li) return;
    const id = li.dataset.id;
-   if(btn.classList.contains('del-btn')){
+   if(delBtn){
      const ok = confirm('Supprimer ?');
      if(!ok) return;
      const res = await fetch(`${api}/${id}`, { method:'DELETE' });
      if(res.status===204) li.remove();
+     return;
    }
+   // Cliquer sur la ligne ouvre les détails
+   window.location = `/Todos/Details/${id}`;
  });
 })();
 </script>

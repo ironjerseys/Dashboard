@@ -7,9 +7,9 @@ a.navbar-brand {
   word-break: break-all;
 }
 
-a {
-  color: #0077cc;
-}
+/* Ne pas forcer la couleur des liens de la navbar pour garder le gris */
+/* Ancien: a { color:#0077cc; } -> restreint hors navbar */
+main a, .container a { color: #0077cc; }
 
 .btn-primary {
   color: #fff;
@@ -21,6 +21,14 @@ a {
   color: #fff;
   background-color: #1b6ec2;
   border-color: #1861ac;
+}
+
+/* Forcer couleur grise uniforme sur dropdown toggles */
+.navbar .nav-link, .navbar .dropdown-toggle {
+  color: rgba(255,255,255,.65) !important;
+}
+.navbar .nav-link:hover, .navbar .dropdown-toggle:hover {
+  color: #fff !important;
 }
 
 .border-top {

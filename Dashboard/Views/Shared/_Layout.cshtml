@@ -34,14 +34,20 @@
                         {
                             <li class="nav-item"><a class="nav-link" asp-controller="Dashboard" asp-action="Index">Dashboard</a></li>
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Articles</a>
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Articles</a>
                                 <ul class="dropdown-menu">
                                     <li><a class="dropdown-item" asp-controller="Articles" asp-action="Index">Articles</a></li>
                                     <li><a class="dropdown-item" asp-controller="Articles" asp-action="ArticlesManagement">Gestion Articles</a></li>
                                 </ul>
                             </li>
-                            <li class="nav-item"><a class="nav-link" asp-controller="Quiz" asp-action="Index">Quiz</a></li>
-                            <li class="nav-item"><a class="nav-link" asp-controller="AIChessLogs" asp-action="Index">AIChessLogs</a></li>
+                            <!-- Autre dropdown regroupe Quiz et AIChessLogs -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Autre</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" asp-controller="Quiz" asp-action="Index">Quiz</a></li>
+                                    <li><a class="dropdown-item" asp-controller="AIChessLogs" asp-action="Index">AIChessLogs</a></li>
+                                </ul>
+                            </li>
                         }
 
 
@@ -52,7 +58,7 @@
                         else
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Connexion</a>
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Connexion</a>
                                 <ul class="dropdown-menu dropdown-menu-end">
                                     <li><a class="dropdown-item" asp-controller="Account" asp-action="Register">Inscription</a></li>
                                     <li>
