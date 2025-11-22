@@ -17,7 +17,7 @@
 
     <div class="mb-3">
         <label asp-for="Contenu" class="form-label"></label>
-        <textarea asp-for="Contenu" rows="8" class="form-control"></textarea>
+        <textarea asp-for="Contenu" rows="8" class="form-control" id="Contenu"></textarea>
         <span asp-validation-for="Contenu" class="text-danger"></span>
     </div>
 
@@ -27,4 +27,32 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.js"></script>
+    <script>
+        $(function () {
+            $('#Contenu').summernote({
+                placeholder: 'Écrivez votre article...',
+                height: 300,
+                dialogsInBody: true,
+                styleTags: ['p', 'h2', 'h3', 'blockquote', 'pre'],
+                toolbar: [
+                    ['style', ['style']],
+                    ['font', ['bold', 'italic', 'underline', 'clear']],
+                    ['fontname', ['fontname']],
+                    ['fontsize', ['fontsize']],
+                    ['color', ['color']],
+                    ['para', ['ul', 'ol', 'paragraph']],
+                    ['insert', ['link']],
+                    ['view', ['codeview']]
+                ],
+                fontNames: ['Arial', 'Arial Black', 'Courier New', 'Roboto', 'Times New Roman'],
+                fontSizes: ['8', '10', '12', '14', '16', '18', '20', '24', '28', '32', '36'],
+                popover: {
+                    link: [ ['link', ['linkDialogShow', 'unlink']] ],
+                    air: [ ['font', ['bold', 'italic', 'underline']], ['color', ['color']] ]
+                }
+            });
+        });
+    </script>
 }

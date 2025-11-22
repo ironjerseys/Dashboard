@@ -146,3 +146,15 @@ textarea.form-control,
 }
 
 
+/* Bold visible dans l’éditeur Summernote */
+.note-editor .note-editable b,
+.note-editor .note-editable strong {
+    font-weight: 700 !important;
+}
+
+/* Bold visible côté rendu article (optionnel) */
+.article-content b,
+.article-content strong {
+    font-weight: 700;
+}
+

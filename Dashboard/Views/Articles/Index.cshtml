@@ -29,18 +29,18 @@
                 <!-- Colonne de la grille -->
                 <div class="col">
                     <!-- Card Bootstrap avec bordure primaire et margin-bottom -->
-                    <div class="card border-primary mb-3">
+                    <div class="card border-primary mb-3 h-100 d-flex flex-column">
                         <!-- Corps de la card (padding interne) -->
                         <div class="card-body">
                             <!-- Titre de l'article -->
                             <h5 class="card-title">@article.Titre</h5>
-                            <!-- Extrait du contenu limité à 120 caractères -->
-                            <p class="card-text">
-                                @article.Contenu.Substring(0, Math.Min(article.Contenu.Length, 120))…
+                            <!-- Extrait du contenu limité à 120 caractères avec rendu HTML nettoyé -->
+                            <p class="card-text small">
+                                @Html.Raw(TruncateHtml(article.Contenu, 120))
                             </p>
                         </div>
                         <!-- Pied de la card aligné à droite -->
-                        <div class="card-footer text-end">
+                        <div class="card-footer text-end mt-auto">
                             <!-- Lien vers la page de détail de l'article -->
                             <a asp-controller="Articles" asp-action="Details" asp-route-id="@article.Id"
                                class="btn btn-sm btn-outline-primary">Lire</a>
@@ -51,3 +51,28 @@
         </div>
     }
 </div>
+
+@functions {
+    // Troncature simple: coupe le HTML mais conserve balises basiques <b><strong><i><em><u>
+    private static string TruncateHtml(string html, int maxChars)
+    {
+        if (string.IsNullOrEmpty(html)) return string.Empty;
+        // Retirer scripts/styles potentiels
+        // (Summernote peut générer des <p>, <b>, <i>, <u>, <strong>, <em>, <br>)
+        var safe = html.Replace("<script", "&lt;script")
+                       .Replace("</script>", "&lt;/script&gt;");
+        int count = 0;
+        var sb = new System.Text.StringBuilder();
+        bool insideTag = false;
+        for (int i = 0; i < safe.Length && count < maxChars; i++)
+        {
+            char c = safe[i];
+            if (c == '<') insideTag = true;
+            if (!insideTag) count++;
+            sb.Append(c);
+            if (c == '>') insideTag = false;
+        }
+        if (count >= maxChars) sb.Append("…");
+        return sb.ToString();
+    }
+}
