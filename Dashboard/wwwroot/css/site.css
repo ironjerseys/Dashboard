@@ -158,3 +158,9 @@ textarea.form-control,
     font-weight: 700;
 }
 
+.card {
+    padding: 30px;
+    background: rgba(60, 60, 60, .5);
+    border-radius: 20px;
+    color: white;
+}

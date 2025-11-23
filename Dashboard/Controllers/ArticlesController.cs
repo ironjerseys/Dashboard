@@ -54,7 +54,7 @@ public class ArticlesController : Controller
 
     public async Task<IActionResult> Edit(int id)
     {
-        Article article = _articleService.GetArticle(id).Result;
+        var article = await _articleService.GetArticle(id);
         return View(article);
     }
 
@@ -64,14 +64,14 @@ public class ArticlesController : Controller
     {
         if (id != article.Id) return NotFound();
         if (!ModelState.IsValid) return View(article);
-        _articleService.UpdateArticle(article);
+        await _articleService.UpdateArticle(article); // await pour garantir la sauvegarde
         return RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
     public async Task<IActionResult> Delete(int id)
     {
-        Article article = _articleService.GetArticle(id).Result;
+        var article = await _articleService.GetArticle(id);
         if (article == null) return NotFound();
         return View(article);
     }
