@@ -17,6 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="icon" type="icon/png" sizes="32x32" href="@Url.Content("~/icon.png")">
     @RenderSection("Styles", required: false)
 </head>
@@ -38,8 +39,10 @@
 
                     <!-- Liens droite -->
                     <ul class="navbar-nav ms-auto align-items-center">
-                        <li class="nav-item me-2">
-                            <button type="button" class="btn btn-sm btn-outline-light" id="themeToggleBtn">Basculer style</button>
+                        <li class="nav-item me-2">                           
+                            <a href="#" class="nav-link d-flex align-items-center" id="themeToggleBtn" title="Basculer le style" aria-label="Basculer le style">
+                                <i id="themeIcon" class="bi bi-circle-half fs-5"></i>
+                            </a>
                         </li>
                         @if (User.Identity?.IsAuthenticated ?? false)
                         {
@@ -108,7 +111,8 @@
           }
           const saved = localStorage.getItem(KEY) || 'dark';
           applyTheme(saved);
-          btn.addEventListener('click', function(){
+          btn.addEventListener('click', function(e){
+            e.preventDefault();
             const cur = body.classList.contains('theme-light') ? 'light' : 'dark';
             const nxt = cur === 'light' ? 'dark' : 'light';
             localStorage.setItem(KEY, nxt);
