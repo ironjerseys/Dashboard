@@ -7,7 +7,7 @@
     ViewData["Title"] = "Articles";
 }
 
-<div class="container mt-5">
+<div class="container mt-5 article-page article-list">
 
     <!-- Titre principal de la page avec margin-bottom -->
     <h1 class="mb-5">Derniers articles</h1>
@@ -25,21 +25,21 @@
                 <!-- Colonne de la grille -->
                 <div class="col">
                     <!-- Card Bootstrap avec bordure primaire et margin-bottom -->
-                    <div class="border-primary mb-3 h-100 d-flex flex-column card">
+                    <div class="card border-primary mb-3 h-100 d-flex flex-column article-card">
                         <!-- Corps de la card (padding interne) -->
-         
+                        <div class="card-body">
                             <!-- Titre de l'article -->
                             <h5 class="card-title">@article.Titre</h5>
                             <!-- Extrait du contenu limité à 120 caractères avec rendu HTML nettoyé -->
-                            <p class="card-text small">
+                            <div class="card-text small excerpt">
                                 @Html.Raw(TruncateHtml(article.Contenu, 120))
-                            </p>
-                     
+                            </div>
+                        </div>
                         <!-- Pied de la card aligné à droite -->
                         <div class="card-footer text-end mt-auto">
                             <!-- Lien vers la page de détail de l'article -->
                             <a asp-controller="Articles" asp-action="Details" asp-route-id="@article.Id"
-                               class="btn btn-sm btn-outline-secondary" style="color: white">Lire</a>
+                               class="btn btn-sm btn-outline-secondary">Lire</a>
                         </div>
                     </div>
                 </div>
@@ -74,3 +74,4 @@
         return sb.ToString();
     }
 }
+

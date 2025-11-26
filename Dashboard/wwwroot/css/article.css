@@ -1,0 +1,30 @@
+﻿/* Styles spécifiques aux pages Articles */
+.article-page {
+  background: #ffffffcc;
+  padding: 2rem;
+  border-radius: 20px;
+}
+
+/* Fond blanc pour body des pages Articles */
+.articles-body {
+  background: #fff !important;
+  color: #222 !important;
+  background-image: none !important;
+}
+
+.article-card, .article-content.card, .article-list .card {
+  background: #fff !important;
+  color: #222 !important;
+  border: 1px solid rgba(0,0,0,.15);
+  border-radius: 12px;
+}
+
+.article-card .card-title { font-weight: 700; }
+.article-card .excerpt b, .article-card .excerpt strong { font-weight: 700; }
+.article-content b, .article-content strong { font-weight: 700; }
+
+.article-card a.btn-outline-secondary { border-color:#666; }
+
+.note-editor.note-frame .note-editing-area .note-editable {
+  background:#fff; color:#222;
+}
