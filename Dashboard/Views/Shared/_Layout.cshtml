@@ -3,7 +3,7 @@
 
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -20,11 +20,7 @@
     <link rel="icon" type="icon/png" sizes="32x32" href="@Url.Content("~/icon.png")">
     @RenderSection("Styles", required: false)
 </head>
-@{
-    var ctrl = ViewContext.RouteData.Values["Controller"]?.ToString();
-    var bodyClass = ctrl == "Articles" ? "articles-body" : string.Empty;
-}
-<body class="@bodyClass">
+<body class="" id="app-body">
     <header>
         <nav class="navbar navbar-expand-lg bg-primary" data-bs-theme="dark">
             <div class="container-fluid">
@@ -42,6 +38,9 @@
 
                     <!-- Liens droite -->
                     <ul class="navbar-nav ms-auto align-items-center">
+                        <li class="nav-item me-2">
+                            <button type="button" class="btn btn-sm btn-outline-light" id="themeToggleBtn">Basculer style</button>
+                        </li>
                         @if (User.Identity?.IsAuthenticated ?? false)
                         {
                             <li class="nav-item"><a class="nav-link" asp-controller="Dashboard" asp-action="Index">Dashboard</a></li>
@@ -95,6 +94,28 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        (function(){
+          const body = document.getElementById('app-body');
+          const btn = document.getElementById('themeToggleBtn');
+          const KEY = 'app-theme'; // 'dark' or 'light'
+          function applyTheme(val){
+            if(val === 'light'){
+              body.classList.add('theme-light');
+            } else {
+              body.classList.remove('theme-light');
+            }
+          }
+          const saved = localStorage.getItem(KEY) || 'dark';
+          applyTheme(saved);
+          btn.addEventListener('click', function(){
+            const cur = body.classList.contains('theme-light') ? 'light' : 'dark';
+            const nxt = cur === 'light' ? 'dark' : 'light';
+            localStorage.setItem(KEY, nxt);
+            applyTheme(nxt);
+          });
+        })();
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

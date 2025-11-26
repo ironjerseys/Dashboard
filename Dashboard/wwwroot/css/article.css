@@ -1,30 +1,37 @@
 ﻿/* Styles spécifiques aux pages Articles */
 .article-page {
-  background: #ffffffcc;
+  /* pas de fond, on garde seulement l’espacement */
+  background: transparent;
   padding: 2rem;
   border-radius: 20px;
 }
 
-/* Fond blanc pour body des pages Articles */
-.articles-body {
+/* Thème clair global (fond blanc, texte sombre) */
+.theme-light {
   background: #fff !important;
   color: #222 !important;
   background-image: none !important;
 }
+.theme-light h1, .theme-light .h1,
+.theme-light h2, .theme-light .h2,
+.theme-light h3, .theme-light .h3 { color:#000 !important; }
+/* Navbar noire en thème clair */
+.theme-light .navbar { background-color:#000 !important; }
 
-.article-card, .article-content.card, .article-list .card {
-  background: #fff !important;
-  color: #222 !important;
-  border: 1px solid rgba(0,0,0,.15);
-  border-radius: 12px;
+/* Cartes d’articles: même design que .item (CV), sans animation */
+.article-card, .article-list .card {
+  background: rgba(60, 60, 60, .5) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 20px;
 }
-
 .article-card .card-title { font-weight: 700; }
 .article-card .excerpt b, .article-card .excerpt strong { font-weight: 700; }
 .article-content b, .article-content strong { font-weight: 700; }
 
-.article-card a.btn-outline-secondary { border-color:#666; }
+/* Bouton lire en contraste sur carte sombre */
+.article-card .btn-outline-secondary { color:#fff; border-color:#bbb; }
+.article-card .btn-outline-secondary:hover { background:#fff; color:#000; }
 
-.note-editor.note-frame .note-editing-area .note-editable {
-  background:#fff; color:#222;
-}
+/* Summernote zone dans thème sombre: forcer fond clair pour contraste lors d’édition */
+.note-editor.note-frame .note-editing-area .note-editable { background:#fff; color:#222; }
