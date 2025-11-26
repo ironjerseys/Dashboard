@@ -18,20 +18,42 @@
 /* Navbar noire en thème clair */
 .theme-light .navbar { background-color:#000 !important; }
 
-/* Cartes d’articles: même design que .item (CV), sans animation */
+/* Cartes d’articles par défaut (thème sombre) : même design que .item (CV), sans animation */
 .article-card, .article-list .card {
   background: rgba(60, 60, 60, .5) !important;
   color: #fff !important;
   border: none;
   border-radius: 20px;
 }
+
+/* Thème clair pour les articles: texte noir, pas de background, bordure grise */
+.theme-light .article-card,
+.theme-light .article-list .card {
+  background: transparent !important;
+  color: #222 !important;
+  border: 1px solid #ced4da !important; /* gris Bootstrap */
+  border-radius: 12px;
+}
+.theme-light .article-card .card-footer { 
+  background: transparent !important; 
+/*  border-top: 1px solid #ced4da !important; 
+*/}
+.theme-light .article-content.card {
+  background: transparent !important;
+  color: #222 !important;
+  border: 1px solid #ced4da !important;
+}
+
 .article-card .card-title { font-weight: 700; }
 .article-card .excerpt b, .article-card .excerpt strong { font-weight: 700; }
 .article-content b, .article-content strong { font-weight: 700; }
 
-/* Bouton lire en contraste sur carte sombre */
+/* Bouton lire */
 .article-card .btn-outline-secondary { color:#fff; border-color:#bbb; }
 .article-card .btn-outline-secondary:hover { background:#fff; color:#000; }
+/* En thème clair sur cartes transparentes */
+.theme-light .article-card .btn-outline-secondary { color:#222; border-color:#6c757d; }
+.theme-light .article-card .btn-outline-secondary:hover { background:#6c757d; color:#fff; }
 
 /* Summernote zone dans thème sombre: forcer fond clair pour contraste lors d’édition */
 .note-editor.note-frame .note-editing-area .note-editable { background:#fff; color:#222; }
