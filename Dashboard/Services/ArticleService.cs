@@ -4,6 +4,7 @@ using Dashboard.Entities;
 using Data;
 using Microsoft.EntityFrameworkCore;
 using Models;
+using Ganss.Xss; // HtmlSanitizer
 
 public interface IArticleService
 {
@@ -16,12 +17,18 @@ public interface IArticleService
 
 public class ArticleService : IArticleService
 {
-
     private readonly BlogContext _db;
+    private readonly HtmlSanitizer _sanitizer;
 
     public ArticleService(BlogContext db)
     {
         _db = db;
+        _sanitizer = new HtmlSanitizer();
+        // Ajouter les tags nécessaires en plus de ceux par défaut (AllowedTags est read-only)
+        foreach(var t in new [] { "code", "pre", "span", "table", "thead", "tbody", "tr", "th", "td", "h2", "h3", "h4" })
+            _sanitizer.AllowedTags.Add(t);
+        _sanitizer.AllowDataAttributes = false;
+        _sanitizer.AllowedAttributes.Add("style");
     }
 
     public async Task<IEnumerable<Article>> GetArticles()
@@ -32,18 +39,19 @@ public class ArticleService : IArticleService
 
     public async Task<Article> GetArticle(int id)
     {
-        return await _db.Articles.FindAsync(id);
+        return await _db.Articles.FindAsync(id) ?? new Article();
     }
 
-    // Creat article
     public async Task CreateArticle(Article article)
     {
+        article.Contenu = _sanitizer.Sanitize(article.Contenu);
         _db.Articles.Add(article);
         await _db.SaveChangesAsync();
     }
 
     public async Task UpdateArticle(Article article)
     {
+        article.Contenu = _sanitizer.Sanitize(article.Contenu);
         _db.Articles.Update(article);
         await _db.SaveChangesAsync();
     }

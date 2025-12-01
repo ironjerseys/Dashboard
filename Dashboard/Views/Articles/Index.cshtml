@@ -1,5 +1,6 @@
 ﻿@using Dashboard.Entities
 @using Dashboard.Models
+@using System.Text.RegularExpressions
 
 @model IEnumerable<Article>
 
@@ -32,7 +33,7 @@
                             <h5 class="card-title">@article.Titre</h5>
                             <!-- Extrait du contenu limité à 120 caractères avec rendu HTML nettoyé -->
                             <div class="card-text small excerpt">
-                                @Html.Raw(TruncateHtml(article.Contenu, 120))
+                                @PlainExcerpt(article.Contenu, 160)
                             </div>
                         </div>
                         <!-- Pied de la card aligné à droite -->
@@ -51,27 +52,12 @@
 </div>
 
 @functions {
-    // Troncature simple: coupe le HTML mais conserve balises basiques <b><strong><i><em><u>
-    private static string TruncateHtml(string html, int maxChars)
+    private static string PlainExcerpt(string html, int maxChars)
     {
         if (string.IsNullOrEmpty(html)) return string.Empty;
-        // Retirer scripts/styles potentiels
-        // (Summernote peut générer des <p>, <b>, <i>, <u>, <strong>, <em>, <br>)
-        var safe = html.Replace("<script", "&lt;script")
-                       .Replace("</script>", "&lt;/script&gt;");
-        int count = 0;
-        var sb = new System.Text.StringBuilder();
-        bool insideTag = false;
-        for (int i = 0; i < safe.Length && count < maxChars; i++)
-        {
-            char c = safe[i];
-            if (c == '<') insideTag = true;
-            if (!insideTag) count++;
-            sb.Append(c);
-            if (c == '>') insideTag = false;
-        }
-        if (count >= maxChars) sb.Append("…");
-        return sb.ToString();
+        var text = Regex.Replace(html, "<.*?>", " ");
+        text = Regex.Replace(text, @"\s+", " ").Trim();
+        return text.Length <= maxChars ? text : text.Substring(0, maxChars).Trim() + "…";
     }
 }
 
