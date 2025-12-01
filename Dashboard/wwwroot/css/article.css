@@ -55,5 +55,13 @@
 .theme-light .article-card .btn-outline-secondary { color:#222; border-color:#6c757d; }
 .theme-light .article-card .btn-outline-secondary:hover { background:#6c757d; color:#fff; }
 
+/* Images: taille naturelle (ne pas forcer 100% comme dans site.css) */
+.article-content img,
+.note-editor .note-editable img {
+  width: auto !important;
+  height: auto;
+  max-width: 100%; /* réduire si trop large */
+}
+
 /* Summernote zone dans thème sombre: forcer fond clair pour contraste lors d’édition */
 .note-editor.note-frame .note-editing-area .note-editable { background:#fff; color:#222; }

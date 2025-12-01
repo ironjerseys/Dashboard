@@ -33,7 +33,8 @@
     <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote-bs5.min.js"></script>
     <script>
         $(function () {
-            $('#Contenu').summernote({
+            const $ed = $('#Contenu');
+            $ed.summernote({
                 placeholder: 'Écrivez votre article...',
                 height: 300,
                 dialogsInBody: true,
@@ -49,11 +50,40 @@
                     ['view', ['codeview']]
                 ],
                 fontNames: ['Arial', 'Arial Black', 'Courier New', 'Roboto', 'Times New Roman'],
-                fontSizes: ['8', '10', '12', '14', '16', '18', '20', '24', '28', '32', '36'],
-                popover: {
-                    link: [ ['link', ['linkDialogShow', 'unlink']] ],
-                    air: [ ['font', ['bold', 'italic', 'underline']], ['color', ['color']] ]
+                fontSizes: ['8', '10', '12', '14', '16', '18', '20', '24', '28', '32', '36']
+            });
+
+            $ed.on('summernote.paste', function (e, clipboard) {
+                const data = (clipboard.originalEvent.clipboardData || clipboard.clipboardData);
+                if (!data || !data.items) return;
+                let handled = false;
+                for (const item of data.items) {
+                    if (item.type && item.type.indexOf('image') === 0) {
+                        handled = true;
+                        const file = item.getAsFile();
+                        const reader = new FileReader();
+                        reader.onload = function(evt) {
+                            $ed.summernote('insertImage', evt.target.result);
+                        };
+                        reader.readAsDataURL(file);
+                    }
                 }
+                if (handled) {
+                    e.preventDefault();
+                }
+            });
+
+            $ed.on('summernote.drop', function (e) {
+                e.preventDefault();
+                const dt = e.originalEvent.dataTransfer;
+                if (!dt || !dt.files) return;
+                [...dt.files].forEach(f => {
+                    if (f.type && f.type.startsWith('image/')) {
+                        const r = new FileReader();
+                        r.onload = ev => $ed.summernote('insertImage', ev.target.result);
+                        r.readAsDataURL(f);
+                    }
+                });
             });
         });
     </script>

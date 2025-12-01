@@ -24,11 +24,14 @@ public class ArticleService : IArticleService
     {
         _db = db;
         _sanitizer = new HtmlSanitizer();
-        // Ajouter les tags nécessaires en plus de ceux par défaut (AllowedTags est read-only)
-        foreach(var t in new [] { "code", "pre", "span", "table", "thead", "tbody", "tr", "th", "td", "h2", "h3", "h4" })
+        // Ajouter les tags nécessaires (AllowedTags est read-only, on enrichit)
+        foreach(var t in new [] { "code", "pre", "span", "table", "thead", "tbody", "tr", "th", "td", "h2", "h3", "h4", "img" })
             _sanitizer.AllowedTags.Add(t);
         _sanitizer.AllowDataAttributes = false;
-        _sanitizer.AllowedAttributes.Add("style");
+        foreach(var a in new [] { "style", "src", "alt", "title", "width", "height" })
+            _sanitizer.AllowedAttributes.Add(a);
+        // Autoriser les URI data: pour les images collées en base64
+        _sanitizer.AllowedSchemes.Add("data");
     }
 
     public async Task<IEnumerable<Article>> GetArticles()
