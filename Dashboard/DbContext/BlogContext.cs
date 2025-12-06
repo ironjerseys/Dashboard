@@ -15,6 +15,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<Todo> Todos => Set<Todo>();
     public DbSet<LogEntry> Logs => Set<LogEntry>();
     public DbSet<AIChessLogs> AIChessLogs => Set<AIChessLogs>();
+    public DbSet<Label> Labels => Set<Label>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -43,5 +44,16 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             e.Property(x => x.Type).HasMaxLength(32);
             e.Property(x => x.BestMoveUci).HasMaxLength(16);
         });
+
+        builder.Entity<Label>(e =>
+        {
+            e.HasIndex(l => l.Name).IsUnique();
+            e.Property(l => l.Name).HasMaxLength(64).IsRequired();
+        });
+
+        // Many-to-many Article-Label
+        builder.Entity<Article>()
+               .HasMany(a => a.Labels)
+               .WithMany();
     }
 }

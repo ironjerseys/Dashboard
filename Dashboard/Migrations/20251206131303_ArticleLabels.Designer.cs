@@ -4,6 +4,7 @@ using Dashboard.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Dashboard.Migrations
 {
     [DbContext(typeof(BlogContext))]
-    partial class BlogContextModelSnapshot : ModelSnapshot
+    [Migration("20251206131303_ArticleLabels")]
+    partial class ArticleLabels
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,21 +24,6 @@ namespace Dashboard.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("ArticleLabel", b =>
-                {
-                    b.Property<int>("ArticleId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("LabelsId")
-                        .HasColumnType("int");
-
-                    b.HasKey("ArticleId", "LabelsId");
-
-                    b.HasIndex("LabelsId");
-
-                    b.ToTable("ArticleLabel");
-                });
 
             modelBuilder.Entity("Dashboard.Entities.AIChessLogs", b =>
                 {
@@ -109,6 +97,9 @@ namespace Dashboard.Migrations
                     b.Property<DateTime>("DateCreation")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("LabelId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Titre")
                         .IsRequired()
                         .HasMaxLength(160)
@@ -117,6 +108,8 @@ namespace Dashboard.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AuthorId");
+
+                    b.HasIndex("LabelId");
 
                     b.ToTable("Articles");
                 });
@@ -447,28 +440,20 @@ namespace Dashboard.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("ArticleLabel", b =>
-                {
-                    b.HasOne("Dashboard.Entities.Article", null)
-                        .WithMany()
-                        .HasForeignKey("ArticleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Dashboard.Entities.Label", null)
-                        .WithMany()
-                        .HasForeignKey("LabelsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Dashboard.Entities.Article", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", "Author")
                         .WithMany()
                         .HasForeignKey("AuthorId");
 
+                    b.HasOne("Dashboard.Entities.Label", "Label")
+                        .WithMany()
+                        .HasForeignKey("LabelId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("Author");
+
+                    b.Navigation("Label");
                 });
 
             modelBuilder.Entity("Dashboard.Entities.Goal", b =>

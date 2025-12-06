@@ -20,9 +20,13 @@ public class ArticlesController : Controller
 
 
     [AllowAnonymous]
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index([FromQuery] int[] labels, [FromQuery] ArticleSort sort = ArticleSort.DateNewest, [FromQuery] string? search = null)
     {
-        var articles = await _articleService.GetArticles();
+        var articles = await _articleService.GetArticles(labels, sort, search);
+        ViewBag.Labels = await _articleService.GetLabels();
+        ViewBag.SelectedLabelIds = labels ?? Array.Empty<int>();
+        ViewBag.SelectedSort = sort;
+        ViewBag.Search = search ?? string.Empty;
         return View(articles);
     }
 
@@ -39,32 +43,42 @@ public class ArticlesController : Controller
         return View(article);
     }
 
-    public IActionResult Create()
+    public async Task<IActionResult> Create()
     {
+        ViewBag.Labels = await _articleService.GetLabels();
         return View();
     } 
 
     [HttpPost]
-    public async Task<IActionResult> Create(Article article)
+    public async Task<IActionResult> Create(Article article, [FromForm] string[]? newLabels, [FromForm] int[]? selectedLabelIds)
     {
-        if (!ModelState.IsValid) return View(article);
-        await _articleService.CreateArticle(article);
+        if (!ModelState.IsValid)
+        {
+            ViewBag.Labels = await _articleService.GetLabels();
+            return View(article);
+        }
+        await _articleService.CreateArticle(article, newLabels, selectedLabelIds);
         return RedirectToAction(nameof(Index));
     }
 
     public async Task<IActionResult> Edit(int id)
     {
         var article = await _articleService.GetArticle(id);
+        ViewBag.Labels = await _articleService.GetLabels();
         return View(article);
     }
 
 
     [HttpPost]
-    public async Task<IActionResult> Edit(int id, Article article)
+    public async Task<IActionResult> Edit(int id, Article article, [FromForm] string[]? newLabels, [FromForm] int[]? selectedLabelIds)
     {
         if (id != article.Id) return NotFound();
-        if (!ModelState.IsValid) return View(article);
-        await _articleService.UpdateArticle(article); // await pour garantir la sauvegarde
+        if (!ModelState.IsValid)
+        {
+            ViewBag.Labels = await _articleService.GetLabels();
+            return View(article);
+        }
+        await _articleService.UpdateArticle(article, newLabels, selectedLabelIds);
         return RedirectToAction(nameof(Index));
     }
 

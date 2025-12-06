@@ -22,6 +22,24 @@
         <span asp-validation-for="Contenu" class="text-danger"></span>
     </div>
 
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <label class="form-label">Labels existants</label>
+            <select name="selectedLabelIds" class="form-select" multiple size="6">
+                @foreach (var l in (IEnumerable<Label>)ViewBag.Labels)
+                {
+                    var selected = Model.Labels?.Any(x => x.Id == l.Id) ?? false;
+                    <option value="@l.Id" selected="@(selected ? "selected" : null)">@l.Name</option>
+                }
+            </select>
+            <div class="form-text">Maintenir Ctrl/Cmd pour multi-sélection.</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Nouveaux labels (séparés par des virgules)</label>
+            <input name="newLabels" class="form-control" placeholder="ex: C#, OOP" />
+        </div>
+    </div>
+
     <button type="submit" class="btn btn-primary">Enregistrer</button>
     <a asp-action="Index" class="btn btn-secondary">Annuler</a>
 </form>
@@ -51,39 +69,6 @@
                 ],
                 fontNames: ['Arial', 'Arial Black', 'Courier New', 'Roboto', 'Times New Roman'],
                 fontSizes: ['8', '10', '12', '14', '16', '18', '20', '24', '28', '32', '36']
-            });
-
-            $ed.on('summernote.paste', function (e, clipboard) {
-                const data = (clipboard.originalEvent.clipboardData || clipboard.clipboardData);
-                if (!data || !data.items) return;
-                let handled = false;
-                for (const item of data.items) {
-                    if (item.type && item.type.indexOf('image') === 0) {
-                        handled = true;
-                        const file = item.getAsFile();
-                        const reader = new FileReader();
-                        reader.onload = function(evt) {
-                            $ed.summernote('insertImage', evt.target.result);
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                }
-                if (handled) {
-                    e.preventDefault();
-                }
-            });
-
-            $ed.on('summernote.drop', function (e) {
-                e.preventDefault();
-                const dt = e.originalEvent.dataTransfer;
-                if (!dt || !dt.files) return;
-                [...dt.files].forEach(f => {
-                    if (f.type && f.type.startsWith('image/')) {
-                        const r = new FileReader();
-                        r.onload = ev => $ed.summernote('insertImage', ev.target.result);
-                        r.readAsDataURL(f);
-                    }
-                });
             });
         });
     </script>

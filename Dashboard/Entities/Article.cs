@@ -20,4 +20,7 @@ public class Article
 
     [ForeignKey(nameof(AuthorId))]
     public IdentityUser? Author { get; set; }
+
+    // Labels many-to-many
+    public ICollection<Label> Labels { get; set; } = new List<Label>();
 }

@@ -6,13 +6,22 @@ using Microsoft.EntityFrameworkCore;
 using Models;
 using Ganss.Xss; // HtmlSanitizer
 
+public enum ArticleSort
+{
+    TitleAsc,
+    TitleDesc,
+    DateNewest,
+    DateOldest
+}
+
 public interface IArticleService
 {
-    Task<IEnumerable<Article>> GetArticles();
+    Task<IEnumerable<Article>> GetArticles(IEnumerable<int>? includeLabelIds = null, ArticleSort sort = ArticleSort.DateNewest, string? search = null);
     Task<Article> GetArticle(int id);
-    Task CreateArticle(Article article);
-    Task UpdateArticle(Article article);
+    Task CreateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null);
+    Task UpdateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null);
     Task Delete(int id);
+    Task<List<Label>> GetLabels();
 }
 
 public class ArticleService : IArticleService
@@ -24,37 +33,97 @@ public class ArticleService : IArticleService
     {
         _db = db;
         _sanitizer = new HtmlSanitizer();
-        // Ajouter les tags nécessaires (AllowedTags est read-only, on enrichit)
         foreach(var t in new [] { "code", "pre", "span", "table", "thead", "tbody", "tr", "th", "td", "h2", "h3", "h4", "img" })
             _sanitizer.AllowedTags.Add(t);
         _sanitizer.AllowDataAttributes = false;
         foreach(var a in new [] { "style", "src", "alt", "title", "width", "height" })
             _sanitizer.AllowedAttributes.Add(a);
-        // Autoriser les URI data: pour les images collées en base64
         _sanitizer.AllowedSchemes.Add("data");
     }
 
-    public async Task<IEnumerable<Article>> GetArticles()
+    public async Task<IEnumerable<Article>> GetArticles(IEnumerable<int>? includeLabelIds = null, ArticleSort sort = ArticleSort.DateNewest, string? search = null)
     {
-        var r = await _db.Articles.Include(a => a.Author).OrderByDescending(a => a.DateCreation).ToListAsync();
-        return r;
+        var q = _db.Articles.Include(a => a.Author).Include(a => a.Labels).AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            q = q.Where(a => EF.Functions.Like(a.Titre, "%" + term + "%") || EF.Functions.Like(a.Contenu, "%" + term + "%"));
+        }
+        if (includeLabelIds != null)
+        {
+            var ids = includeLabelIds.Where(id => id > 0).Distinct().ToArray();
+            if (ids.Length > 0)
+                q = q.Where(a => a.Labels.Any(l => ids.Contains(l.Id)));
+        }
+        q = sort switch
+        {
+            ArticleSort.TitleAsc => q.OrderBy(a => a.Titre),
+            ArticleSort.TitleDesc => q.OrderByDescending(a => a.Titre),
+            ArticleSort.DateOldest => q.OrderBy(a => a.DateCreation),
+            _ => q.OrderByDescending(a => a.DateCreation)
+        };
+        return await q.ToListAsync();
     }
 
     public async Task<Article> GetArticle(int id)
     {
-        return await _db.Articles.FindAsync(id) ?? new Article();
+        return await _db.Articles.Include(a => a.Labels).FirstOrDefaultAsync(a => a.Id == id) ?? new Article();
     }
 
-    public async Task CreateArticle(Article article)
+    private async Task<List<Label>> EnsureLabels(string[]? newLabels)
+    {
+        var result = new List<Label>();
+        if (newLabels == null || newLabels.Length == 0) return result;
+        foreach (var raw in newLabels)
+        {
+            var name = (raw ?? "").Trim();
+            if (string.IsNullOrEmpty(name)) continue;
+            var parts = name.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach(var p in parts)
+            {
+                var existing = await _db.Labels.FirstOrDefaultAsync(l => l.Name == p);
+                if (existing != null) result.Add(existing);
+                else {
+                    var l = new Label { Name = p };
+                    _db.Labels.Add(l);
+                    await _db.SaveChangesAsync();
+                    result.Add(l);
+                }
+            }
+        }
+        return result;
+    }
+
+    public async Task<List<Label>> GetLabels() => await _db.Labels.OrderBy(l => l.Name).ToListAsync();
+
+    public async Task CreateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
     {
         article.Contenu = _sanitizer.Sanitize(article.Contenu);
+        var labels = new List<Label>();
+        if (selectedLabelIds != null && selectedLabelIds.Length > 0)
+        {
+            var existing = await _db.Labels.Where(l => selectedLabelIds.Contains(l.Id)).ToListAsync();
+            labels.AddRange(existing);
+        }
+        var created = await EnsureLabels(newLabels);
+        labels.AddRange(created);
+        article.Labels = labels.DistinctBy(l => l.Id).ToList();
         _db.Articles.Add(article);
         await _db.SaveChangesAsync();
     }
 
-    public async Task UpdateArticle(Article article)
+    public async Task UpdateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
     {
         article.Contenu = _sanitizer.Sanitize(article.Contenu);
+        var labels = new List<Label>();
+        if (selectedLabelIds != null && selectedLabelIds.Length > 0)
+        {
+            var existing = await _db.Labels.Where(l => selectedLabelIds.Contains(l.Id)).ToListAsync();
+            labels.AddRange(existing);
+        }
+        var created = await EnsureLabels(newLabels);
+        labels.AddRange(created);
+        article.Labels = labels.DistinctBy(l => l.Id).ToList();
         _db.Articles.Update(article);
         await _db.SaveChangesAsync();
     }

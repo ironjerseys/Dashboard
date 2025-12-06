@@ -19,7 +19,7 @@
 .theme-light .navbar { background-color:#000 !important; }
 
 /* Cartes d’articles par défaut (thème sombre) : même design que .item (CV), sans animation */
-.article-card, .article-list .card {
+.article-card { /* ne pas cibler .article-list .card pour éviter d’affecter autres cards/form controls */
   background: rgba(60, 60, 60, .5) !important;
   color: #fff !important;
   border: none;
@@ -27,8 +27,7 @@
 }
 
 /* Thème clair pour les articles: texte noir, pas de background, bordure grise */
-.theme-light .article-card,
-.theme-light .article-list .card {
+.theme-light .article-card {
   background: transparent !important;
   color: #222 !important;
   border: 1px solid #ced4da !important; /* gris Bootstrap */
@@ -42,6 +41,14 @@
   background: transparent !important;
   color: #222 !important;
   border: 1px solid #ced4da !important;
+}
+
+/* Thème clair : normaliser fond des form controls */
+.theme-light .form-control,
+.theme-light .form-select,
+.theme-light .input-group-text {
+  background: #fff !important;
+  color: #222 !important;
 }
 
 .article-card .card-title { font-weight: 700; }
