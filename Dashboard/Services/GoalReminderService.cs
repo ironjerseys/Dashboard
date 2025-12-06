@@ -1,45 +1,28 @@
 ﻿using Dashboard.Data;
 using Dashboard.Entities;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 
 namespace Dashboard.Services;
-
-public class ReminderOptions
-{
-    public string RecipientEmail { get; set; } = "";
-    public int Hour { get; set; } = 21;
-    public int Minute { get; set; } = 43;
-    public string TimeZoneId { get; set; } = "Europe/Paris";
-}
 
 public class GoalReminderService : BackgroundService
 {
     private readonly IServiceProvider _sp;
-    private readonly IOptions<ReminderOptions> _opts;
 
-    public GoalReminderService(IServiceProvider sp, IOptions<ReminderOptions> opts)
+    public GoalReminderService(IServiceProvider sp)
     {
         _sp = sp;
-        _opts = opts;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var o = _opts.Value;
-        await LogAsync("Info", "ServiceStart", $"GoalReminderService démarré (Hour={o.Hour}, Minute={o.Minute}, TZ={o.TimeZoneId})");
+        await LogAsync("Info", "ServiceStart", "GoalReminderService démarré");
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                var now = LocalNow();
-                var next = NextOccurrence(now, o.Hour, o.Minute);
-                var delay = next - now;
-                await LogAsync("Debug", "ComputeNext", $"NowLocal={now:o}; NextLocal={next:o}; Delay={delay}");
-                if (delay < TimeSpan.Zero) delay = TimeSpan.Zero;
-                await Task.Delay(delay, stoppingToken);
-
-                await SendDailyReminder(stoppingToken);
+                // Wake up every minute to check schedules
+                await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+                await ProcessSchedules(stoppingToken);
             }
             catch (TaskCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -53,63 +36,118 @@ public class GoalReminderService : BackgroundService
         await LogAsync("Info", "ServiceStopped", "GoalReminderService arrêté");
     }
 
-    private static DateTime NextOccurrence(DateTime fromLocal, int hour, int minute)
-    {
-        var next = new DateTime(fromLocal.Year, fromLocal.Month, fromLocal.Day, hour, minute, 0, fromLocal.Kind);
-        if (next <= fromLocal) next = next.AddDays(1);
-        return next;
-    }
+    private static DateTime GetLocalNow() => DateTime.Now;
 
-    private DateTime LocalNow()
-    {
-        try
-        {
-            var tz = TimeZoneInfo.FindSystemTimeZoneById(_opts.Value.TimeZoneId);
-            return TimeZoneInfo.ConvertTime(DateTime.UtcNow, tz);
-        }
-        catch
-        {
-            return DateTime.Now;
-        }
-    }
-
-    private async Task SendDailyReminder(CancellationToken ct)
+    private async Task ProcessSchedules(CancellationToken ct)
     {
         using var scope = _sp.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BlogContext>();
         var mail = scope.ServiceProvider.GetRequiredService<IEmailSender>();
-        var opts = _opts.Value;
 
-        var today = DateOnly.FromDateTime(LocalNow());
-        var openGoals = await db.Goals
-            .Where(g => g.Debut <= today && g.Fin >= today && !g.IsDone)
-            .OrderBy(g => g.Debut)
-            .ToListAsync(ct);
-
-        await LogAsync("Info", "DailyQuery", $"Date={today:yyyy-MM-dd}; OpenGoals={openGoals.Count}");
-
-        if (openGoals.Count == 0)
+        var now = GetLocalNow();
+        var today = DateOnly.FromDateTime(now);
+        var settings = await db.EmailSettings.Where(s => s.Enabled).ToListAsync(ct);
+        foreach (var s in settings)
         {
-            await LogAsync("Info", "NoGoals", "Aucun objectif ouvert - pas d'envoi");
-            return;
-        }
+            if (!ShouldRun(s, now)) continue;
 
-        var lines = openGoals.Select(g => $"- {g.Titre} ({g.Debut:yyyy-MM-dd} → {g.Fin:yyyy-MM-dd})");
-        var body = $"<p>Objectifs ouverts pour le {today:yyyy-MM-dd} :</p><ul>" + string.Join("", lines.Select(l => $"<li>{System.Net.WebUtility.HtmlEncode(l)}</li>")) + "</ul>";
-        try
+            var (periodStart, periodEnd) = ComputePeriodWindow(s, now);
+
+            var openGoals = await db.Goals
+                .Where(g => g.Debut <= today && g.Fin >= today && !g.IsDone)
+                .OrderBy(g => g.Debut)
+                .ToListAsync(ct);
+
+            var newArticles = await db.Articles
+                .Where(a => a.DateCreation >= periodStart && a.DateCreation <= periodEnd)
+                .OrderByDescending(a => a.DateCreation)
+                .Select(a => new ArticleInfo { Id = a.Id, Titre = a.Titre, DateCreation = a.DateCreation })
+                .ToListAsync(ct);
+
+            var body = BuildEmailBody(today, periodStart, periodEnd, openGoals, newArticles);
+            var subject = s.Frequency switch
+            {
+                EmailFrequency.Daily => $"Rappel quotidien - {today:yyyy-MM-dd}",
+                EmailFrequency.Weekly => $"Rappel hebdomadaire - Semaine du {periodStart:yyyy-MM-dd}",
+                EmailFrequency.Monthly => $"Rappel mensuel - {periodStart:yyyy-MM}",
+                _ => $"Rappel - {today:yyyy-MM-dd}"
+            };
+
+            try
+            {
+                await mail.SendAsync(s.RecipientEmail, subject, body);
+                s.LastSentUtc = DateTime.UtcNow;
+                await db.SaveChangesAsync(ct);
+                await LogAsync("Info", "EmailSent", $"To={s.RecipientEmail}; Freq={s.Frequency}; Window={periodStart:o}-{periodEnd:o}; Goals={openGoals.Count}; Articles={newArticles.Count}");
+            }
+            catch (Exception ex)
+            {
+                await LogAsync("Error", "EmailFailed", ex.ToString());
+            }
+        }
+    }
+
+    private static bool ShouldRun(EmailSettings s, DateTime now)
+    {
+        // Run at specified hour/minute. Prevent duplicates: if LastSentUtc within last 55 minutes, skip.
+        if (now.Hour != s.Hour || now.Minute != s.Minute) return false;
+        if (s.LastSentUtc.HasValue && (DateTime.UtcNow - s.LastSentUtc.Value) < TimeSpan.FromMinutes(55)) return false;
+        return s.Frequency switch
         {
-            //await LogAsync("Info", "SendingEmail", $"To={opts.RecipientEmail}; Count={openGoals.Count}");
+            EmailFrequency.Daily => true,
+            EmailFrequency.Weekly => s.DayOfWeek.HasValue && now.DayOfWeek == s.DayOfWeek.Value,
+            EmailFrequency.Monthly => s.DayOfMonth.HasValue && now.Day == s.DayOfMonth.Value,
+            _ => false
+        };
+    }
 
-
-            // EN PAUSE LE TEMPS DE DEFINIR LA LOGIQUE D ENVOI DE MAIL DATE ETC
-
-            //await mail.SendAsync(opts.RecipientEmail, $"Rappel objectifs - {today:yyyy-MM-dd}", body);
-            //await LogAsync("Info", "EmailSent", "Rappel envoyé avec succès");
-        }
-        catch (Exception ex)
+    private static (DateTime start, DateTime end) ComputePeriodWindow(EmailSettings s, DateTime now)
+    {
+        return s.Frequency switch
         {
-            await LogAsync("Error", "EmailFailed", ex.ToString());
+            EmailFrequency.Daily => (new DateTime(now.Year, now.Month, now.Day, 0, 0, 0), new DateTime(now.Year, now.Month, now.Day, 23, 59, 59)),
+            EmailFrequency.Weekly =>
+                (
+                    now.Date.AddDays(-(int)now.DayOfWeek).Date,
+                    now.Date.AddDays(6 - (int)now.DayOfWeek).Date.AddHours(23).AddMinutes(59).AddSeconds(59)
+                ),
+            EmailFrequency.Monthly =>
+                (
+                    new DateTime(now.Year, now.Month, 1),
+                    new DateTime(now.Year, now.Month, DateTime.DaysInMonth(now.Year, now.Month), 23, 59, 59)
+                ),
+            _ => (now, now)
+        };
+    }
+
+    private static string BuildEmailBody(DateOnly today, DateTime periodStart, DateTime periodEnd, List<Goal> openGoals, List<ArticleInfo> newArticles)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"<p>Date: {today:yyyy-MM-dd}</p>");
+        sb.Append($"<p>Période: {periodStart:yyyy-MM-dd} → {periodEnd:yyyy-MM-dd}</p>");
+        if (openGoals.Count > 0)
+        {
+            sb.Append("<h3>Objectifs ouverts</h3><ul>");
+            foreach (var g in openGoals)
+                sb.Append($"<li>{System.Net.WebUtility.HtmlEncode(g.Titre)} ({g.Debut:yyyy-MM-dd} → {g.Fin:yyyy-MM-dd})</li>");
+            sb.Append("</ul>");
         }
+        else
+        {
+            sb.Append("<p>Aucun objectif ouvert.</p>");
+        }
+        if (newArticles.Count > 0)
+        {
+            sb.Append("<h3>Articles créés durant la période</h3><ul>");
+            foreach (var a in newArticles)
+                sb.Append($"<li>{System.Net.WebUtility.HtmlEncode(a.Titre)} ({a.DateCreation:yyyy-MM-dd})</li>");
+            sb.Append("</ul>");
+        }
+        else
+        {
+            sb.Append("<p>Aucun nouvel article dans la période.</p>");
+        }
+        return sb.ToString();
     }
 
     private async Task LogAsync(string level, string evt, string? message)
@@ -130,4 +168,11 @@ public class GoalReminderService : BackgroundService
         }
         catch { }
     }
+}
+
+public class ArticleInfo
+{
+    public int Id { get; set; }
+    public string Titre { get; set; } = string.Empty;
+    public DateTime DateCreation { get; set; }
 }

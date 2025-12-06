@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 string dataDir;
 var home = Environment.GetEnvironmentVariable("HOME"); // Azure: D:\home ou /home
 if (!string.IsNullOrEmpty(home))
-    dataDir = Path.Combine(home, "site", "data");       // Emplacement écrivable sur App Service
+    dataDir = Path.Combine(home, "site", "data");       // Emplacement écritable sur App Service
 else
     dataDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data"); // Local
 Directory.CreateDirectory(dataDir);
@@ -57,7 +57,6 @@ builder.Services.AddScoped<IAIChessLogService, AIChessLogService>();
 
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
-builder.Services.Configure<ReminderOptions>(builder.Configuration.GetSection("Reminder"));
 builder.Services.AddHostedService<GoalReminderService>();
 
 // 4) MVC + Session + API controllers

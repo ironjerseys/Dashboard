@@ -16,6 +16,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<LogEntry> Logs => Set<LogEntry>();
     public DbSet<AIChessLogs> AIChessLogs => Set<AIChessLogs>();
     public DbSet<Label> Labels => Set<Label>();
+    public DbSet<EmailSettings> EmailSettings => Set<EmailSettings>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -51,9 +52,15 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             e.Property(l => l.Name).HasMaxLength(64).IsRequired();
         });
 
-        // Many-to-many Article-Label
         builder.Entity<Article>()
                .HasMany(a => a.Labels)
                .WithMany();
+
+        builder.Entity<EmailSettings>(e =>
+        {
+            e.HasIndex(x => x.UserId).IsUnique();
+            e.Property(x => x.UserId).HasMaxLength(450);
+            e.Property(x => x.RecipientEmail).HasMaxLength(256);
+        });
     }
 }
