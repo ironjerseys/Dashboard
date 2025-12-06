@@ -31,6 +31,15 @@ body {
     color: white;
 }
 
+/* Theme clair: texte noir global et corrections */
+.theme-light body, .theme-light {
+    color: #222 !important;
+}
+.theme-light .h1, .theme-light .h2, .theme-light .h3, .theme-light h1, .theme-light h2, .theme-light h3,
+.theme-light .h4, .theme-light .h5, .theme-light .h6, .theme-light h4, .theme-light h5, .theme-light h6 {
+    color: #000 !important;
+}
+
 #title {
     font-size: 70px;
     margin-top: 5rem;
@@ -82,11 +91,10 @@ img {
 /* Tableau global rendu transparent (sauf calendrier ciblé plus bas) */
 .table {
     --bs-table-bg: transparent;
-    --bs-table-striped-bg: transparent; /* si tu as .table-striped */
-    --bs-table-hover-bg: rgba(255,255,255,0.08); /* optionnel, ou transparent */
-    background-color: transparent !important; /* pour l'élément <table> lui-même */
+    --bs-table-striped-bg: transparent;
+    --bs-table-hover-bg: rgba(255,255,255,0.08);
+    background-color: transparent !important;
 }
-
 
 /* Les cellules reçoivent un background via Bootstrap : on force transparent */
 .table > :not(caption) > * > * {
@@ -109,58 +117,67 @@ img {
 }
 
 .calendar td.bg-light {
-/*    background-color:#f8f9fa !important;
-*/    color:#000 !important;
+/*    background-color:#f8f9fa !important; */
+    color:#000 !important;
 }
 
-/* En-tête calendrier transparent */
-.calendar .d-flex.bg-primary {
-    background: transparent !important;
-}
+/* En-tête calendrier transparent en thème sombre, visible en thème clair */
+.calendar .d-flex.bg-primary { background: transparent !important; }
+.theme-light .calendar .d-flex.bg-primary { background: #0d6efd !important; }
 
 /* Tbody calendrier transparent (bordures conservées) */
-.calendar table tbody {
-    background: transparent !important;
-}
+.calendar table tbody { background: transparent !important; }
 
 /* Todo list transparent */
-#todo-list {
-    background: transparent !important;
-}
+#todo-list { background: transparent !important; }
 
-/* Items todo toujours transparents (y compris ajout dynamique) */
+/* Items todo: bordure et couleur texte adaptative */
 #todo-list .list-group-item, .list-group-item.todo-item, .list-group-item.todo-item:hover {
     background: transparent !important;
     border-color: rgba(255,255,255,.15);
+    color: inherit;
 }
+.theme-light #todo-list .list-group-item, .theme-light .list-group-item.todo-item { color: #222 !important; border-color:#ced4da !important; }
 
+/* Inputs style global + bordure comme les cards */
 .form-control,
 .form-control:focus,
 textarea.form-control,
 .form-select,
 .form-select:focus {
-    color: inherit; /* ou #fff si fond sombre */
-    box-shadow: none; /* option: retire le glow bleu */
+    color: inherit;
+    box-shadow: none;
     background: rgba(60, 60, 60, .5) !important;
-    border-radius: 20px;
+    border-radius: 12px;
+    border: 1px solid #ced4da !important;
 }
-
+.theme-light .form-control,
+.theme-light .form-control:focus,
+.theme-light textarea.form-control,
+.theme-light .form-select,
+.theme-light .form-select:focus {
+    background: #fff !important;
+    color: #222 !important;
+}
 
 /* Bold visible dans l’éditeur Summernote */
 .note-editor .note-editable b,
-.note-editor .note-editable strong {
-    font-weight: 700 !important;
-}
+.note-editor .note-editable strong { font-weight: 700 !important; }
 
-/* Bold visible côté rendu article (optionnel) */
+/* Bold côté rendu article */
 .article-content b,
-.article-content strong {
-    font-weight: 700;
-}
+.article-content strong { font-weight: 700; }
 
+/* Cards : marge top uniforme et bordure thème clair */
 .card {
     padding: 30px;
     background: rgba(60, 60, 60, .5);
-    border-radius: 20px;
+    border-radius: 12px;
     color: white;
+    margin-top: 2rem;
+}
+.theme-light .card {
+    background: transparent !important;
+    color: #222 !important;
+    border: 1px solid #ced4da !important;
 }

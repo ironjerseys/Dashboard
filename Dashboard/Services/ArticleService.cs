@@ -114,17 +114,45 @@ public class ArticleService : IArticleService
 
     public async Task UpdateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
     {
-        article.Contenu = _sanitizer.Sanitize(article.Contenu);
-        var labels = new List<Label>();
+        var sanitized = _sanitizer.Sanitize(article.Contenu);
+
+        // Load tracked entity including current labels
+        var existing = await _db.Articles.Include(a => a.Labels).FirstOrDefaultAsync(a => a.Id == article.Id);
+        if (existing == null) return;
+
+        // Update scalar properties
+        existing.Titre = article.Titre;
+        existing.Contenu = sanitized;
+        // existing.DateCreation stays unchanged
+
+        // Build desired labels set
+        var desired = new List<Label>();
         if (selectedLabelIds != null && selectedLabelIds.Length > 0)
         {
-            var existing = await _db.Labels.Where(l => selectedLabelIds.Contains(l.Id)).ToListAsync();
-            labels.AddRange(existing);
+            var existingLabels = await _db.Labels.Where(l => selectedLabelIds.Contains(l.Id)).ToListAsync();
+            desired.AddRange(existingLabels);
         }
         var created = await EnsureLabels(newLabels);
-        labels.AddRange(created);
-        article.Labels = labels.DistinctBy(l => l.Id).ToList();
-        _db.Articles.Update(article);
+        desired.AddRange(created);
+        var desiredIds = desired.Select(l => l.Id).Distinct().ToHashSet();
+
+        // Remove unselected labels
+        var toRemove = existing.Labels.Where(l => !desiredIds.Contains(l.Id)).ToList();
+        foreach (var l in toRemove) existing.Labels.Remove(l);
+
+        // Add missing labels
+        var existingIds = existing.Labels.Select(l => l.Id).ToHashSet();
+        foreach (var l in desired)
+        {
+            if (!existingIds.Contains(l.Id))
+            {
+                // Ensure label is attached
+                if (_db.Entry(l).State == EntityState.Detached)
+                    _db.Labels.Attach(l);
+                existing.Labels.Add(l);
+            }
+        }
+
         await _db.SaveChangesAsync();
     }
 

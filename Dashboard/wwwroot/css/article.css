@@ -2,7 +2,6 @@
 .article-page {
   /* pas de fond, on garde seulement l’espacement */
   background: transparent;
-  padding: 2rem;
   border-radius: 20px;
 }
 
