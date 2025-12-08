@@ -42,11 +42,31 @@
                     <input class="form-control" asp-for="DayOfMonth" type="number" min="1" max="31" />
                 </div>
             </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" asp-for="IncludeTodos" />
+                        <label class="form-check-label" asp-for="IncludeTodos">Inclure les Todos</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" asp-for="IncludeGoals" />
+                        <label class="form-check-label" asp-for="IncludeGoals">Inclure les Objectifs</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" asp-for="IncludeArticles" />
+                        <label class="form-check-label" asp-for="IncludeArticles">Inclure les Articles créés</label>
+                    </div>
+                </div>
+            </div>
             <div class="text-end">
                 <button class="btn btn-primary">Enregistrer</button>
             </div>
         </form>
         <hr />
-        <p class="text-muted">Les emails contiendront les objectifs en cours (si présents) et les titres des articles créés pendant la période.</p>
+        <p class="text-muted">Les emails contiendront les objectifs en cours (si sélectionnés), les titres des articles créés pendant la période (si sélectionnés), et les todos ouvertes et celles terminées dans la période (si sélectionnés).</p>
     </div>
 </div>

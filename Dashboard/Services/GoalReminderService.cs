@@ -43,6 +43,7 @@ public class GoalReminderService : BackgroundService
         using var scope = _sp.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BlogContext>();
         var mail = scope.ServiceProvider.GetRequiredService<IEmailSender>();
+        var todoSvc = scope.ServiceProvider.GetRequiredService<ITodoService>();
 
         var now = GetLocalNow();
         var today = DateOnly.FromDateTime(now);
@@ -53,18 +54,20 @@ public class GoalReminderService : BackgroundService
 
             var (periodStart, periodEnd) = ComputePeriodWindow(s, now);
 
-            var openGoals = await db.Goals
-                .Where(g => g.Debut <= today && g.Fin >= today && !g.IsDone)
-                .OrderBy(g => g.Debut)
-                .ToListAsync(ct);
+            var openGoals = s.IncludeGoals
+                ? await db.Goals.Where(g => g.Debut <= today && g.Fin >= today && !g.IsDone).OrderBy(g => g.Debut).ToListAsync(ct)
+                : new List<Goal>();
 
-            var newArticles = await db.Articles
-                .Where(a => a.DateCreation >= periodStart && a.DateCreation <= periodEnd)
-                .OrderByDescending(a => a.DateCreation)
-                .Select(a => new ArticleInfo { Id = a.Id, Titre = a.Titre, DateCreation = a.DateCreation })
-                .ToListAsync(ct);
+            var newArticles = s.IncludeArticles
+                ? await db.Articles.Where(a => a.DateCreation >= periodStart && a.DateCreation <= periodEnd)
+                    .OrderByDescending(a => a.DateCreation)
+                    .Select(a => new ArticleInfo { Id = a.Id, Titre = a.Titre, DateCreation = a.DateCreation }).ToListAsync(ct)
+                : new List<ArticleInfo>();
 
-            var body = BuildEmailBody(today, periodStart, periodEnd, openGoals, newArticles);
+            var openTodos = s.IncludeTodos ? await todoSvc.GetOpenAsync() : new List<Todo>();
+            var doneTodos = s.IncludeTodos ? await todoSvc.GetDoneInPeriodAsync(periodStart, periodEnd) : new List<Todo>();
+
+            var body = BuildEmailBody(today, periodStart, periodEnd, openGoals, newArticles, openTodos, doneTodos);
             var subject = s.Frequency switch
             {
                 EmailFrequency.Daily => $"Rappel quotidien - {today:yyyy-MM-dd}",
@@ -78,7 +81,7 @@ public class GoalReminderService : BackgroundService
                 await mail.SendAsync(s.RecipientEmail, subject, body);
                 s.LastSentUtc = DateTime.UtcNow;
                 await db.SaveChangesAsync(ct);
-                await LogAsync("Info", "EmailSent", $"To={s.RecipientEmail}; Freq={s.Frequency}; Window={periodStart:o}-{periodEnd:o}; Goals={openGoals.Count}; Articles={newArticles.Count}");
+                await LogAsync("Info", "EmailSent", $"To={s.RecipientEmail}; Freq={s.Frequency}; Window={periodStart:o}-{periodEnd:o}; Goals={openGoals.Count}; Articles={newArticles.Count}; OpenTodos={openTodos.Count}; DoneTodos={doneTodos.Count}");
             }
             catch (Exception ex)
             {
@@ -120,11 +123,12 @@ public class GoalReminderService : BackgroundService
         };
     }
 
-    private static string BuildEmailBody(DateOnly today, DateTime periodStart, DateTime periodEnd, List<Goal> openGoals, List<ArticleInfo> newArticles)
+    private static string BuildEmailBody(DateOnly today, DateTime periodStart, DateTime periodEnd, List<Goal> openGoals, List<ArticleInfo> newArticles, List<Todo> openTodos, List<Todo> doneTodos)
     {
         var sb = new System.Text.StringBuilder();
         sb.Append($"<p>Date: {today:yyyy-MM-dd}</p>");
         sb.Append($"<p>Période: {periodStart:yyyy-MM-dd} → {periodEnd:yyyy-MM-dd}</p>");
+
         if (openGoals.Count > 0)
         {
             sb.Append("<h3>Objectifs ouverts</h3><ul>");
@@ -132,10 +136,7 @@ public class GoalReminderService : BackgroundService
                 sb.Append($"<li>{System.Net.WebUtility.HtmlEncode(g.Titre)} ({g.Debut:yyyy-MM-dd} → {g.Fin:yyyy-MM-dd})</li>");
             sb.Append("</ul>");
         }
-        else
-        {
-            sb.Append("<p>Aucun objectif ouvert.</p>");
-        }
+
         if (newArticles.Count > 0)
         {
             sb.Append("<h3>Articles créés durant la période</h3><ul>");
@@ -143,10 +144,26 @@ public class GoalReminderService : BackgroundService
                 sb.Append($"<li>{System.Net.WebUtility.HtmlEncode(a.Titre)} ({a.DateCreation:yyyy-MM-dd})</li>");
             sb.Append("</ul>");
         }
-        else
+
+        if (openTodos.Count > 0)
         {
-            sb.Append("<p>Aucun nouvel article dans la période.</p>");
+            sb.Append("<h3>Todos ouvertes</h3><ul>");
+            foreach (var t in openTodos)
+                sb.Append($"<li>{System.Net.WebUtility.HtmlEncode(t.Description)}</li>");
+            sb.Append("</ul>");
         }
+
+        if (doneTodos.Count > 0)
+        {
+            sb.Append("<h3>Todos terminées dans la période</h3><ul>");
+            foreach (var t in doneTodos)
+                sb.Append($"<li>{System.Net.WebUtility.HtmlEncode(t.Description)} (fait le {(t.DoneAt ?? DateTime.UtcNow):yyyy-MM-dd})</li>");
+            sb.Append("</ul>");
+        }
+
+        if (sb.Length == 0)
+            sb.Append("<p>Aucune donnée sélectionnée pour l'envoi.</p>");
+
         return sb.ToString();
     }
 

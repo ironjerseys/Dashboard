@@ -164,9 +164,14 @@
                 <ul id="todo-list" class="list-group flex-grow-1 overflow-auto">
                     @foreach (var t in Model.Todos)
                     {
-                        <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent todo-item" data-id="@t.Id" style="cursor:pointer">
+                        <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent todo-item @(t.IsDone?"text-decoration-line-through":"")" data-id="@t.Id" style="cursor:pointer">
                             <span>@t.Description</span>
                             <div class="btn-group btn-group-sm">
+                                <form asp-controller="Todos" asp-action="ToggleDone" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@t.Id" />
+                                    <button class="btn btn-outline-@(t.IsDone?"success":"secondary")" type="submit">@(t.IsDone?"✔":"✓")</button>
+                                </form>
                                 <a class="btn btn-outline-secondary" asp-controller="Todos" asp-action="Edit" asp-route-id="@t.Id">✎</a>
                                 <button class="btn btn-outline-danger del-btn" type="button">×</button>
                             </div>
@@ -199,7 +204,7 @@
    listEl.innerHTML = '';
    for(const t of data){
      const li = document.createElement('li');
-     li.className='list-group-item d-flex justify-content-between align-items-center bg-transparent todo-item';
+     li.className='list-group-item d-flex justify-content-between align-items-center bg-transparent todo-item ' + (t.isDone?'text-decoration-line-through':'');
      li.style.cursor='pointer';
      li.dataset.id = t.id;
      li.innerHTML = `<span>${t.description}</span>` +

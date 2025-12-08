@@ -8,4 +8,7 @@ public class Todo
 
     [Required, MaxLength(500)]
     public string Description { get; set; } = string.Empty;
+
+    public bool IsDone { get; set; }
+    public DateTime? DoneAt { get; set; }
 }

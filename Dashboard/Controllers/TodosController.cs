@@ -11,6 +11,15 @@ public class TodosController : Controller
     private readonly ITodoService _svc;
     public TodosController(ITodoService svc) { _svc = svc; }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ToggleDone(int id)
+    {
+        var ok = await _svc.ToggleDoneAsync(id);
+        if (!ok) return NotFound();
+        return RedirectToAction("Index", "Dashboard");
+    }
+
     // MVC pages
     [HttpGet]
     public async Task<IActionResult> Edit(int id)
@@ -45,7 +54,11 @@ public class TodosController : Controller
 
     // API endpoints (used by Dashboard JS)
     [HttpGet("/api/todo")]
-    public async Task<IActionResult> Get() => Ok(await _svc.GetAllAsync());
+    public async Task<IActionResult> Get()
+    {
+        var list = await _svc.GetAllAsync();
+        return Ok(list);
+    }
 
     [HttpPost("/api/todo")]
     public async Task<IActionResult> Create([FromBody] TodoCreateDto dto)

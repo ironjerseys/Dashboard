@@ -37,4 +37,8 @@ public class EmailSettings
     public int? DayOfMonth { get; set; }
 
     public DateTime? LastSentUtc { get; set; }
+
+    public bool IncludeTodos { get; set; } = true;
+    public bool IncludeGoals { get; set; } = true;
+    public bool IncludeArticles { get; set; } = true;
 }
