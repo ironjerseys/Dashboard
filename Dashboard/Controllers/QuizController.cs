@@ -4,15 +4,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Dashboard.Controllers;
 
-public class QuizController(IQuizService quiz) : Controller
+public class QuizController(IDbQuizService quiz) : Controller
 {
     const string ScoreKey = "QuizScore";
     const string IndexKey = "QuizIndex";
 
     [HttpGet]
-    public IActionResult Index()
+    public async Task<IActionResult> Index()
     {
-        var qs = quiz.GetQuestions();
+        var qs = await quiz.GetQuestionsAsync();
         var idx = HttpContext.Session.GetInt32(IndexKey) ?? 0;
         var score = HttpContext.Session.GetInt32(ScoreKey) ?? 0;
 
@@ -31,9 +31,9 @@ public class QuizController(IQuizService quiz) : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public IActionResult Answer(int choice)
+    public async Task<IActionResult> Answer(int choice)
     {
-        var qs = quiz.GetQuestions();
+        var qs = await quiz.GetQuestionsAsync();
         var idx = HttpContext.Session.GetInt32(IndexKey) ?? 0;
         var score = HttpContext.Session.GetInt32(ScoreKey) ?? 0;
 

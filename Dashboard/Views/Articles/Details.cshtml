@@ -2,6 +2,7 @@
 @model Article
 @{
     ViewData["Title"] = "Détails";
+    var qs = (IEnumerable<QuizQuestion>) (ViewBag.Questions ?? Enumerable.Empty<QuizQuestion>());
 }
 
 <div class="container mt-5 article-page">
@@ -18,7 +19,28 @@
         @Html.Raw(Model.Contenu)
     </div>
 
-    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Modifier</a>
-    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Supprimer</a>
-    <a asp-action="Index" class="btn btn-secondary">Retour à la liste</a>
+    @if (qs.Any())
+    {
+        <div class="card p-3 mb-3">
+            <h5>Questions liées</h5>
+            <ul class="mb-0">
+                @foreach (var q in qs)
+                {
+                    <li>@q.QuestionText</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <div class="d-flex gap-2">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Modifier</a>
+        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Supprimer</a>
+        <a asp-action="Index" class="btn btn-secondary">Retour à la liste</a>
+        @if(!qs.Any() && ViewBag.CreateQuestionUrl != null){
+            <a href="@ViewBag.CreateQuestionUrl" class="btn btn-outline-info">Créer une question liée</a>
+        }
+        @if(ViewBag.CreateQuestionUrl != null){
+            <a href="@ViewBag.CreateQuestionUrl" class="btn btn-outline-info">Ajouter une question liée</a>
+        }
+    </div>
 </div>

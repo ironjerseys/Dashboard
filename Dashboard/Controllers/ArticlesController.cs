@@ -11,11 +11,13 @@ public class ArticlesController : Controller
 {
     private readonly IArticleService _articleService;
     private readonly IAuthorizationService _auth;
+    private readonly IDbQuizService _quizService;
 
-    public ArticlesController(IArticleService articleService, IAuthorizationService auth)
+    public ArticlesController(IArticleService articleService, IAuthorizationService auth, IDbQuizService quizService)
     {
         _articleService = articleService;
         _auth = auth;
+        _quizService = quizService;
     }
 
 
@@ -40,6 +42,8 @@ public class ArticlesController : Controller
     public async Task<IActionResult> Details(int id)
     {
         var article = await _articleService.GetArticle(id);
+        ViewBag.CreateQuestionUrl = Url.Action("Create", "QuizAdmin", new { articleId = id });
+        ViewBag.Questions = await _quizService.GetByArticleAsync(id);
         return View(article);
     }
 

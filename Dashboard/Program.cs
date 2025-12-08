@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 string dataDir;
 var home = Environment.GetEnvironmentVariable("HOME"); // Azure: D:\home ou /home
 if (!string.IsNullOrEmpty(home))
-    dataDir = Path.Combine(home, "site", "data");       // Emplacement écritable sur App Service
+    dataDir = Path.Combine(home, "site", "data");       // Emplacement écrivable sur App Service
 else
     dataDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data"); // Local
 Directory.CreateDirectory(dataDir);
@@ -50,7 +50,7 @@ builder.Services.AddAuthorization(options =>
 
 // Services
 builder.Services.AddScoped<IArticleService, ArticleService>();
-builder.Services.AddScoped<IQuizService, QuizService>();
+builder.Services.AddScoped<IDbQuizService, DbQuizService>();
 builder.Services.AddScoped<IGoalService, GoalService>();
 builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<IAIChessLogService, AIChessLogService>();

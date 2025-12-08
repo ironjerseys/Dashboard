@@ -17,6 +17,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<AIChessLogs> AIChessLogs => Set<AIChessLogs>();
     public DbSet<Label> Labels => Set<Label>();
     public DbSet<EmailSettings> EmailSettings => Set<EmailSettings>();
+    public DbSet<QuizQuestion> QuizQuestions => Set<QuizQuestion>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -61,6 +62,14 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             e.HasIndex(x => x.UserId).IsUnique();
             e.Property(x => x.UserId).HasMaxLength(450);
             e.Property(x => x.RecipientEmail).HasMaxLength(256);
+        });
+
+        builder.Entity<QuizQuestion>(e =>
+        {
+            e.HasOne(q => q.Article)
+             .WithMany()
+             .HasForeignKey(q => q.ArticleId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
