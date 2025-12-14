@@ -65,17 +65,14 @@ body {
     text-align: start;
 }
 
-.item {
+/* Base : caché */
+.afficher {
     opacity: 0;
     transition: opacity 1s ease;
-    margin: 150px 0px;
-    padding: 30px;
-    background: rgba(60, 60, 60, .5);
-    border-radius: 20px;
 }
 
-/* Quand l'élément devient visible */
-.item.fade-in {
+/* État : visible */
+.is-visible {
     opacity: 1;
 }
 

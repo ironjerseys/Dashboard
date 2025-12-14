@@ -10,7 +10,7 @@
     @foreach (var website in Model)
     {
         var isRemoved = string.IsNullOrWhiteSpace(website.Url);
-        <div class="item @(isRemoved ? "removed" : "")" data-index="@i">
+        <div class="card afficher @(isRemoved ? "removed" : "")" data-index="@i">
             <h2>@website.Name</h2>
             <img src="@Url.Content($"~/images/{website.Image}")" alt="@website.Name" />
             <div>@Html.Raw(website.DescriptionHtml)</div>
