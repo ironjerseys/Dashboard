@@ -1,4 +1,4 @@
-html {
+﻿html {
     font-size: 14px;
     position: relative;
     min-height: 100%;
@@ -74,7 +74,7 @@ body {
     border-radius: 20px;
 }
 
-/* Quand l'�l�ment devient visible */
+/* Quand l'élément devient visible */
 .item.fade-in {
     opacity: 1;
 }
@@ -88,7 +88,7 @@ img {
     color: red;
 }
 
-/* Tableau global rendu transparent (sauf calendrier cibl� plus bas) */
+/* Tableau global rendu transparent (sauf calendrier ciblé plus bas) */
 .table {
     --bs-table-bg: transparent;
     --bs-table-striped-bg: transparent;
@@ -96,7 +96,7 @@ img {
     background-color: transparent !important;
 }
 
-/* Les cellules re�oivent un background via Bootstrap : on force transparent */
+/* Les cellules reçoivent un background via Bootstrap : on force transparent */
 .table > :not(caption) > * > * {
     background-color: transparent !important;
 }
@@ -121,11 +121,11 @@ img {
     color:#000 !important;
 }
 
-/* En-t�te calendrier transparent en th�me sombre, visible en th�me clair */
+/* En-tête calendrier transparent en thème sombre, visible en thème clair */
 .calendar .d-flex.bg-primary { background: transparent !important; }
 .theme-light .calendar .d-flex.bg-primary { background: #0d6efd !important; }
 
-/* Tbody calendrier transparent (bordures conserv�es) */
+/* Tbody calendrier transparent (bordures conservées) */
 .calendar table tbody { background: transparent !important; }
 
 /* Todo list transparent */
@@ -160,15 +160,15 @@ textarea.form-control,
     color: #222 !important;
 }
 
-/* Bold visible dans l��diteur Summernote */
+/* Bold visible dans l’éditeur Summernote */
 .note-editor .note-editable b,
 .note-editor .note-editable strong { font-weight: 700 !important; }
 
-/* Bold c�t� rendu article */
+/* Bold côté rendu article */
 .article-content b,
 .article-content strong { font-weight: 700; }
 
-/* Cards : marge top uniforme et bordure th�me clair */
+/* Cards : marge top uniforme et bordure thème clair */
 .card {
     padding: 30px;
     background: rgba(60, 60, 60, .5);
@@ -180,4 +180,115 @@ textarea.form-control,
     background: transparent !important;
     color: #222 !important;
     border: 1px solid #ced4da !important;
+}
+
+
+/*PARTIE ARTICLE*/
+
+
+/* Styles spécifiques aux pages Articles */
+.article-page {
+    /* pas de fond, on garde seulement l’espacement */
+    background: transparent;
+    border-radius: 20px;
+}
+
+/* Thème clair global (fond blanc, texte sombre) */
+.theme-light {
+    background: #fff !important;
+    color: #222 !important;
+    background-image: none !important;
+}
+
+    .theme-light h1, .theme-light .h1,
+    .theme-light h2, .theme-light .h2,
+    .theme-light h3, .theme-light .h3 {
+        color: #000 !important;
+    }
+    /* Navbar noire en thème clair */
+    .theme-light .navbar {
+        background-color: #000 !important;
+    }
+
+/* Cartes d’articles par défaut (thème sombre) : même design que .item (CV), sans animation */
+.article-card { /* ne pas cibler .article-list .card pour éviter d’affecter autres cards/form controls */
+    background: rgba(60, 60, 60, .5) !important;
+    color: #fff !important;
+    border: none;
+    border-radius: 20px;
+}
+
+/* Thème clair pour les articles: texte noir, pas de background, bordure grise */
+.theme-light .article-card {
+    background: transparent !important;
+    color: #222 !important;
+    border: 1px solid #ced4da !important; /* gris Bootstrap */
+    border-radius: 12px;
+}
+
+    .theme-light .article-card .card-footer {
+        background: transparent !important;
+        /*  border-top: 1px solid #ced4da !important; 
+*/
+    }
+
+.theme-light .article-content.card {
+    background: transparent !important;
+    color: #222 !important;
+    border: 1px solid #ced4da !important;
+}
+
+/* Thème clair : normaliser fond des form controls */
+.theme-light .form-control,
+.theme-light .form-select,
+.theme-light .input-group-text {
+    background: #fff !important;
+    color: #222 !important;
+}
+
+.article-card .card-title {
+    font-weight: 700;
+}
+
+.article-card .excerpt b, .article-card .excerpt strong {
+    font-weight: 700;
+}
+
+.article-content b, .article-content strong {
+    font-weight: 700;
+}
+
+/* Bouton lire */
+.article-card .btn-outline-secondary {
+    color: #fff;
+    border-color: #bbb;
+}
+
+    .article-card .btn-outline-secondary:hover {
+        background: #fff;
+        color: #000;
+    }
+/* En thème clair sur cartes transparentes */
+.theme-light .article-card .btn-outline-secondary {
+    color: #222;
+    border-color: #6c757d;
+}
+
+    .theme-light .article-card .btn-outline-secondary:hover {
+        background: #6c757d;
+        color: #fff;
+    }
+
+/* Images: taille naturelle (ne pas forcer 100% comme dans site.css) */
+.article-content img,
+.note-editor .note-editable img {
+    width: auto !important;
+    height: auto;
+    max-width: 100%; /* réduire si trop large */
+}
+
+/* Summernote zone dans thème sombre: forcer fond clair pour contraste lors d’édition */
+.note-editor.note-frame .note-editing-area .note-editable {
+    background: #fff;
+    color: #222;
 }

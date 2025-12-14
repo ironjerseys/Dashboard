@@ -2,7 +2,6 @@
 const ASSETS = [
   '/',
   '/css/site.css',
-  '/css/article.css',
   '/Dashboard.styles.css',
   '/lib/bootstrap/dist/css/bootstrap.min.css',
   '/lib/bootstrap/dist/js/bootstrap.bundle.min.js',
