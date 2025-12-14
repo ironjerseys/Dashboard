@@ -1,11 +1,11 @@
-@using Dashboard.Entities
+ï»¿@using Dashboard.Entities
 @model EmailSettings
 @{
-    ViewData["Title"] = "Paramètres email";
+    ViewData["Title"] = "ParamÃ¨tres email";
 }
 <div class="container mt-5 article-page">
     <div class="card article-card">
-        <h1 class="mb-3">Paramètres d'envoi d'emails</h1>
+        <h1 class="mb-3">ParamÃ¨tres d'envoi d'emails</h1>
         @if(TempData["ok"]!=null){<div class="alert alert-success">@TempData["ok"]</div>}
         <form method="post">
             <input type="hidden" asp-for="UserId" />
@@ -17,11 +17,11 @@
             </div>
             <div class="row mb-3">
                 <div class="col-md-4">
-                    <label class="form-label" asp-for="RecipientEmail">Adresse de réception</label>
+                    <label class="form-label" asp-for="RecipientEmail">Adresse de rÃ©ception</label>
                     <input class="form-control" asp-for="RecipientEmail" />
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label" asp-for="Frequency">Périodicité</label>
+                    <label class="form-label" asp-for="Frequency">PÃ©riodicitÃ©</label>
                     <select class="form-select" asp-for="Frequency" asp-items="Html.GetEnumSelectList<EmailFrequency>()"></select>
                 </div>
                 <div class="col-md-4">
@@ -63,7 +63,7 @@
                     <input type="hidden" name="IncludeArticles" value="false" />
                     <div class="form-check form-switch">
                         <input class="form-check-input" asp-for="IncludeArticles" value="true" />
-                        <label class="form-check-label" asp-for="IncludeArticles">Inclure les Articles créés</label>
+                        <label class="form-check-label" asp-for="IncludeArticles">Inclure les Articles crÃ©Ã©s</label>
                     </div>
                 </div>
             </div>
@@ -72,6 +72,6 @@
             </div>
         </form>
         <hr />
-        <p class="text-muted">Les emails contiendront les objectifs en cours (si sélectionnés), les titres des articles créés pendant la période (si sélectionnés), et les todos ouvertes et celles terminées dans la période (si sélectionnés).</p>
+        <p class="text-muted">Les emails contiendront les objectifs en cours (si sÃ©lectionnÃ©s), les titres des articles crÃ©Ã©s pendant la pÃ©riode (si sÃ©lectionnÃ©s), et les todos ouvertes et celles terminÃ©es dans la pÃ©riode (si sÃ©lectionnÃ©s).</p>
     </div>
 </div>

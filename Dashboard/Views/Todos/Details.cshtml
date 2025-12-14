@@ -1,10 +1,10 @@
-@using Dashboard.Entities
+Ôªø@using Dashboard.Entities
 @model Todo
 @{
-    ViewData["Title"] = "DÈtail de la t‚che";
+    ViewData["Title"] = "D√©tail de la t√¢che";
 }
 <h1>@Model.Description</h1>
 <div class="mt-3">
-    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">…diter</a>
+    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">√âditer</a>
     <a asp-controller="Dashboard" asp-action="Index" class="btn btn-secondary">Retour</a>
 </div>

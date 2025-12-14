@@ -1,4 +1,4 @@
-@using Dashboard.Entities
+ï»¿@using Dashboard.Entities
 @model Article
 @{
     ViewData["Title"] = "Modifier un article";
@@ -32,10 +32,10 @@
                     <option value="@l.Id" selected="@(selected ? "selected" : null)">@l.Name</option>
                 }
             </select>
-            <div class="form-text">Maintenir Ctrl/Cmd pour multi-sélection.</div>
+            <div class="form-text">Maintenir Ctrl/Cmd pour multi-sÃ©lection.</div>
         </div>
         <div class="col-md-6">
-            <label class="form-label">Nouveaux labels (séparés par des virgules)</label>
+            <label class="form-label">Nouveaux labels (sÃ©parÃ©s par des virgules)</label>
             <input name="newLabels" class="form-control" placeholder="ex: C#, OOP" />
         </div>
     </div>
@@ -53,7 +53,7 @@
         $(function () {
             const $ed = $('#Contenu');
             $ed.summernote({
-                placeholder: 'Écrivez votre article...',
+                placeholder: 'Ã‰crivez votre article...',
                 height: 300,
                 dialogsInBody: true,
                 styleTags: ['p', 'h2', 'h3', 'blockquote', 'pre'],
