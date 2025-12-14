@@ -141,13 +141,14 @@ img {
 .form-control:focus,
 textarea.form-control,
 .form-select,
-.form-select:focus {
+.form-select:focus,
+.btn{
     color: inherit;
     box-shadow: none;
     background: rgba(60, 60, 60, .5) !important;
     border-radius: 12px;
-    border: 1px solid #ced4da !important;
 }
+
 .theme-light .form-control,
 .theme-light .form-control:focus,
 .theme-light textarea.form-control,
@@ -168,7 +169,7 @@ textarea.form-control,
 /* Cards : marge top uniforme et bordure thème clair */
 .card {
     padding: 30px;
-    background: rgba(60, 60, 60, .5);
+    background: rgba(255, 255, 255, .1);
     border-radius: 12px;
     color: white;
     margin-top: 2rem;
@@ -197,37 +198,30 @@ textarea.form-control,
     background-image: none !important;
 }
 
-    .theme-light h1, .theme-light .h1,
-    .theme-light h2, .theme-light .h2,
-    .theme-light h3, .theme-light .h3 {
-        color: #000 !important;
-    }
-    /* Navbar noire en thème clair */
-    .theme-light .navbar {
-        background-color: #000 !important;
-    }
-
-/* Cartes d’articles par défaut (thème sombre) : même design que .item (CV), sans animation */
-.article-card { /* ne pas cibler .article-list .card pour éviter d’affecter autres cards/form controls */
-    background: rgba(60, 60, 60, .5) !important;
-    color: #fff !important;
-    border: none;
-    border-radius: 20px;
+.theme-light h1, .theme-light .h1,
+.theme-light h2, .theme-light .h2,
+.theme-light h3, .theme-light .h3 {
+    color: #000 !important;
+}
+/* Navbar noire en thème clair */
+.theme-light .navbar {
+    background-color: #000 !important;
 }
 
+
 /* Thème clair pour les articles: texte noir, pas de background, bordure grise */
-.theme-light .article-card {
+.theme-light .card {
     background: transparent !important;
     color: #222 !important;
     border: 1px solid #ced4da !important; /* gris Bootstrap */
     border-radius: 12px;
 }
 
-    .theme-light .article-card .card-footer {
-        background: transparent !important;
-        /*  border-top: 1px solid #ced4da !important; 
+.theme-light .article-card .card-footer {
+    background: transparent !important;
+    /*  border-top: 1px solid #ced4da !important; 
 */
-    }
+}
 
 .theme-light .article-content.card {
     background: transparent !important;
@@ -256,25 +250,22 @@ textarea.form-control,
 }
 
 /* Bouton lire */
-.article-card .btn-outline-secondary {
+.article-card  {
     color: #fff;
     border-color: #bbb;
 }
 
-    .article-card .btn-outline-secondary:hover {
-        background: #fff;
-        color: #000;
-    }
+
 /* En thème clair sur cartes transparentes */
-.theme-light .article-card .btn-outline-secondary {
+.theme-light .article-card  {
     color: #222;
     border-color: #6c757d;
 }
 
-    .theme-light .article-card .btn-outline-secondary:hover {
-        background: #6c757d;
-        color: #fff;
-    }
+.theme-light .article-card:hover {
+    background: #6c757d;
+    color: #fff;
+}
 
 /* Images: taille naturelle (ne pas forcer 100% comme dans site.css) */
 .article-content img,

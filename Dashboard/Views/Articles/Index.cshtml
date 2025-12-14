@@ -38,8 +38,8 @@
                     <option value="TitleAsc" selected="@(selectedSort == Dashboard.Services.ArticleSort.TitleAsc ? "selected" : null)">Titre A → Z</option>
                     <option value="TitleDesc" selected="@(selectedSort == Dashboard.Services.ArticleSort.TitleDesc ? "selected" : null)">Titre Z → A</option>
                 </select>
-                <button class="btn btn-sm btn-outline-primary">Filtrer</button>
-                <a class="btn btn-sm btn-outline-secondary" href="@Url.Action("Index")">Réinitialiser</a>
+                <button class="btn btn-sm">Filtrer</button>
+                <a class="btn btn-sm" href="@Url.Action("Index")">Réinitialiser</a>
             </div>
         </form>
     </div>
@@ -67,7 +67,7 @@
                             </div>
                         </div>
                         <!-- Ligne labels séparée avec troncature -->
-                        <div class="card-footer py-2">
+                        <div class="py-2">
                             <div class="labels-line text-truncate" title="@string.Join(", ", (article.Labels?.Select(l => l.Name) ?? Enumerable.Empty<string>()))">
                                 @if (article.Labels?.Any() ?? false)
                                 {
@@ -77,13 +77,13 @@
                             </div>
                         </div>
                         <!-- Pied de la card: date + bouton Lire -->
-                        <div class="card-footer d-flex justify-content-between align-items-center mt-auto">
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
                             <div class="small text-muted">
                                 @article.DateCreation.ToLocalTime().ToString("dd/MM/yyyy")
                             </div>
                             <div class="ms-2">
                                 <a asp-controller="Articles" asp-action="Details" asp-route-id="@article.Id"
-                                   class="btn btn-sm btn-outline-secondary">Lire</a>
+                                   class="btn btn-sm">Lire</a>
                             </div>
                         </div>
                     </div>

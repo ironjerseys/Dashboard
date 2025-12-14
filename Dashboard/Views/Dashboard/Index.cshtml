@@ -15,7 +15,7 @@
         <!-- Colonne gauche: Calendrier + Objectifs + Formulaire objectif -->
         <div class="col-lg-8 d-flex flex-column gap-4">
             <!-- Calendrier -->
-            <div class="calendar">
+            <div class="calendar card">
                 <div class="d-flex justify-content-between align-items-center mb-2 px-2 py-1 rounded">
                     <div class="d-flex align-items-center gap-2">
                         <a class="btn btn-sm fw-bold fs-5" asp-route-year="@(month==1?year-1:year)" asp-route-month="@(month==1?12:month-1)">«</a>
@@ -55,7 +55,7 @@
             </div>
 
             <!-- Objectifs du mois -->
-            <div class="goals">
+            <div class="goals card">
                 <h3>Mes objectifs du mois</h3>
                 <table class="table table-hover">
                     <thead>
@@ -96,7 +96,7 @@
                                 <form asp-controller="Dashboard" asp-action="DeleteGoal" method="post" onsubmit="return confirm('Supprimer ?');">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@g.Id" />
-                                    <button class="btn btn-sm btn-outline-danger">Supprimer</button>
+                                    <button class="btn btn-sm">Supprimer</button>
                                 </form>
                             </td>
                         </tr>
@@ -106,7 +106,7 @@
             </div>
 
             <!-- Formulaire objectif sous la liste -->
-            <div class="goal-form">
+            <div class="goal-form card">
                 <h3>@(selected==null ? "Nouvel objectif" : "Modifier objectif")</h3>
                 <form asp-controller="Dashboard" asp-action="SaveGoal" method="post">
                     @Html.AntiForgeryToken()
@@ -153,12 +153,12 @@
 
         <!-- Colonne droite: Todo pleine hauteur -->
         <div class="col-lg-4">
-            <div class="p-3 border rounded h-100 d-flex flex-column">
+            <div class="card p-3 border h-100 d-flex flex-column">
                 <h5 class="mb-3">Todo</h5>
                 <form id="todo-form" class="mb-3">
                     <div class="input-group">
-                        <input name="description" id="todo-desc" class="form-control" placeholder="Nouvelle tâche" maxlength="500" required />
-                        <button class="btn btn-primary" type="submit">+</button>
+                        <input name="description" id="todo-desc" class="form-control m-2" placeholder="Nouvelle tâche" maxlength="500" required />
+                        <button class="btn btn-primary m-2" type="submit">+</button>
                     </div>
                 </form>
                 <ul id="todo-list" class="list-group flex-grow-1 overflow-auto">
@@ -170,10 +170,10 @@
                                 <form asp-controller="Todos" asp-action="ToggleDone" method="post" class="d-inline">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="id" value="@t.Id" />
-                                    <button class="btn btn-outline-@(t.IsDone?"success":"secondary")" type="submit">@(t.IsDone?"✔":"✓")</button>
+                                    <button class="btn m-2" type="submit">@(t.IsDone?"✔":"✓")</button>
                                 </form>
-                                <a class="btn btn-outline-secondary" asp-controller="Todos" asp-action="Edit" asp-route-id="@t.Id">✎</a>
-                                <button class="btn btn-outline-danger del-btn" type="button">×</button>
+                                <a class="btn m-2" asp-controller="Todos" asp-action="Edit" asp-route-id="@t.Id">✎</a>
+                                <button class="btn del-btn m-2" type="button">×</button>
                             </div>
                         </li>
                     }
@@ -209,8 +209,8 @@
      li.dataset.id = t.id;
      li.innerHTML = `<span>${t.description}</span>` +
                     `<div class='btn-group btn-group-sm'>` +
-                    `<a class='btn btn-outline-secondary' href='/Todos/Edit/${t.id}'>✎</a>` +
-                    `<button class='btn btn-outline-danger del-btn' type='button'>×</button>` +
+                    `<a class='btn' href='/Todos/Edit/${t.id}'>✎</a>` +
+                    `<button class='btn del-btn' type='button'>×</button>` +
                     `</div>`;
      listEl.appendChild(li);
    }

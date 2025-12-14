@@ -1,4 +1,4 @@
-@using Dashboard.Entities
+﻿@using Dashboard.Entities
 @model Article
 @{
     ViewData["Title"] = "Détails";
@@ -37,10 +37,10 @@
         <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Supprimer</a>
         <a asp-action="Index" class="btn btn-secondary">Retour à la liste</a>
         @if(!qs.Any() && ViewBag.CreateQuestionUrl != null){
-            <a href="@ViewBag.CreateQuestionUrl" class="btn btn-outline-info">Créer une question liée</a>
+            <a href="@ViewBag.CreateQuestionUrl" class="btn">Créer une question liée</a>
         }
         @if(ViewBag.CreateQuestionUrl != null){
-            <a href="@ViewBag.CreateQuestionUrl" class="btn btn-outline-info">Ajouter une question liée</a>
+            <a href="@ViewBag.CreateQuestionUrl" class="btn">Ajouter une question liée</a>
         }
     </div>
 </div>

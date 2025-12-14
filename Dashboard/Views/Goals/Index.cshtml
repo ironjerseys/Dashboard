@@ -1,4 +1,4 @@
-@model IEnumerable<Goal>
+ï»¿@model IEnumerable<Goal>
 @using Dashboard.Entities
 @using Microsoft.AspNetCore.Mvc.Rendering
 @{
@@ -11,9 +11,9 @@
 
 <div class="d-flex justify-content-between align-items-center mb-2">
     <div>
-        <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-year="@(month==1?year-1:year)" asp-route-month="@(month==1?12:month-1)">«</a>
+        <a class="btn btn-sm" asp-action="Index" asp-route-year="@(month==1?year-1:year)" asp-route-month="@(month==1?12:month-1)">Â«</a>
         <strong>@(new DateTime(year, month, 1).ToString("MMMM yyyy"))</strong>
-        <a class="btn btn-outline-secondary btn-sm" asp-action="Index" asp-route-year="@(month==12?year+1:year)" asp-route-month="@(month==12?1:month+1)">»</a>
+        <a class="btn btn-sm" asp-action="Index" asp-route-year="@(month==12?year+1:year)" asp-route-month="@(month==12?1:month+1)">Â»</a>
     </div>
 </div>
 
@@ -63,7 +63,7 @@
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th>Début</th>
+                    <th>DÃ©but</th>
                     <th>Fin</th>
                     <th>Titre</th>
                     <th>Article</th>
@@ -103,7 +103,7 @@
                                 <select name="articleId" class="form-select form-select-sm" asp-items="(IEnumerable<SelectListItem>)ViewBag.Articles">
                                     <option value="">-- Aucun --</option>
                                 </select>
-                                <button class="btn btn-sm btn-outline-primary">Lier</button>
+                                <button class="btn btn-sm">Lier</button>
                             </form>
                         </td>
                     </tr>
@@ -124,7 +124,7 @@
                 <textarea name="description" class="form-control"></textarea>
             </div>
             <div class="mb-2">
-                <label class="form-label">Début</label>
+                <label class="form-label">DÃ©but</label>
                 <input type="date" name="debut" class="form-control" value="@DateOnly.FromDateTime(DateTime.Now).ToString("yyyy-MM-dd")" />
             </div>
             <div class="mb-2">
@@ -137,7 +137,7 @@
                     <option value="">-- Aucun --</option>
                 </select>
             </div>
-            <button class="btn btn-primary">Créer</button>
+            <button class="btn btn-primary">CrÃ©er</button>
         </form>
     </div>
 </div>
