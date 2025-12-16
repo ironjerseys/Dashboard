@@ -1,9 +1,11 @@
 ﻿using Dashboard.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Dashboard.Controllers;
 
+[Authorize]
 public class AccountController : Controller
 {
     private readonly UserManager<IdentityUser> _userMgr;
@@ -36,10 +38,12 @@ public class AccountController : Controller
         return RedirectToAction("Index", "Dashboard");
     }
 
+    [AllowAnonymous]
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
         => View(new LoginViewModel { ReturnUrl = returnUrl });
 
+    [AllowAnonymous]
     [HttpPost]
     public async Task<IActionResult> Login(LoginViewModel vm)
     {

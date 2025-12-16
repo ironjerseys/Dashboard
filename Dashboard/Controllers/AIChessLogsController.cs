@@ -1,10 +1,12 @@
+﻿using Dashboard.Data;
 using Dashboard.Entities;
 using Dashboard.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Dashboard.Data;
 
 namespace Dashboard.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/aichesslogs")]
 public class AIChessLogsApiController : ControllerBase
@@ -20,7 +22,7 @@ public class AIChessLogsApiController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AIChessLogs dto)
     {
-        await Log("Info", "ApiCall", "POST /api/aichesslogs re�u");
+        await Log("Info", "ApiCall", "POST /api/aichesslogs reçu");
         if (dto == null)
         {
             await Log("Warn", "BadRequest", "Payload null" );
@@ -58,6 +60,7 @@ public class AIChessLogsApiController : ControllerBase
     }
 }
 
+[Authorize]
 public class AIChessLogsController : Controller
 {
     private readonly IAIChessLogService _svc;

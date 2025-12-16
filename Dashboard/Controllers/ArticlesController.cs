@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Dashboard.Controllers;
@@ -21,7 +21,6 @@ public class ArticlesController : Controller
     }
 
 
-    [AllowAnonymous]
     public async Task<IActionResult> Index([FromQuery] int[] labels, [FromQuery] ArticleSort sort = ArticleSort.DateNewest, [FromQuery] string? search = null)
     {
         var articles = await _articleService.GetArticles(labels, sort, search);
@@ -38,7 +37,6 @@ public class ArticlesController : Controller
         return View("ArticlesManagement", articles);
     }
 
-    [AllowAnonymous]
     public async Task<IActionResult> Details(int id)
     {
         var article = await _articleService.GetArticle(id);

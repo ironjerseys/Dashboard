@@ -1,9 +1,11 @@
 ﻿using Dashboard.Models;
 using Dashboard.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Dashboard.Controllers;
 
+[Authorize]
 public class QuizController(IDbQuizService quiz) : Controller
 {
     const string ScoreKey = "QuizScore";
