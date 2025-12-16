@@ -1,8 +1,10 @@
 ﻿using Dashboard.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 
 namespace Dashboard.Controllers;
+
 
 public class HomeController : Controller
 {
@@ -28,7 +30,7 @@ public class HomeController : Controller
                 {
                     Titre = "Développeur .NET",
                     LogoEntreprise = string.Empty,
-                    Entreprise = "Adentis",
+                    Entreprise = "Adentis / Crédit Agricole",
                     Periode = "Mars 2024 - Maintenant",
                     Description = "<p>J'ai travaillé comme développeur .NET pour le Crédit Agricole dans le cadre d'une refonte d'un grand nombre d'applications à réécrire en C# .NET 8.0</p>",
                     Technos = new List<string>{ "C#", ".NET Core", "ASP.NET", "GitLab", "CI/CD", "SQL Server" }
@@ -37,7 +39,7 @@ public class HomeController : Controller
                 {
                     Titre = "Développeur .NET",
                     LogoEntreprise = string.Empty,
-                    Entreprise = "Alten",
+                    Entreprise = "Alten / Doxallia Groupe Crédit Agricole",
                     Periode = "Octobre 2024 - Février 2024",
                     Description = "<p>J'ai travaillé comme développeur .NET à la Direction des Systèmes d'Information pour Doxallia, filiale du Crédit Agricole, principalement sur une API C# .NET 8.0 avec une importante partie DevOps.</p><p>Pour la mise en production de l'API j'ai installé et configuré les serveurs IIS et créé la pipeline CI/CD Azure Devops Server. J'ai aussi participé à la sécurisation du SI, notamment dans le développement et la gestion des flux entre les serveurs de la plateforme sur laquelle je travaillais. Mon travail consistait aussi à maintenir les serveurs applicatifs et serveurs de bases de données de ma plateforme</p>",
                     Technos = new List<string>{ "C#", ".NET Core", "Azure DevOps", "CI/CD", "SQL Server" }
@@ -53,7 +55,7 @@ public class HomeController : Controller
                 },
                 new Experience
                 {
-                    Titre = "Master Ingénieur logiciel",
+                    Titre = "Master Développement Logiciel",
                     LogoEntreprise = string.Empty,
                     Entreprise = "IPI Groupe IGS",
                     Periode = "Septembre 2022 - Aout 2024",
@@ -116,7 +118,7 @@ public class HomeController : Controller
                 {
                     Name = "Chess Results Stats - Non maintenu",
                     DescriptionHtml = "<p>Chess Results Stats est un site pour analyser des données fournies par Chess.com, le site d'échec en ligne le plus utilisé dans le monde.</p><p>Il part d'un projet scolaire où je devais  manipuler des données avec LinQ, je l'ai donc réalisé en .NET et Angular, j'ai stocké le code sur GitHub et j'ai déployé le site sur Azure avec une pipeline CI/CD GitHub Actions.</p><p>J'ai profité de ce projet pour tester différentes stacks techniques, j'ai refait le projet avec la MERN stack, MongoDB Express React et Node.JS.</p><p>La première version consistait à exporter un fichier de Chess.com et l'uploader sur mon site, pour visualiser quelques résultats clés. Avec la deuxième version j'ai ajouté une base de donnée pour stocker les résultats, remplacé les quelques résultats clés par des graphs avec Chart.JS et remplacé le download/upload de fichier par un appel à l'API Ches.com.</p><p>J'ai ensuite réécris le site en Java / Angular, pour enfin revenir à .NET / Angular, et j'ai remplacé la base de donnée MongoDB par une base de donnée SQL Server hébergée sur Azure.</p>",
-                    Url = "https://chessresultsstats.com/",
+                    Url = "",
                     Image = "chessresultsstats.png"
                 },
                 new Website
@@ -131,10 +133,7 @@ public class HomeController : Controller
         return View(websites);
     }
 
-    public IActionResult Articles()
-    {
-        return View();
-    }
+  
 
     [HttpGet("/privacy-policy")]
     public IActionResult Privacy()

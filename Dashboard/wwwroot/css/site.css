@@ -52,8 +52,8 @@ body {
 
 .right {
     font-size: 20px;
-    text-align: right;
-    margin-top: 10rem;
+    display: flex;
+    justify-content: flex-end;
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
@@ -145,7 +145,7 @@ textarea.form-control,
 .btn{
     color: inherit;
     box-shadow: none;
-    background: rgba(60, 60, 60, .5) !important;
+    background: rgba(255, 255, 255, .2) !important;
     border-radius: 12px;
 }
 
