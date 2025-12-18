@@ -6,13 +6,14 @@
 <div class="container mt-5 article-page">
     <div class="card article-card">
         <h1 class="mb-3">Paramètres d'envoi d'emails</h1>
-        @if(TempData["ok"]!=null){<div class="alert alert-success">@TempData["ok"]</div>}
+        @if (TempData["ok"] != null)
+        {
+            <div class="alert alert-success">@TempData["ok"]</div>
+        }
         <form method="post">
             <input type="hidden" asp-for="UserId" />
-            <!-- hidden to force false when unchecked -->
-            <input type="hidden" name="Enabled" value="false" />
             <div class="form-check form-switch mb-3">
-                <input class="form-check-input" asp-for="Enabled" value="true" />
+                <input class="form-check-input" asp-for="Enabled"/>
                 <label class="form-check-label" asp-for="Enabled">Activer l'envoi</label>
             </div>
             <div class="row mb-3">
@@ -46,21 +47,18 @@
             </div>
             <div class="row mb-3">
                 <div class="col-md-4">
-                    <input type="hidden" name="IncludeTodos" value="false" />
                     <div class="form-check form-switch">
                         <input class="form-check-input" asp-for="IncludeTodos" value="true" />
                         <label class="form-check-label" asp-for="IncludeTodos">Inclure les Todos</label>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <input type="hidden" name="IncludeGoals" value="false" />
                     <div class="form-check form-switch">
                         <input class="form-check-input" asp-for="IncludeGoals" value="true" />
                         <label class="form-check-label" asp-for="IncludeGoals">Inclure les Objectifs</label>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <input type="hidden" name="IncludeArticles" value="false" />
                     <div class="form-check form-switch">
                         <input class="form-check-input" asp-for="IncludeArticles" value="true" />
                         <label class="form-check-label" asp-for="IncludeArticles">Inclure les Articles créés</label>

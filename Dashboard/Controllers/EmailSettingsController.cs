@@ -1,4 +1,4 @@
-using Dashboard.Data;
+ï»¿using Dashboard.Data;
 using Dashboard.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -36,9 +36,13 @@ public class EmailSettingsController : Controller
     public async Task<IActionResult> Index(EmailSettings model)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
         if (userId != model.UserId) model.UserId = userId;
+
         if (!ModelState.IsValid) return View(model);
+
         var existing = await _db.EmailSettings.FirstOrDefaultAsync(x => x.UserId == userId);
+
         if (existing == null)
         {
             _db.EmailSettings.Add(model);
@@ -52,9 +56,14 @@ public class EmailSettingsController : Controller
             existing.DayOfWeek = model.DayOfWeek;
             existing.DayOfMonth = model.DayOfMonth;
             existing.RecipientEmail = model.RecipientEmail;
+            existing.IncludeTodos = model.IncludeTodos;
+            existing.IncludeGoals = model.IncludeGoals;
+            existing.IncludeArticles = model.IncludeArticles;
         }
         await _db.SaveChangesAsync();
-        TempData["ok"] = "Paramètres enregistrés";
+
+        TempData["ok"] = "ParamÃ¨tres enregistrÃ©s";
+
         return RedirectToAction(nameof(Index));
     }
 }
