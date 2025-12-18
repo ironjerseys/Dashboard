@@ -8,17 +8,21 @@ namespace Dashboard.Controllers;
 [Authorize]
 public class AccountController : Controller
 {
-    private readonly UserManager<IdentityUser> _userMgr;
-    private readonly SignInManager<IdentityUser> _signInMgr;
+    private readonly UserManager<IdentityUser> _userManager;
+    private readonly SignInManager<IdentityUser> _signInManager;
 
-    public AccountController(UserManager<IdentityUser> um, SignInManager<IdentityUser> sm)
+    public AccountController(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager)
     {
-        _userMgr = um;
-        _signInMgr = sm;
+        _userManager = userManager;
+        _signInManager = signInManager;
     }
 
     [HttpGet]
-    public IActionResult Register() => View(new RegisterViewModel());
+    public IActionResult Register()
+    {
+        return View(new RegisterViewModel());
+    }
+    
 
     [HttpPost]
     public async Task<IActionResult> Register(RegisterViewModel vm)
@@ -26,22 +30,27 @@ public class AccountController : Controller
         if (!ModelState.IsValid) return View(vm);
 
         var user = new IdentityUser(vm.Email) { Email = vm.Email };
-        var res = await _userMgr.CreateAsync(user, vm.Password);
-        if (!res.Succeeded)
+        var result = await _userManager.CreateAsync(user, vm.Password);
+        if (!result.Succeeded)
         {
-            foreach (var e in res.Errors)
-                ModelState.AddModelError("", e.Description);
+            foreach (var error in result.Errors)
+            {
+                ModelState.AddModelError("", error.Description);
+            }
             return View(vm);
         }
 
-        await _signInMgr.SignInAsync(user, isPersistent: false);
+        await _signInManager.SignInAsync(user, isPersistent: false);
         return RedirectToAction("Index", "Dashboard");
     }
 
     [AllowAnonymous]
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
-        => View(new LoginViewModel { ReturnUrl = returnUrl });
+    {
+        return View(new LoginViewModel { ReturnUrl = returnUrl });
+    }
+       
 
     [AllowAnonymous]
     [HttpPost]
@@ -49,12 +58,12 @@ public class AccountController : Controller
     {
         if (!ModelState.IsValid) return View(vm);
 
-        var res = await _signInMgr.PasswordSignInAsync(
-            vm.Email, vm.Password, vm.RememberMe, lockoutOnFailure: false
-        );
-        if (res.Succeeded)
+        var result = await _signInManager.PasswordSignInAsync(vm.Email, vm.Password, vm.RememberMe, lockoutOnFailure: false);
+        if (result.Succeeded)
+        {
             return Redirect(vm.ReturnUrl ?? Url.Action("Index", "Dashboard")!);
 
+        }
         ModelState.AddModelError("", "Identifiants invalides");
         return View(vm);
     }
@@ -62,9 +71,12 @@ public class AccountController : Controller
     [HttpPost]
     public async Task<IActionResult> Logout()
     {
-        await _signInMgr.SignOutAsync();
+        await _signInManager.SignOutAsync();
         return RedirectToAction("Index", "Home");
     }
 
-    public IActionResult AccessDenied() => View();
+    public IActionResult AccessDenied()
+    {
+        return View();
+    }
 }
