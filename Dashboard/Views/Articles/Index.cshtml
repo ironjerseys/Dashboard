@@ -7,12 +7,12 @@
 @{
     ViewData["Title"] = "Articles";
     var labels = (IEnumerable<Label>)ViewBag.Labels ?? Enumerable.Empty<Label>();
-    var selectedIds = (int[]) (ViewBag.SelectedLabelIds ?? Array.Empty<int>());
+    var selectedIds = (int[])(ViewBag.SelectedLabelIds ?? Array.Empty<int>());
     var selectedSort = (Dashboard.Services.ArticleSort)(ViewBag.SelectedSort ?? Dashboard.Services.ArticleSort.DateNewest);
     var search = (string)(ViewBag.Search ?? string.Empty);
 }
 
-<div class="mt-5 article-page article-list">
+<div class="mt-5 mb-5 article-page article-list">
 
     <!-- Titre principal de la page avec margin-bottom -->
     <h1 class="mb-3">Derniers articles</h1>
@@ -21,14 +21,14 @@
         <strong>Labels:</strong>
         <form id="labels-form" method="get" class="d-flex flex-wrap align-items-center gap-2 ms-0">
             <div class="d-flex flex-wrap align-items-center gap-2">
-            @foreach (var l in labels)
-            {
-                var checkedAttr = selectedIds.Contains(l.Id) ? "checked" : null;
-                <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" name="labels" value="@l.Id" @(checkedAttr) id="lbl_@l.Id" />
-                    <label class="form-check-label" for="lbl_@l.Id">@l.Name</label>
-                </div>
-            }
+                @foreach (var l in labels)
+                {
+                    var checkedAttr = selectedIds.Contains(l.Id) ? "checked" : null;
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="labels" value="@l.Id" @(checkedAttr) id="lbl_@l.Id" />
+                        <label class="form-check-label" for="lbl_@l.Id">@l.Name</label>
+                    </div>
+                }
             </div>
             <div class="ms-auto d-flex align-items-center gap-2">
                 <input type="text" name="search" value="@search" class="form-control form-control-sm" placeholder="Rechercher..." style="max-width:220px" />
@@ -43,6 +43,11 @@
             </div>
         </form>
     </div>
+
+    @if (User.Identity?.IsAuthenticated ?? false)
+    {
+        <a class="btn btn-primary mt-3" asp-action="Create">Nouvel article</a>
+    }
 
     @if (!(Model?.Any() ?? false))
     {
@@ -91,7 +96,6 @@
             }
         </div>
     }
-    <a class="btn btn-primary mt-5" asp-action="Create">Nouvel article</a>
 
 </div>
 

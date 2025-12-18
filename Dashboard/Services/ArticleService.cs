@@ -1,4 +1,4 @@
-namespace Dashboard.Services;
+﻿namespace Dashboard.Services;
 
 using Dashboard.Entities;
 using Data;
@@ -26,12 +26,12 @@ public interface IArticleService
 
 public class ArticleService : IArticleService
 {
-    private readonly BlogContext _db;
+    private readonly BlogContext _context;
     private readonly HtmlSanitizer _sanitizer;
 
-    public ArticleService(BlogContext db)
+    public ArticleService(BlogContext context)
     {
-        _db = db;
+        _context = context;
         _sanitizer = new HtmlSanitizer();
         foreach(var t in new [] { "code", "pre", "span", "table", "thead", "tbody", "tr", "th", "td", "h2", "h3", "h4", "img" })
             _sanitizer.AllowedTags.Add(t);
@@ -43,7 +43,7 @@ public class ArticleService : IArticleService
 
     public async Task<IEnumerable<Article>> GetArticles(IEnumerable<int>? includeLabelIds = null, ArticleSort sort = ArticleSort.DateNewest, string? search = null)
     {
-        var q = _db.Articles.Include(a => a.Author).Include(a => a.Labels).AsQueryable();
+        var q = _context.Articles.Include(a => a.Author).Include(a => a.Labels).AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
@@ -67,7 +67,7 @@ public class ArticleService : IArticleService
 
     public async Task<Article> GetArticle(int id)
     {
-        return await _db.Articles.Include(a => a.Labels).FirstOrDefaultAsync(a => a.Id == id) ?? new Article();
+        return await _context.Articles.Include(a => a.Labels).FirstOrDefaultAsync(a => a.Id == id) ?? new Article();
     }
 
     private async Task<List<Label>> EnsureLabels(string[]? newLabels)
@@ -81,12 +81,12 @@ public class ArticleService : IArticleService
             var parts = name.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             foreach(var p in parts)
             {
-                var existing = await _db.Labels.FirstOrDefaultAsync(l => l.Name == p);
+                var existing = await _context.Labels.FirstOrDefaultAsync(l => l.Name == p);
                 if (existing != null) result.Add(existing);
                 else {
                     var l = new Label { Name = p };
-                    _db.Labels.Add(l);
-                    await _db.SaveChangesAsync();
+                    _context.Labels.Add(l);
+                    await _context.SaveChangesAsync();
                     result.Add(l);
                 }
             }
@@ -94,7 +94,7 @@ public class ArticleService : IArticleService
         return result;
     }
 
-    public async Task<List<Label>> GetLabels() => await _db.Labels.OrderBy(l => l.Name).ToListAsync();
+    public async Task<List<Label>> GetLabels() => await _context.Labels.OrderBy(l => l.Name).ToListAsync();
 
     public async Task CreateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
     {
@@ -102,14 +102,14 @@ public class ArticleService : IArticleService
         var labels = new List<Label>();
         if (selectedLabelIds != null && selectedLabelIds.Length > 0)
         {
-            var existing = await _db.Labels.Where(l => selectedLabelIds.Contains(l.Id)).ToListAsync();
+            var existing = await _context.Labels.Where(l => selectedLabelIds.Contains(l.Id)).ToListAsync();
             labels.AddRange(existing);
         }
         var created = await EnsureLabels(newLabels);
         labels.AddRange(created);
         article.Labels = labels.DistinctBy(l => l.Id).ToList();
-        _db.Articles.Add(article);
-        await _db.SaveChangesAsync();
+        _context.Articles.Add(article);
+        await _context.SaveChangesAsync();
     }
 
     public async Task UpdateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
@@ -117,19 +117,20 @@ public class ArticleService : IArticleService
         var sanitized = _sanitizer.Sanitize(article.Contenu);
 
         // Load tracked entity including current labels
-        var existing = await _db.Articles.Include(a => a.Labels).FirstOrDefaultAsync(a => a.Id == article.Id);
+        var existing = await _context.Articles.Include(a => a.Labels).FirstOrDefaultAsync(a => a.Id == article.Id);
         if (existing == null) return;
 
         // Update scalar properties
         existing.Titre = article.Titre;
         existing.Contenu = sanitized;
+        existing.IsPublic = article.IsPublic;
         // existing.DateCreation stays unchanged
 
         // Build desired labels set
         var desired = new List<Label>();
         if (selectedLabelIds != null && selectedLabelIds.Length > 0)
         {
-            var existingLabels = await _db.Labels.Where(l => selectedLabelIds.Contains(l.Id)).ToListAsync();
+            var existingLabels = await _context.Labels.Where(l => selectedLabelIds.Contains(l.Id)).ToListAsync();
             desired.AddRange(existingLabels);
         }
         var created = await EnsureLabels(newLabels);
@@ -147,20 +148,20 @@ public class ArticleService : IArticleService
             if (!existingIds.Contains(l.Id))
             {
                 // Ensure label is attached
-                if (_db.Entry(l).State == EntityState.Detached)
-                    _db.Labels.Attach(l);
+                if (_context.Entry(l).State == EntityState.Detached)
+                    _context.Labels.Attach(l);
                 existing.Labels.Add(l);
             }
         }
 
-        await _db.SaveChangesAsync();
+        await _context.SaveChangesAsync();
     }
 
     public async Task Delete(int id)
     {
-        var article = await _db.Articles.FindAsync(id);
+        var article = await _context.Articles.FindAsync(id);
         if (article == null) return;
-        _db.Articles.Remove(article);
-        await _db.SaveChangesAsync();
+        _context.Articles.Remove(article);
+        await _context.SaveChangesAsync();
     }
 }

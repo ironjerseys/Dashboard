@@ -36,6 +36,7 @@
                     <ul class="navbar-nav me-auto mb-2 mb-sm-0">
                         <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="CV">CV</a></li>
                         <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Websites">Creations</a></li>
+                        <li class="nav-item"><a class="nav-link" asp-controller="Articles" asp-action="Index">Articles</a></li>
                     </ul>
 
                     <!-- Liens droite -->
@@ -45,10 +46,9 @@
                                 <i id="themeIcon" class="bi bi-circle-half fs-5"></i>
                             </a>
                         </li>
-                        @if (User.Identity?.IsAuthenticated ?? false)
+                        @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item"><a class="nav-link" asp-controller="Dashboard" asp-action="Index">Dashboard</a></li>
-                            <li class="nav-item"><a class="nav-link" asp-controller="Articles" asp-action="Index">Articles</a></li>
                             <!-- Autre dropdown regroupe Quiz et AIChessLogs -->
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Autre</a>

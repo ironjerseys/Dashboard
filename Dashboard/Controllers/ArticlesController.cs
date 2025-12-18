@@ -1,29 +1,32 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Dashboard.Entities;
+using Dashboard.Services;
 
 namespace Dashboard.Controllers;
 
-using Dashboard.Entities;
-using Services;
-
-[Authorize]
 public class ArticlesController : Controller
 {
     private readonly IArticleService _articleService;
-    private readonly IAuthorizationService _auth;
+    private readonly IAuthorizationService _AuthorizationService;
     private readonly IDbQuizService _quizService;
 
-    public ArticlesController(IArticleService articleService, IAuthorizationService auth, IDbQuizService quizService)
+    public ArticlesController(IArticleService articleService, IAuthorizationService authorizationService, IDbQuizService quizService)
     {
         _articleService = articleService;
-        _auth = auth;
+        _AuthorizationService = authorizationService;
         _quizService = quizService;
     }
-
 
     public async Task<IActionResult> Index([FromQuery] int[] labels, [FromQuery] ArticleSort sort = ArticleSort.DateNewest, [FromQuery] string? search = null)
     {
         var articles = await _articleService.GetArticles(labels, sort, search);
+
+        if (!User.IsInRole("Admin"))
+        {
+            articles = articles.Where(a => a.IsPublic);
+        }
+
         ViewBag.Labels = await _articleService.GetLabels();
         ViewBag.SelectedLabelIds = labels ?? Array.Empty<int>();
         ViewBag.SelectedSort = sort;
@@ -31,26 +34,28 @@ public class ArticlesController : Controller
         return View(articles);
     }
 
-    public async Task<IActionResult> ArticlesManagement()
-    {
-        var articles = await _articleService.GetArticles();
-        return View("ArticlesManagement", articles);
-    }
-
     public async Task<IActionResult> Details(int id)
     {
         var article = await _articleService.GetArticle(id);
-        ViewBag.CreateQuestionUrl = Url.Action("Create", "QuizAdmin", new { articleId = id });
+
+        if (!User.IsInRole("Admin") && !article.IsPublic)
+        {
+            return NotFound();
+        }
+
+            ViewBag.CreateQuestionUrl = Url.Action("Create", "QuizAdmin", new { articleId = id });
         ViewBag.Questions = await _quizService.GetByArticleAsync(id);
         return View(article);
     }
 
+    [Authorize]
     public async Task<IActionResult> Create()
     {
         ViewBag.Labels = await _articleService.GetLabels();
         return View();
-    } 
+    }
 
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Create(Article article, [FromForm] string[]? newLabels, [FromForm] int[]? selectedLabelIds)
     {
@@ -63,6 +68,7 @@ public class ArticlesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [Authorize]
     public async Task<IActionResult> Edit(int id)
     {
         var article = await _articleService.GetArticle(id);
@@ -70,11 +76,12 @@ public class ArticlesController : Controller
         return View(article);
     }
 
-
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Edit(int id, Article article, [FromForm] string[]? newLabels, [FromForm] int[]? selectedLabelIds)
     {
         if (id != article.Id) return NotFound();
+
         if (!ModelState.IsValid)
         {
             ViewBag.Labels = await _articleService.GetLabels();
@@ -84,6 +91,7 @@ public class ArticlesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    [Authorize]
     [HttpGet]
     public async Task<IActionResult> Delete(int id)
     {
@@ -92,6 +100,7 @@ public class ArticlesController : Controller
         return View(article);
     }
 
+    [Authorize]
     [HttpPost, ActionName("Delete")]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {

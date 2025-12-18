@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -17,6 +17,8 @@ public class Article
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
 
     public string? AuthorId { get; set; }
+
+    public bool IsPublic { get; set; }
 
     [ForeignKey(nameof(AuthorId))]
     public IdentityUser? Author { get; set; }

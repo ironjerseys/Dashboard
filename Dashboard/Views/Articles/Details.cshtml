@@ -1,8 +1,9 @@
 ﻿@using Dashboard.Entities
+
 @model Article
 @{
     ViewData["Title"] = "Détails";
-    var qs = (IEnumerable<QuizQuestion>) (ViewBag.Questions ?? Enumerable.Empty<QuizQuestion>());
+    var qs = (IEnumerable<QuizQuestion>)(ViewBag.Questions ?? Enumerable.Empty<QuizQuestion>());
 }
 
 <div class="container mt-5 article-page">
@@ -10,8 +11,12 @@
     <p class="text-muted">Publié le @Model.DateCreation.ToLocalTime()</p>
     @if (Model.Labels?.Any() ?? false)
     {
-        <p class="text-muted">Labels:
-            @foreach(var l in Model.Labels){<span class="badge bg-secondary me-1">@l.Name</span>}
+        <p class="text-muted">
+            Labels:
+            @foreach (var l in Model.Labels)
+            {
+                <span class="badge bg-secondary me-1">@l.Name</span>
+            }
         </p>
     }
 
@@ -33,14 +38,19 @@
     }
 
     <div class="d-flex gap-2">
-        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Modifier</a>
-        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Supprimer</a>
+        @if (User.Identity?.IsAuthenticated ?? false)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary">Modifier</a>
+            <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger">Supprimer</a>
+            @if (!qs.Any() && ViewBag.CreateQuestionUrl != null)
+            {
+                <a href="@ViewBag.CreateQuestionUrl" class="btn">Créer une question liée</a>
+            }
+            @if (ViewBag.CreateQuestionUrl != null)
+            {
+                <a href="@ViewBag.CreateQuestionUrl" class="btn">Ajouter une question liée</a>
+            }
+        }
         <a asp-action="Index" class="btn btn-secondary">Retour à la liste</a>
-        @if(!qs.Any() && ViewBag.CreateQuestionUrl != null){
-            <a href="@ViewBag.CreateQuestionUrl" class="btn">Créer une question liée</a>
-        }
-        @if(ViewBag.CreateQuestionUrl != null){
-            <a href="@ViewBag.CreateQuestionUrl" class="btn">Ajouter une question liée</a>
-        }
     </div>
 </div>
