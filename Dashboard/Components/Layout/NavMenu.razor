@@ -1,0 +1,87 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+<header>
+    <nav class="navbar navbar-expand-lg bg-primary" data-bs-theme="dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">Joris Reynes</a>
+
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
+                    aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="mainNavbar">
+                <!-- Liens gauche -->
+                <ul class="navbar-nav me-auto mb-2 mb-sm-0">
+                    <li class="nav-item"><a class="nav-link" href="/Home/CV">CV</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Home/Websites">Creations</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/Articles">Articles</a></li>
+                </ul>
+
+                <!-- Liens droite -->
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item me-2">
+                        <a href="#" class="nav-link d-flex align-items-center" id="themeToggleBtn"
+                           title="Basculer le style" aria-label="Basculer le style">
+                            <i id="themeIcon" class="bi bi-circle-half fs-5"></i>
+                        </a>
+                    </li>
+
+                    <AuthorizeView Context="auth">
+                        <Authorized>
+                            @* Bloc Admin *@
+                            @if (auth.User.IsInRole("Admin"))
+                            {
+                                <li class="nav-item"><a class="nav-link" href="/Dashboard">Dashboard</a></li>
+                                <li class="nav-item"><a class="nav-link" href="/dashboard-v2">Dashboard-v2</a></li>
+
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
+                                       aria-expanded="false">Autre</a>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="/Quiz">Quiz</a></li>
+                                        <li><a class="dropdown-item" href="/AIChessLogs">AIChessLogs</a></li>
+                                        <li><a class="dropdown-item" href="/EmailSettings">Paramètres emails</a></li>
+                                        <li><a class="dropdown-item" href="/QuizAdmin/Create">Créer une question</a></li>
+                                    </ul>
+                                </li>
+                            }
+
+                            @* User dropdown *@
+                            @{
+                                // Identity met souvent le username dans Identity.Name
+                                var userName = auth.User.Identity?.Name ?? "(utilisateur)";
+                            }
+
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
+                                   aria-expanded="false">
+                                    @userName
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="/Account/Register">Inscription</a></li>
+                                    <li>
+                                        <form method="post" action="/Account/Logout" @formname="logout-form" data-enhance="false">
+                                            @* Anti-forgery : si vous l'exigez sur Logout, il faut le token.
+                                               Le plus simple est de NE PAS exiger antiforgery sur Logout,
+                                               ou d'implémenter un endpoint logout dédié Blazor.
+                                            *@
+                                            <button type="submit" class="dropdown-item">Déconnexion</button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </li>
+                        </Authorized>
+
+                        <NotAuthorized>
+                            <li class="nav-item">
+                                <a class="nav-link text-white" href="/Account/Login">Connexion</a>
+                            </li>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </ul>
+            </div>
+        </div>
+    </nav>
+</header>

@@ -1,0 +1,627 @@
+﻿@page "/dashboard-v2"
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.JSInterop
+@using Microsoft.AspNetCore.Components.Web
+
+@using global::Dashboard.Data
+@using global::Dashboard.Services
+@using global::Dashboard.Entities
+@using global::Dashboard.Models
+
+@inject ITodoService TodoService
+@inject IGoalService GoalService
+@inject IArticleService ArticleService
+@inject IDbContextFactory<BlogContext> DbFactory
+@inject IJSRuntime JS
+
+@attribute [Authorize]
+
+
+@rendermode RenderMode.InteractiveServer
+
+
+<PageTitle>Dashboard</PageTitle>
+
+<div class="container mt-5">
+    <h1 class="mb-5">Dashboard (Blazor)</h1>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
+
+    <div class="row g-4">
+        <!-- Colonne gauche -->
+        <div class="col-lg-8 d-flex flex-column gap-4">
+
+            <!-- Calendrier -->
+            <div class="calendar card p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2 px-2 py-1 rounded">
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm fw-bold fs-5" @onclick="PrevMonth">«</button>
+                        <strong class="fs-5">@_monthTitle</strong>
+                        <button class="btn btn-sm fw-bold fs-5" @onclick="NextMonth">»</button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered calendar text-center align-middle mb-0" style="table-layout: fixed;">
+                        <thead class="bg-transparent">
+                            <tr>
+                                <th>Lun</th>
+                                <th>Mar</th>
+                                <th>Mer</th>
+                                <th>Jeu</th>
+                                <th>Ven</th>
+                                <th>Sam</th>
+                                <th>Dim</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                               @foreach (var row in _calendarRows)
+                            {
+                                <tr>
+                                    @foreach (var cell in row)
+                                    {
+                                        if (cell.Date is null)
+                                        {
+                                            <td class="bg-light"></td>
+                                        }
+                                        else
+                                        {
+                                            <td class="p-1 @cell.CssClass" style="@cell.Style">
+                                                <div>@cell.DayNumber</div>
+                                            </td>
+                                        }
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Objectifs -->
+            <div class="goals card p-3">
+                <h3>Mes objectifs du mois</h3>
+
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Début</th>
+                            <th>Fin</th>
+                            <th>Titre</th>
+                            <th>Article</th>
+                            <th>Fait</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var g in _goals)
+                        {
+                            var isSelected = _selectedGoal?.Id == g.Id;
+                            <tr class="@(isSelected ? "table-primary" : "")" style="cursor:pointer"
+                                @onclick="() => SelectGoal(g.Id)">
+
+                                <td>@g.Debut.ToString("yyyy-MM-dd")</td>
+                                <td>@g.Fin.ToString("yyyy-MM-dd")</td>
+
+                                <td>
+                                    <div class="fw-bold">@g.Titre</div>
+                                    <div class="text-muted small">@g.Description</div>
+                                </td>
+
+                                <td>
+                                    @if (g.ArticleId.HasValue)
+                                    {
+                                        <a href="@($"/Articles/Details/{g.ArticleId.Value}")">Voir</a>
+                                    }
+                                </td>
+
+                                <td class="text-center">
+                                    <button class="btn btn-sm @(g.IsDone ? "btn-success" : "btn-danger")"
+                                            title="Basculer fait/pas fait"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => ToggleGoalDone(g.Id)">
+                                        @(g.IsDone ? "✔" : "✗")
+                                    </button>
+                                </td>
+
+                                <td>
+                                    <button class="btn btn-sm"
+                                            @onclick:stopPropagation="true"
+                                            @onclick="() => DeleteGoal(g.Id)">
+                                        Supprimer
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Formulaire objectif -->
+            <div class="goal-form card p-3">
+                <h3>@(_selectedGoal is null ? "Nouvel objectif" : "Modifier objectif")</h3>
+
+                <EditForm Model="_goalForm" OnValidSubmit="HandleGoalSubmit">
+                    <DataAnnotationsValidator />
+                    <ValidationSummary />
+
+                    <div class="mb-2">
+                        <label class="form-label">Titre</label>
+
+                        <InputText class="form-control" @bind-Value="_goalForm.Titre"  />
+
+                        <ValidationMessage For="() => _goalForm.Titre" />
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label">Description</label>
+                        <InputTextArea class="form-control" @bind-Value="_goalForm.Description"  />
+                    </div>
+
+                    <div class="row mb-2">
+                        <div class="col">
+                            <label class="form-label">Début</label>
+                            <InputDate class="form-control" @bind-Value="_goalForm.Debut" />
+                            <ValidationMessage For="() => _goalForm.Debut" />
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Fin</label>
+                            <InputDate class="form-control" @bind-Value="_goalForm.Fin" />
+                            <ValidationMessage For="() => _goalForm.Fin" />
+                        </div>
+                    </div>
+
+                    <div class="mb-2">
+                        <label class="form-label">Article (optionnel)</label>
+                        <InputSelect class="form-select" @bind-Value="_goalForm.ArticleId">
+                            <option value="">-- Aucun --</option>
+                            @foreach (var a in _articles)
+                            {
+                                <option value="@a.Id">@a.Titre</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    @if (_selectedGoal is not null)
+                    {
+                        <div class="form-check mb-2">
+                            <InputCheckbox class="form-check-input" @bind-Value="_goalForm.IsDone" />
+                            <label class="form-check-label">Fait</label>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(_goalFormError))
+                    {
+                        <div class="alert alert-danger mt-2">@_goalFormError</div>
+                    }
+
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-primary flex-grow-1 mt-3" disabled="@_busy">
+                            @(_selectedGoal is null ? "Créer" : "Enregistrer")
+                        </button>
+
+                        @if (_selectedGoal is not null)
+                        {
+                            <button type="button" class="btn btn-secondary mt-3" @onclick="CancelEdit" disabled="@_busy">
+                                Annuler
+                            </button>
+                        }
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+
+        <!-- Colonne droite: Todos -->
+        <div class="col-lg-4">
+            <div class="card p-3 border h-100 d-flex flex-column">
+                <h5 class="mb-3">Todo</h5>
+
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input class="form-control m-2"
+                               placeholder="Nouvelle tâche"
+                               maxlength="500"
+                               @bind="_newTodoDesc"
+                               @bind:event="oninput" />
+
+                        <button class="btn btn-primary m-2"
+                                type="button"
+                                @onclick="AddTodo"
+                                disabled="@(_busy || string.IsNullOrWhiteSpace(_newTodoDesc))">
+                            +
+                        </button>
+                    </div>
+                </div>
+
+                <ul class="list-group flex-grow-1 overflow-auto">
+                    @foreach (var t in _todos)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent todo-item @(t.IsDone ? "text-decoration-line-through" : "")"
+                            style="cursor:pointer"
+                            @onclick="() => OpenTodoDetails(t.Id)">
+                            <span>@t.Description</span>
+
+                            <div class="btn-group btn-group-sm" @onclick:stopPropagation="true">
+                                <button class="btn m-2" type="button" @onclick="() => ToggleTodoDone(t.Id)">
+                                    @(t.IsDone ? "✔" : "✓")
+                                </button>
+                                <a class="btn m-2" href="@($"/Todos/Edit/{t.Id}")">✎</a>
+                                <button class="btn m-2" type="button" @onclick="() => DeleteTodo(t.Id)">×</button>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private bool _busy;
+    private string? _error;
+
+    private string _userId = "";
+
+    private int _year;
+    private int _month;
+    private string _monthTitle = "";
+
+    private Dictionary<DateOnly, bool> _coverageMap = new();
+    private List<List<CalendarCell>> _calendarRows = new();
+
+    private List<Goal> _goals = new();
+    private Goal? _selectedGoal;
+
+    private List<Article> _articles = new();
+
+    private List<Todo> _todos = new();
+    private string _newTodoDesc = "";
+
+    private GoalFormModel _goalForm = new();
+    private string? _goalFormError;
+
+    private EditContext _goalEditContext = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+          _goalEditContext = new EditContext(_goalForm);
+
+        await EnsureUserIdAsync();
+
+        var now = DateTime.Now;
+        _year = now.Year;
+        _month = now.Month;
+
+        ResetGoalFormForCreate();
+        await LoadAsync();
+    }
+
+    private async Task HandleGoalSubmit(EditContext ec)
+    {
+        // Mets un breakpoint ici : tu verras _goalForm.Titre en direct
+        var ok = ec.Validate();
+        if (!ok) return;
+
+        await SaveGoal();
+    }
+
+    private async Task EnsureUserIdAsync()
+    {
+        var auth = await AuthenticationStateTask;
+        _userId = auth.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        if (string.IsNullOrWhiteSpace(_userId))
+            _error = "Utilisateur non identifié.";
+    }
+
+    private async Task LoadAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_userId))
+            return;
+
+        _busy = true;
+        _error = null;
+
+        try
+        {
+            _monthTitle = new DateTime(_year, _month, 1).ToString("MMMM yyyy");
+
+            _coverageMap = await GoalService.GetMonthlyCoverageMapAsync(_userId, _year, _month);
+
+            var first = new DateOnly(_year, _month, 1);
+            var last = new DateOnly(_year, _month, DateTime.DaysInMonth(_year, _month));
+
+            var allGoals = await GoalService.GetMyGoalsAsync(_userId);
+            _goals = allGoals.Where(g => g.Debut <= last && g.Fin >= first).ToList();
+
+            _calendarRows = BuildCalendarRows(_year, _month, _coverageMap);
+
+            // Articles (pour le select)
+            _articles = (await ArticleService.GetArticles()).ToList();
+
+            // Todos
+            // Si votre service filtre déjà par user, c'est parfait.
+            // Sinon, passez via DbContext et filtrez par OwnerId/UserId.
+            _todos = await TodoService.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void PrevMonth()
+    {
+        if (_month == 1) { _month = 12; _year--; }
+        else _month--;
+
+        _selectedGoal = null;
+        ResetGoalFormForCreate();
+        _ = LoadAsync();
+    }
+
+    private void NextMonth()
+    {
+        if (_month == 12) { _month = 1; _year++; }
+        else _month++;
+
+        _selectedGoal = null;
+        ResetGoalFormForCreate();
+        _ = LoadAsync();
+    }
+
+    private void SelectGoal(int id)
+    {
+        _selectedGoal = _goals.FirstOrDefault(g => g.Id == id);
+        if (_selectedGoal is null) return;
+
+        _goalForm = new GoalFormModel
+        {
+            Id = _selectedGoal.Id,
+            Titre = _selectedGoal.Titre,
+            Description = _selectedGoal.Description,
+            Debut = _selectedGoal.Debut,
+            Fin = _selectedGoal.Fin,
+            ArticleId = _selectedGoal.ArticleId,
+            IsDone = _selectedGoal.IsDone
+        };
+        _goalFormError = null;
+    }
+
+    private async Task ToggleGoalDone(int id)
+    {
+        await GoalService.ToggleDoneAsync(id, _userId);
+        await LoadAsync();
+    }
+
+    private async Task DeleteGoal(int id)
+    {
+        var ok = await JS.InvokeAsync<bool>("confirm", "Supprimer ?");
+        if (!ok) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var g = await db.Goals.FirstOrDefaultAsync(x => x.Id == id && x.OwnerId == _userId);
+        if (g != null)
+        {
+            db.Goals.Remove(g);
+            await db.SaveChangesAsync();
+        }
+
+        if (_selectedGoal?.Id == id)
+        {
+            _selectedGoal = null;
+            ResetGoalFormForCreate();
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task SaveGoal()
+    {
+        _goalFormError = null;
+
+        if (_goalForm.Fin < _goalForm.Debut)
+        {
+            _goalFormError = "Fin doit être >= Début";
+            return;
+        }
+
+        _busy = true;
+
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+
+            if (_goalForm.Id.HasValue)
+            {
+                var g = await db.Goals.FirstOrDefaultAsync(x => x.Id == _goalForm.Id.Value && x.OwnerId == _userId);
+                if (g is null) { _goalFormError = "Objectif introuvable."; return; }
+
+                g.Titre = _goalForm.Titre;
+                g.Description = _goalForm.Description;
+                g.Debut = _goalForm.Debut;
+                g.Fin = _goalForm.Fin;
+                g.ArticleId = _goalForm.ArticleId;
+                g.IsDone = _goalForm.IsDone;
+            }
+            else
+            {
+                db.Goals.Add(new Goal
+                {
+                    Titre = _goalForm.Titre,
+                    Description = _goalForm.Description,
+                    Debut = _goalForm.Debut,
+                    Fin = _goalForm.Fin,
+                    ArticleId = _goalForm.ArticleId,
+                    OwnerId = _userId,
+                    IsDone = false
+                });
+            }
+
+            await db.SaveChangesAsync();
+
+            _selectedGoal = null;
+            ResetGoalFormForCreate();
+
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        _selectedGoal = null;
+        ResetGoalFormForCreate();
+        _goalFormError = null;
+    }
+
+    private void ResetGoalFormForCreate()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        _goalForm = new GoalFormModel
+        {
+            Id = null,
+            Titre = "",
+            Description = null,
+            Debut = today,
+            Fin = today.AddDays(7),
+            ArticleId = null,
+            IsDone = false
+        };
+    }
+
+    // --- Todos (DbContext direct) ---
+    // Ajustez OwnerId/UserId selon votre entité Todo si nécessaire.
+    private async Task AddTodo()
+    {
+        var desc = _newTodoDesc.Trim();
+        if (desc.Length == 0) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        // TODO: si votre Todo a OwnerId, c'est OK; sinon remplacez par UserId.
+        db.Todos.Add(new Todo
+        {
+            Description = desc,
+            IsDone = false,
+        });
+
+        await db.SaveChangesAsync();
+
+        _newTodoDesc = "";
+        await LoadAsync();
+    }
+
+    private async Task ToggleTodoDone(int id)
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var t = await db.Todos.FirstOrDefaultAsync(x => x.Id == id);
+        if (t != null)
+        {
+            t.IsDone = !t.IsDone;
+            await db.SaveChangesAsync();
+        }
+
+        await LoadAsync();
+    }
+
+    private async Task DeleteTodo(int id)
+    {
+        var ok = await JS.InvokeAsync<bool>("confirm", "Supprimer ?");
+        if (!ok) return;
+
+        await using var db = await DbFactory.CreateDbContextAsync();
+
+        var t = await db.Todos.FirstOrDefaultAsync(x => x.Id == id);
+        if (t != null)
+        {
+            db.Todos.Remove(t);
+            await db.SaveChangesAsync();
+        }
+
+        await LoadAsync();
+    }
+
+    private void OpenTodoDetails(int id)
+        => JS.InvokeVoidAsync("eval", $"window.location='/Todos/Details/{id}'");
+
+    // --- Calendrier (identique à votre logique MVC) ---
+    private static List<List<CalendarCell>> BuildCalendarRows(int year, int month, Dictionary<DateOnly, bool> coverageMap)
+    {
+        var rows = new List<List<CalendarCell>>();
+        var firstDay = new DateTime(year, month, 1);
+        int startCol = ((int)firstDay.DayOfWeek + 6) % 7; // Monday=0
+        int daysInMonth = DateTime.DaysInMonth(year, month);
+        int day = 1;
+
+        for (int r = 0; r < 6 && day <= daysInMonth; r++)
+        {
+            var row = new List<CalendarCell>(7);
+            for (int c = 0; c < 7; c++)
+            {
+                if (r == 0 && c < startCol || day > daysInMonth)
+                {
+                    row.Add(new CalendarCell { Date = null, CssClass = "bg-light" });
+                }
+                else
+                {
+                    var date = new DateOnly(year, month, day);
+                    string css;
+                    string style;
+
+                    if (coverageMap.TryGetValue(date, out var allDone))
+                    {
+                        css = allDone ? "bg-success text-white" : "bg-danger text-white";
+                        style = allDone ? "background-color:#198754;color:#fff;" : "background-color:#dc3545;color:#fff;";
+                    }
+                    else
+                    {
+                        css = "bg-light";
+                        style = "background-color:#f8f9fa;";
+                    }
+
+                    row.Add(new CalendarCell { Date = date, CssClass = css, Style = style });
+                    day++;
+                }
+            }
+            rows.Add(row);
+        }
+
+        return rows;
+    }
+
+    private sealed class GoalFormModel
+    {
+        public int? Id { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public string Titre { get; set; } = "";
+
+        public string? Description { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public DateOnly Debut { get; set; }
+
+        [System.ComponentModel.DataAnnotations.Required]
+        public DateOnly Fin { get; set; }
+
+        public int? ArticleId { get; set; }
+        public bool IsDone { get; set; }
+    }
+}

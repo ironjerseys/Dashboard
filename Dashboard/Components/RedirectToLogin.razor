@@ -1,0 +1,9 @@
+﻿@inject NavigationManager Nav
+
+@code {
+    protected override void OnInitialized()
+    {
+        var path = "/" + Nav.ToBaseRelativePath(Nav.Uri);
+        Nav.NavigateTo($"/Account/Login?returnUrl={Uri.EscapeDataString(path)}", forceLoad: true);
+    }
+}
