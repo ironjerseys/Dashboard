@@ -1,45 +1,76 @@
-@model IEnumerable<Dashboard.Entities.AIChessLogs>
+﻿@model IEnumerable<Dashboard.Entities.AIChessLogs>
 @{
     ViewData["Title"] = "AIChessLogs";
 }
-<h1>AIChessLogs</h1>
-<p class="text-muted">Derniers logs (max 500)</p>
-<div class="table-responsive">
-<table class="table table-sm table-striped">
-    <thead>
-        <tr>
-            <th>UTC</th>
-            <th>Type</th>
-            <th>Depth</th>
-            <th>Dur (ms)</th>
-            <th>Legal</th>
-            <th>Eval</th>
-            <th>Gen total</th>
-            <th>Nodes</th>
-            <th>Leaf eval</th>
-            <th>Best</th>
-            <th>Score (cp)</th>
-            <th>Evaluated JSON</th>
-        </tr>
-    </thead>
-    <tbody>
-    @foreach (var l in Model)
-    {
-        <tr>
-            <td>@l.TimestampUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
-            <td>@l.Type</td>
-            <td>@l.SearchDepth</td>
-            <td>@l.DurationMs</td>
-            <td>@l.LegalMovesCount</td>
-            <td>@l.EvaluatedMovesCount</td>
-            <td>@l.GeneratedMovesTotal</td>
-            <td>@l.NodesVisited</td>
-            <td>@l.LeafEvaluations</td>
-            <td>@l.BestMoveUci</td>
-            <td>@l.BestScoreCp</td>
-            <td><code class="small" style="white-space:pre-wrap;">@l.EvaluatedMovesJson</code></td>
-        </tr>
-    }
-    </tbody>
-</table>
+
+<div class="container mt-5">
+    <h1>AIChessLogs</h1>
+    <p class="text-muted">Derniers logs (max 500)</p>
+
+
+    <div>
+        <u>Légende :</u></br>
+        <b>Dur (ms) :</b> durée totale de réflexion pour ce coup, en millisecondes</br>
+        <strong>Legal :</strong> nombre de coups légaux à la racine (dans la position actuelle)</br>
+        Eval :</br>
+        Gen total : total de coups générés pendant toute la recherche (sommes des listes générées à chaque noeud, ou compteur équivalent)</br>
+        Nodes : nombre de nœuds visités (appels de Search/Quiescence</br>
+        Leaf eval : nombre d’évaluations “feuilles” (combien de fois Evaluate() a été appelée, typiquement en quiescence / à la fin)</br>
+    </div>
+
+    <div>
+        Quelques exemple d'indicateurs à calculer :</br>
+        </br>
+        Nœuds par seconde (NPS)</br>
+        NPS = Nodes / (Dur(ms)/1000)</br>
+        Ex: 4205 ms, Nodes 537 → ~ 128 nœuds/s</br>
+        </br>
+        Feuilles par seconde</br>
+        Leaf eval / (Dur/1000)</br>
+        Ex: 4205 ms, Leaf 305 → ~ 72 leaf/s</br>
+        </br>
+        Coût moyen par nœud</br>
+        Coût moyen par nœud</br>
+        Ex: ms par nœud = Dur(ms) / Nodes</br>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-sm table-striped">
+            <thead>
+                <tr>
+                    <th>UTC</th>
+                    <th>Type</th>
+                    <th>Depth</th>
+                    <th>Dur (ms)</th>
+                    <th>Legal</th>
+                    <th>Eval</th>
+                    <th>Gen total</th>
+                    <th>Nodes</th>
+                    <th>Leaf eval</th>
+                    <th>Best</th>
+                    <th>Score (cp)</th>
+                    <th>Evaluated JSON</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model)
+                {
+                    <tr>
+                        <td>@l.TimestampUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@l.Type</td>
+                        <td>@l.SearchDepth</td>
+                        <td>@l.DurationMs</td>
+                        <td>@l.LegalMovesCount</td>
+                        <td>@l.EvaluatedMovesCount</td>
+                        <td>@l.GeneratedMovesTotal</td>
+                        <td>@l.NodesVisited</td>
+                        <td>@l.LeafEvaluations</td>
+                        <td>@l.BestMoveUci</td>
+                        <td>@l.BestScoreCp</td>
+                        <td><code class="small" style="white-space:pre-wrap;">@l.EvaluatedMovesJson</code></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </div>
