@@ -1,0 +1,115 @@
+﻿
+@using Microsoft.AspNetCore.Components.Forms
+@using global::Dashboard.Entities
+@using global::Dashboard.Models
+
+@namespace Dashboard.Components.Dashboard
+
+
+@if (IsOpen)
+{
+    <div class="modal fade show" style="display:block;" tabindex="-1" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">@Title</h5>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <EditForm Model="Model" OnValidSubmit="Submit" FormName="goal-form-modal">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-2">
+                            <label class="form-label">Titre</label>
+                            <InputText class="form-control" @bind-Value="Model.Titre" />
+                            <ValidationMessage For="() => Model.Titre" />
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label">Description</label>
+                            <InputTextArea class="form-control" @bind-Value="Model.Description" />
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col">
+                                <label class="form-label">Début</label>
+                                <InputDate TValue="DateOnly" class="form-control" @bind-Value="Model.Debut" />
+                                <ValidationMessage For="() => Model.Debut" />
+                            </div>
+                            <div class="col">
+                                <label class="form-label">Fin</label>
+                                <InputDate TValue="DateOnly" class="form-control" @bind-Value="Model.Fin" />
+                                <ValidationMessage For="() => Model.Fin" />
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label">Article (optionnel)</label>
+                            <InputSelect TValue="int?" class="form-select" @bind-Value="Model.ArticleId">
+                                <option value="">-- Aucun --</option>
+                                @foreach (var a in Articles)
+                                {
+                                    <option value="@a.Id">@a.Titre</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        @if (ShowIsDone)
+                        {
+                            <div class="form-check mb-2">
+                                <InputCheckbox class="form-check-input" @bind-Value="Model.IsDone" />
+                                <label class="form-check-label">Fait</label>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(Error))
+                        {
+                            <div class="alert alert-danger mt-2">@Error</div>
+                        }
+
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="submit" class="btn btn-primary flex-grow-1" disabled="@Busy">
+                                @SubmitLabel
+                            </button>
+
+                            <button type="button" class="btn btn-secondary" @onclick="Close" disabled="@Busy">
+                                Annuler
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show" @onclick="Close"></div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    [Parameter, EditorRequired] public GoalFormModel Model { get; set; } = default!;
+    [Parameter] public IEnumerable<Article> Articles { get; set; } = Array.Empty<Article>();
+
+    [Parameter] public string Title { get; set; } = "Nouvel objectif";
+    [Parameter] public string SubmitLabel { get; set; } = "Créer";
+    [Parameter] public bool ShowIsDone { get; set; }
+
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public string? Error { get; set; }
+
+    [Parameter] public EventCallback OnSubmit { get; set; }
+
+    private Task Submit() => OnSubmit.InvokeAsync();
+
+    private async Task Close()
+    {
+        IsOpen = false;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}
