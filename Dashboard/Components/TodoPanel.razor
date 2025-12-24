@@ -6,7 +6,6 @@
 @using global::Dashboard.Services
 
 @inject ITodoService TodoService
-@inject IJSRuntime JsRuntime
 
 @rendermode RenderMode.InteractiveServer
 
@@ -30,7 +29,7 @@
                    @onkeydown="HandleNewTodoKeyDown" />
 
             <button type="button"
-                    class="btn btn-primary"
+                    class="btn btn-primary ms-3"
                     @onclick="AddTodoAsync"
                     disabled="@(_isBusy || string.IsNullOrWhiteSpace(_newTodoDescription))">
                 +
@@ -41,7 +40,7 @@
     <ul class="list-group flex-grow-1 overflow-auto">
         @foreach (var todoItem in _todoItems)
         {
-            <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent"
+            <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent text-white"
                 @key="todoItem.Id">
 
                 <div class="flex-grow-1 me-2">
@@ -77,17 +76,49 @@
                     </button>
 
                     <button type="button"
-                            class="btn"
+                            class="btn ms-2"
                             title="Supprimer"
-                            @onclick="() => DeleteTodoAsync(todoItem.Id)"
+                            @onclick="() => AskDelete(todoItem)"
                             disabled="@_isBusy">
-                        ×
+                        <i class="bi bi-trash"></i>
                     </button>
                 </div>
             </li>
         }
     </ul>
 </div>
+
+@if (_deleteModalOpen)
+{
+    <div class="modal fade show" style="display:block;" tabindex="-1" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Supprimer la todo ?</h5>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="CloseDeleteModal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="mb-0">
+                        Voulez-vous supprimer :
+                        <strong>@_deleteModalText</strong>
+                    </p>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal" disabled="@_isBusy">
+                        Annuler
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync" disabled="@_isBusy">
+                        Supprimer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show" @onclick="CloseDeleteModal"></div>
+}
 
 @code {
     private bool _isBusy;
@@ -100,6 +131,11 @@
     private int? _editingTodoId;
     private string _editingDescription = "";
     private ElementReference _editInputRef;
+
+    // Delete modal
+    private bool _deleteModalOpen;
+    private int _deleteTodoId;
+    private string _deleteModalText = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -183,30 +219,6 @@
         }
     }
 
-    private async Task DeleteTodoAsync(int todoId)
-    {
-        if (_isBusy) return;
-
-        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Supprimer ?");
-        if (!confirmed) return;
-
-        _isBusy = true;
-        _errorMessage = null;
-
-        try
-        {
-            await TodoService.DeleteAsync(todoId);
-            await ReloadTodosAsync();
-        }
-        catch (Exception exception)
-        {
-            _errorMessage = exception.Message;
-        }
-        finally
-        {
-            _isBusy = false;
-        }
-    }
 
     private void BeginEdit(Todo todoItem)
     {
@@ -257,6 +269,9 @@
         }
     }
 
+
+
+
     private void CancelEdit()
     {
         _editingTodoId = null;
@@ -283,6 +298,44 @@
         else if (e.Key == "Escape")
         {
             CancelEdit();
+        }
+    }
+
+    private void AskDelete(Todo todoItem)
+    {
+        _deleteTodoId = todoItem.Id;
+        _deleteModalText = todoItem.Description;
+        _deleteModalOpen = true;
+    }
+
+    private void CloseDeleteModal()
+    {
+        if (_isBusy) return;
+        _deleteModalOpen = false;
+        _deleteTodoId = 0;
+        _deleteModalText = "";
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (_isBusy) return;
+
+        _isBusy = true;
+        _errorMessage = null;
+
+        try
+        {
+            await TodoService.DeleteAsync(_deleteTodoId);
+            CloseDeleteModal();
+            await ReloadTodosAsync();
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isBusy = false;
         }
     }
 }
