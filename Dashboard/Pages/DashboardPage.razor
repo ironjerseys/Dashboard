@@ -164,7 +164,7 @@
                              SubmitLabel="@(_selectedGoal is null ? "Créer" : "Enregistrer")"
                              ShowIsDone="@(_selectedGoal is not null)"
                              Busy="_busy"
-                             Error="_goalFormError"
+                             Error="@_goalFormError"
                              OnSubmit="HandleGoalSubmit" />
 
         </div>

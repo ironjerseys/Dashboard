@@ -1,24 +1,42 @@
-﻿
-@using Microsoft.AspNetCore.Components.Forms
+﻿@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
 @using global::Dashboard.Entities
 @using global::Dashboard.Models
 
 @namespace Dashboard.Components.Dashboard
 
+@rendermode RenderMode.InteractiveServer
 
 @if (IsOpen)
 {
-    <div class="modal fade show" style="display:block;" tabindex="-1" role="dialog" aria-modal="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-            <div class="modal-content">
+    <div class="modal fade show"
+         style="display:block;"
+         tabindex="-1"
+         role="dialog"
+         aria-modal="true"
+         @onclick="CloseAsync">
 
-                <div class="modal-header">
+        <div class="modal-dialog modal-lg modal-dialog-centered"
+             role="document"
+             @onclick:stopPropagation="true">
+
+            <div class="modal-content goal-modal-content text-white">
+                <div class="modal-header border-0">
                     <h5 class="modal-title">@Title</h5>
-                    <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
+
+                    <button type="button"
+                            class="btn-close btn-close-white"
+                            aria-label="Close"
+                            @onclick="CloseAsync"
+                            disabled="@Busy">
+                    </button>
                 </div>
 
                 <div class="modal-body">
-                    <EditForm Model="Model" OnValidSubmit="Submit" FormName="goal-form-modal">
+                    <EditForm Model="@Model"
+                              OnValidSubmit="SubmitAsync"
+                              FormName="goal-form-modal">
+
                         <DataAnnotationsValidator />
                         <ValidationSummary />
 
@@ -50,9 +68,9 @@
                             <label class="form-label">Article (optionnel)</label>
                             <InputSelect TValue="int?" class="form-select" @bind-Value="Model.ArticleId">
                                 <option value="">-- Aucun --</option>
-                                @foreach (var a in Articles)
+                                @foreach (var article in Articles)
                                 {
-                                    <option value="@a.Id">@a.Titre</option>
+                                    <option value="@article.Id">@article.Titre</option>
                                 }
                             </InputSelect>
                         </div>
@@ -67,26 +85,60 @@
 
                         @if (!string.IsNullOrWhiteSpace(Error))
                         {
-                            <div class="alert alert-danger mt-2">@Error</div>
+                            <div class="alert alert-danger mt-3 mb-0">
+                                @Error
+                            </div>
                         }
 
-                        <div class="d-flex gap-2 mt-3">
-                            <button type="submit" class="btn btn-primary flex-grow-1" disabled="@Busy">
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit"
+                                    class="btn btn-primary flex-grow-1"
+                                    disabled="@Busy">
                                 @SubmitLabel
                             </button>
 
-                            <button type="button" class="btn btn-secondary" @onclick="Close" disabled="@Busy">
+                            <button type="button"
+                                    class="btn btn-secondary"
+                                    @onclick="CloseAsync"
+                                    disabled="@Busy">
                                 Annuler
                             </button>
                         </div>
                     </EditForm>
                 </div>
-
             </div>
+
         </div>
     </div>
 
-    <div class="modal-backdrop fade show" @onclick="Close"></div>
+    <div class="modal-backdrop fade show"></div>
+
+    <style>
+        .goal-modal-content {
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(20, 20, 22, .88);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,.55);
+        }
+
+            .goal-modal-content .form-control,
+            .goal-modal-content .form-select {
+                background: rgba(255,255,255,.08);
+                color: #fff;
+                border: 1px solid rgba(255,255,255,.12);
+            }
+
+                .goal-modal-content .form-control::placeholder {
+                    color: rgba(255,255,255,.55);
+                }
+
+                .goal-modal-content .form-control:focus,
+                .goal-modal-content .form-select:focus {
+                    border-color: rgba(255,255,255,.25);
+                    box-shadow: none;
+                }
+    </style>
 }
 
 @code {
@@ -105,11 +157,14 @@
 
     [Parameter] public EventCallback OnSubmit { get; set; }
 
-    private Task Submit() => OnSubmit.InvokeAsync();
-
-    private async Task Close()
+    private async Task SubmitAsync()
     {
-        IsOpen = false;
+        await OnSubmit.InvokeAsync();
+    }
+
+    private async Task CloseAsync()
+    {
+        if (Busy) return;
         await IsOpenChanged.InvokeAsync(false);
     }
 }
