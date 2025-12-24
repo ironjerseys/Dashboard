@@ -1,0 +1,214 @@
+﻿@namespace Dashboard.Components
+
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@using global::Dashboard.Entities
+@using global::Dashboard.Services
+
+@inject ITodoService TodoService
+@inject IJSRuntime JsRuntime
+@inject NavigationManager Navigation
+
+@rendermode RenderMode.InteractiveServer
+
+<div class="card p-3 border h-100 d-flex flex-column">
+    <h5 class="mb-3">Todo</h5>
+
+    @if (string.IsNullOrWhiteSpace(UserId))
+    {
+        <div class="alert alert-warning">Utilisateur non identifié.</div>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="alert alert-danger">@_errorMessage</div>
+        }
+
+        <div class="mb-3">
+            <div class="input-group">
+                <input id="newTodoDesc"
+                       name="newTodoDesc"
+                       class="form-control"
+                       placeholder="Nouvelle tâche"
+                       maxlength="500"
+                       @bind-value="_newTodoDescription"
+                       @bind-value:event="oninput"
+                       @onkeydown="HandleNewTodoKeyDown" />
+
+                <button type="button"
+                        class="btn btn-primary"
+                        @onclick="AddTodoAsync"
+                        disabled="@(_isBusy || string.IsNullOrWhiteSpace(_newTodoDescription))">
+                    +
+                </button>
+            </div>
+        </div>
+
+        <ul class="list-group flex-grow-1 overflow-auto">
+            @foreach (var todoItem in _todoItems)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent todo-item @(todoItem.IsDone ? "text-decoration-line-through" : "")"
+                    style="cursor:pointer"
+                    @onclick="() => OpenTodoDetails(todoItem.Id)"
+                    @key="todoItem.Id">
+
+                    <span>@todoItem.Description</span>
+
+                    <div class="btn-group btn-group-sm">
+                        <button type="button"
+                                class="btn m-2"
+                                title="Basculer fait/pas fait"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => ToggleTodoDoneAsync(todoItem.Id)"
+                                disabled="@_isBusy">
+                            @(todoItem.IsDone ? "✔" : "✓")
+                        </button>
+
+                        <a class="btn m-2" href="@($"/Todos/Edit/{todoItem.Id}")">✎</a>
+
+                        <button type="button"
+                                class="btn m-2"
+                                title="Supprimer"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => DeleteTodoAsync(todoItem.Id)"
+                                disabled="@_isBusy">
+                            ×
+                        </button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter] public string UserId { get; set; } = "";
+
+    private bool _isBusy;
+    private string _newTodoDescription = "";
+    private string? _errorMessage;
+
+    private List<Todo> _todoItems = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UserId))
+        {
+            return;
+        }
+
+        await ReloadTodosAsync();
+    }
+
+    private async Task ReloadTodosAsync()
+    {
+        _errorMessage = null;
+
+        try
+        {
+            _todoItems = await TodoService.GetAllAsync();
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+        }
+    }
+
+    private async Task AddTodoAsync()
+    {
+        var normalizedDescription = _newTodoDescription.Trim();
+        if (normalizedDescription.Length == 0 || _isBusy)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _errorMessage = null;
+
+        try
+        {
+            await TodoService.CreateAsync(normalizedDescription);
+            _newTodoDescription = "";
+
+            await ReloadTodosAsync();
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task ToggleTodoDoneAsync(int todoId)
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _errorMessage = null;
+
+        try
+        {
+            await TodoService.ToggleDoneAsync(todoId);
+            await ReloadTodosAsync();
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private async Task DeleteTodoAsync(int todoId)
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Supprimer ?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        _errorMessage = null;
+
+        try
+        {
+            await TodoService.DeleteAsync(todoId);
+            await ReloadTodosAsync();
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void OpenTodoDetails(int todoId)
+    {
+        Navigation.NavigateTo($"/Todos/Details/{todoId}");
+    }
+
+    private async Task HandleNewTodoKeyDown(KeyboardEventArgs keyboardEventArgs)
+    {
+        if (keyboardEventArgs.Key == "Enter")
+        {
+            await AddTodoAsync();
+        }
+    }
+}

@@ -9,11 +9,12 @@
 @using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Web
 
+@using global::Dashboard.Components
+@using global::Dashboard.Components.Dashboard
 @using global::Dashboard.Data
 @using global::Dashboard.Services
 @using global::Dashboard.Entities
 @using global::Dashboard.Models
-@using global::Dashboard.Components.Dashboard
 
 
 @inject ITodoService TodoService
@@ -66,7 +67,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                               @foreach (var row in _calendarRows)
+                            @foreach (var row in _calendarRows)
                             {
                                 <tr>
                                     @foreach (var cell in row)
@@ -157,58 +158,21 @@
 
             <!-- Formulaire objectif -->
             <GoalEditorModal @bind-IsOpen="_goalModalOpen"
-                 Model="_goalForm"
-                 Articles="_articles"
-                 Title="@(_selectedGoal is null ? "Nouvel objectif" : "Modifier objectif")"
-                 SubmitLabel="@(_selectedGoal is null ? "Créer" : "Enregistrer")"
-                 ShowIsDone="@(_selectedGoal is not null)"
-                 Busy="_busy"
-                 Error="_goalFormError"
-                 OnSubmit="HandleGoalSubmit" />
+                             Model="_goalForm"
+                             Articles="_articles"
+                             Title="@(_selectedGoal is null ? "Nouvel objectif" : "Modifier objectif")"
+                             SubmitLabel="@(_selectedGoal is null ? "Créer" : "Enregistrer")"
+                             ShowIsDone="@(_selectedGoal is not null)"
+                             Busy="_busy"
+                             Error="_goalFormError"
+                             OnSubmit="HandleGoalSubmit" />
 
         </div>
 
         <!-- Colonne droite: Todos -->
         <div class="col-lg-4">
-            <div class="card p-3 border h-100 d-flex flex-column">
-                <h5 class="mb-3">Todo</h5>
+            <TodoPanel UserId="_userId" />
 
-                <div class="mb-3">
-                    <div class="input-group">
-                        <input class="form-control m-2"
-                               placeholder="Nouvelle tâche"
-                               maxlength="500"
-                               @bind="_newTodoDesc"
-                               @bind:event="oninput" />
-
-                        <button class="btn btn-primary m-2"
-                                type="button"
-                                @onclick="AddTodo"
-                                disabled="@(_busy || string.IsNullOrWhiteSpace(_newTodoDesc))">
-                            +
-                        </button>
-                    </div>
-                </div>
-
-                <ul class="list-group flex-grow-1 overflow-auto">
-                    @foreach (var t in _todos)
-                    {
-                        <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent todo-item @(t.IsDone ? "text-decoration-line-through" : "")"
-                            style="cursor:pointer"
-                            @onclick="() => OpenTodoDetails(t.Id)">
-                            <span>@t.Description</span>
-
-                            <div class="btn-group btn-group-sm" @onclick:stopPropagation="true">
-                                <button class="btn m-2" type="button" @onclick="() => ToggleTodoDone(t.Id)">
-                                    @(t.IsDone ? "✔" : "✓")
-                                </button>
-                                <a class="btn m-2" href="@($"/Todos/Edit/{t.Id}")">✎</a>
-                                <button class="btn m-2" type="button" @onclick="() => DeleteTodo(t.Id)">×</button>
-                            </div>
-                        </li>
-                    }
-                </ul>
-            </div>
         </div>
     </div>
 </div>
@@ -233,9 +197,6 @@
 
     private List<Article> _articles = new();
 
-    private List<Todo> _todos = new();
-    private string _newTodoDesc = "";
-
     private GoalFormModel _goalForm = new();
     private string? _goalFormError;
 
@@ -243,7 +204,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-          _goalEditContext = new EditContext(_goalForm);
+        _goalEditContext = new EditContext(_goalForm);
 
         await EnsureUserIdAsync();
 
@@ -313,10 +274,7 @@
             // Articles (pour le select)
             _articles = (await ArticleService.GetArticles()).ToList();
 
-            // Todos
-            // Si votre service filtre déjà par user, c'est parfait.
-            // Sinon, passez via DbContext et filtrez par OwnerId/UserId.
-            _todos = await TodoService.GetAllAsync();
+      
         }
         catch (Exception ex)
         {
@@ -471,61 +429,6 @@
         };
     }
 
-    // --- Todos (DbContext direct) ---
-    // Ajustez OwnerId/UserId selon votre entité Todo si nécessaire.
-    private async Task AddTodo()
-    {
-        var desc = _newTodoDesc.Trim();
-        if (desc.Length == 0) return;
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-
-        // TODO: si votre Todo a OwnerId, c'est OK; sinon remplacez par UserId.
-        db.Todos.Add(new Todo
-        {
-            Description = desc,
-            IsDone = false,
-        });
-
-        await db.SaveChangesAsync();
-
-        _newTodoDesc = "";
-        await LoadAsync();
-    }
-
-    private async Task ToggleTodoDone(int id)
-    {
-        await using var db = await DbFactory.CreateDbContextAsync();
-
-        var t = await db.Todos.FirstOrDefaultAsync(x => x.Id == id);
-        if (t != null)
-        {
-            t.IsDone = !t.IsDone;
-            await db.SaveChangesAsync();
-        }
-
-        await LoadAsync();
-    }
-
-    private async Task DeleteTodo(int id)
-    {
-        var ok = await JS.InvokeAsync<bool>("confirm", "Supprimer ?");
-        if (!ok) return;
-
-        await using var db = await DbFactory.CreateDbContextAsync();
-
-        var t = await db.Todos.FirstOrDefaultAsync(x => x.Id == id);
-        if (t != null)
-        {
-            db.Todos.Remove(t);
-            await db.SaveChangesAsync();
-        }
-
-        await LoadAsync();
-    }
-
-    private void OpenTodoDetails(int id)
-        => JS.InvokeVoidAsync("eval", $"window.location='/Todos/Details/{id}'");
 
     // --- Calendrier (identique à votre logique MVC) ---
     private static List<List<CalendarCell>> BuildCalendarRows(int year, int month, Dictionary<DateOnly, bool> coverageMap)

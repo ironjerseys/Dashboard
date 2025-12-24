@@ -19,6 +19,7 @@ var cs = builder.Configuration.GetConnectionString("DefaultConnection")
 builder.Services.AddDbContext<BlogContext>(opt => opt.UseSqlServer(cs));
 builder.Services.AddDbContextFactory<BlogContext>(opt => opt.UseSqlServer(cs), ServiceLifetime.Scoped);
 
+
 // ======================
 // Identity (Cookies)
 // ======================
