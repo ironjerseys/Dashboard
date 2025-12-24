@@ -1,7 +1,6 @@
 ﻿@page "/dashboard"
+
 @using System.Security.Claims
-
-
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
@@ -16,7 +15,7 @@
 @using global::Dashboard.Entities
 @using global::Dashboard.Models
 
-
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ITodoService TodoService
 @inject IGoalService GoalService
 @inject IArticleService ArticleService
@@ -91,70 +90,14 @@
             </div>
 
             <!-- Objectifs -->
-            <div class="goals card p-3">
-                <h3>Mes objectifs du mois</h3>
+            <GoalsPanel Goals="_goals"
+                        SelectedGoalId="_selectedGoal?.Id"
+                        Busy="_busy"
+                        OnCreateClicked="OpenNewGoalModal"
+                        OnRowClicked="OpenEditGoalModal"
+                        OnToggleDone="ToggleGoalDone"
+                        OnDelete="RequestDeleteGoal" />
 
-                <div class="d-flex justify-content-between align-items-center">
-                    <button class="btn btn-primary" @onclick="OpenNewGoalModal" disabled="@_busy">
-                        +
-                    </button>
-                </div>
-
-
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Début</th>
-                            <th>Fin</th>
-                            <th>Titre</th>
-                            <th>Article</th>
-                            <th>Fait</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var g in _goals)
-                        {
-                            var isSelected = _selectedGoal?.Id == g.Id;
-                            <tr class="@(isSelected ? "table-primary" : "")" style="cursor:pointer"
-                                @onclick="() => OpenEditGoalModal(g.Id)">
-
-                                <td>@g.Debut.ToString("yyyy-MM-dd")</td>
-                                <td>@g.Fin.ToString("yyyy-MM-dd")</td>
-
-                                <td>
-                                    <div class="fw-bold">@g.Titre</div>
-                                    <div class="text-muted small">@g.Description</div>
-                                </td>
-
-                                <td>
-                                    @if (g.ArticleId.HasValue)
-                                    {
-                                        <a href="@($"/Articles/Details/{g.ArticleId.Value}")">Voir</a>
-                                    }
-                                </td>
-
-                                <td class="text-center">
-                                    <button class="btn btn-sm @(g.IsDone ? "btn-success" : "btn-danger")"
-                                            title="Basculer fait/pas fait"
-                                            @onclick:stopPropagation="true"
-                                            @onclick="() => ToggleGoalDone(g.Id)">
-                                        @(g.IsDone ? "✔" : "✗")
-                                    </button>
-                                </td>
-
-                                <td>
-                                    <button class="btn btn-sm"
-                                            @onclick:stopPropagation="true"
-                                            @onclick="() => DeleteGoal(g.Id)">
-                                        Supprimer
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
 
             <!-- Formulaire objectif -->
             <GoalEditorModal @bind-IsOpen="_goalModalOpen"
@@ -176,6 +119,14 @@
         </div>
     </div>
 </div>
+
+<ConfirmModal @bind-IsOpen="_deleteGoalModalOpen"
+              Title="Supprimer l’objectif ?"
+              Message=@($"Voulez-vous supprimer : \"{_goalTitleToDelete}\" ?")
+              ConfirmLabel="Supprimer"
+              Busy="_busy"
+              OnConfirm="ConfirmDeleteGoalAsync" />
+
 
 @code {
     [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
@@ -201,6 +152,11 @@
     private string? _goalFormError;
 
     private EditContext _goalEditContext = default!;
+
+    private bool _deleteGoalModalOpen;
+    private int _goalIdToDelete;
+    private string _goalTitleToDelete = "";
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -330,27 +286,55 @@
         await LoadAsync();
     }
 
-    private async Task DeleteGoal(int id)
+    private async Task DeleteGoalInternalAsync(int goalId)
     {
-        var ok = await JS.InvokeAsync<bool>("confirm", "Supprimer ?");
-        if (!ok) return;
+        await EnsureUserIdAsync();
 
-        await using var db = await DbFactory.CreateDbContextAsync();
-        var g = await db.Goals.FirstOrDefaultAsync(x => x.Id == id && x.OwnerId == _userId);
-        if (g != null)
+        if (string.IsNullOrWhiteSpace(_userId))
         {
-            db.Goals.Remove(g);
-            await db.SaveChangesAsync();
+            _goalFormError = "Utilisateur non identifié.";
+            return;
         }
 
-        if (_selectedGoal?.Id == id)
-        {
-            _selectedGoal = null;
-            ResetGoalFormForCreate();
-        }
-
-        await LoadAsync();
+        await GoalService.DeleteAsync(goalId, _userId);
+        await LoadAsync(); 
     }
+
+
+    private void RequestDeleteGoal(int goalId)
+    {
+        _goalIdToDelete = goalId;
+
+        var goal = _goals.FirstOrDefault(g => g.Id == goalId);
+        _goalTitleToDelete = goal?.Titre ?? "(objectif)";
+
+        _deleteGoalModalOpen = true;
+    }
+
+    private async Task ConfirmDeleteGoalAsync()
+    {
+        _busy = true;
+        _goalFormError = null;
+
+        try
+        {
+            // Ici, appelle ta suppression réelle (sans confirmation JS)
+            await DeleteGoalInternalAsync(_goalIdToDelete);
+
+            _deleteGoalModalOpen = false;
+            _goalIdToDelete = 0;
+            _goalTitleToDelete = "";
+        }
+        catch (Exception ex)
+        {
+            _goalFormError = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
 
     private async Task SaveGoal()
     {

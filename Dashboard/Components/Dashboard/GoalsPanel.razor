@@ -1,0 +1,92 @@
+﻿@namespace Dashboard.Components.Dashboard
+@using Microsoft.AspNetCore.Components.Web
+
+@using global::Dashboard.Entities
+
+@rendermode RenderMode.InteractiveServer
+
+
+<div class="goals card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="m-0">Mes objectifs du mois</h3>
+
+        <button type="button"
+                class="btn btn-primary"
+                @onclick="OnCreateClicked"
+                disabled="@Busy">
+            +
+        </button>
+    </div>
+
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th>Début</th>
+                <th>Fin</th>
+                <th>Titre</th>
+                <th>Article</th>
+                <th>Fait</th>
+                <th>Supprimer</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var goalItem in Goals)
+            {
+                var isSelected = SelectedGoalId.HasValue && SelectedGoalId.Value == goalItem.Id;
+
+                <tr class="@(isSelected ? "table-primary" : "")"
+                    style="cursor:pointer"
+                    @onclick="() => OnRowClicked.InvokeAsync(goalItem.Id)">
+
+                    <td>@goalItem.Debut.ToString("yyyy-MM-dd")</td>
+                    <td>@goalItem.Fin.ToString("yyyy-MM-dd")</td>
+
+                    <td>
+                        <div class="fw-bold">@goalItem.Titre</div>
+                        <div class="text-muted small">@goalItem.Description</div>
+                    </td>
+
+                    <td>
+                        @if (goalItem.ArticleId.HasValue)
+                        {
+                            <a href="@($"/Articles/Details/{goalItem.ArticleId.Value}")">Voir</a>
+                        }
+                    </td>
+
+                    <td class="text-center">
+                        <button type="button"
+                                class="btn btn-sm @(goalItem.IsDone ? "btn-success" : "btn-danger")"
+                                title="Basculer fait/pas fait"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => OnToggleDone.InvokeAsync(goalItem.Id)"
+                                disabled="@Busy">
+                            @(goalItem.IsDone ? "✔" : "✗")
+                        </button>
+                    </td>
+
+                    <td>
+                        <button type="button"
+                                class="btn btn-sm"
+                                title="Supprimer"
+                                @onclick:stopPropagation="true"
+                                @onclick="() => OnDelete.InvokeAsync(goalItem.Id)"
+                                disabled="@Busy">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    [Parameter] public IReadOnlyList<Goal> Goals { get; set; } = Array.Empty<Goal>();
+    [Parameter] public int? SelectedGoalId { get; set; }
+    [Parameter] public bool Busy { get; set; }
+
+    [Parameter] public EventCallback OnCreateClicked { get; set; }
+    [Parameter] public EventCallback<int> OnRowClicked { get; set; }
+    [Parameter] public EventCallback<int> OnToggleDone { get; set; }
+    [Parameter] public EventCallback<int> OnDelete { get; set; }
+}

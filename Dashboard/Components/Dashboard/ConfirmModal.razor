@@ -1,0 +1,70 @@
+﻿@using Microsoft.AspNetCore.Components.Web
+@rendermode RenderMode.InteractiveServer
+@namespace Dashboard.Components.Dashboard
+
+@if (IsOpen)
+{
+    <div class="modal fade show" style="display:block;" tabindex="-1" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document" @onclick:stopPropagation="true">
+            <div class="modal-content glass-modal text-white">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">@Title</h5>
+                    <button type="button"
+                            class="btn-close btn-close-white"
+                            aria-label="Close"
+                            @onclick="CloseAsync"
+                            disabled="@Busy">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="mb-0">@Message</p>
+                </div>
+
+                <div class="modal-footer border-0">
+                    <button type="button"
+                            class="btn btn-secondary"
+                            @onclick="CloseAsync"
+                            disabled="@Busy">
+                        Annuler
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-danger"
+                            @onclick="ConfirmAsync"
+                            disabled="@Busy">
+                        @ConfirmLabel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show" @onclick="CloseAsync"></div>
+
+    <style>
+        .glass-modal {
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(20, 20, 22, .88);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,.55);
+        }
+    </style>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    [Parameter] public string Title { get; set; } = "Confirmation";
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public string ConfirmLabel { get; set; } = "Confirmer";
+    [Parameter] public bool Busy { get; set; }
+
+    [Parameter] public EventCallback OnConfirm { get; set; }
+
+    private Task ConfirmAsync() => OnConfirm.InvokeAsync();
+
+    private Task CloseAsync() => IsOpenChanged.InvokeAsync(false);
+}
