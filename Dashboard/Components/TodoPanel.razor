@@ -7,104 +7,124 @@
 
 @inject ITodoService TodoService
 @inject IJSRuntime JsRuntime
-@inject NavigationManager Navigation
 
 @rendermode RenderMode.InteractiveServer
 
 <div class="card p-3 border h-100 d-flex flex-column">
     <h5 class="mb-3">Todo</h5>
 
-    @if (string.IsNullOrWhiteSpace(UserId))
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
     {
-        <div class="alert alert-warning">Utilisateur non identifié.</div>
+        <div class="alert alert-danger">@_errorMessage</div>
     }
-    else
-    {
-        @if (!string.IsNullOrWhiteSpace(_errorMessage))
-        {
-            <div class="alert alert-danger">@_errorMessage</div>
-        }
 
-        <div class="mb-3">
-            <div class="input-group">
-                <input id="newTodoDesc"
-                       name="newTodoDesc"
-                       class="form-control"
-                       placeholder="Nouvelle tâche"
-                       maxlength="500"
-                       @bind-value="_newTodoDescription"
-                       @bind-value:event="oninput"
-                       @onkeydown="HandleNewTodoKeyDown" />
+    <div class="mb-3">
+        <div class="input-group">
+            <input id="newTodoDesc"
+                   name="newTodoDesc"
+                   class="form-control"
+                   placeholder="Nouvelle tâche"
+                   maxlength="500"
+                   @bind-value="_newTodoDescription"
+                   @bind-value:event="oninput"
+                   @onkeydown="HandleNewTodoKeyDown" />
 
-                <button type="button"
-                        class="btn btn-primary"
-                        @onclick="AddTodoAsync"
-                        disabled="@(_isBusy || string.IsNullOrWhiteSpace(_newTodoDescription))">
-                    +
-                </button>
-            </div>
+            <button type="button"
+                    class="btn btn-primary"
+                    @onclick="AddTodoAsync"
+                    disabled="@(_isBusy || string.IsNullOrWhiteSpace(_newTodoDescription))">
+                +
+            </button>
         </div>
+    </div>
 
-        <ul class="list-group flex-grow-1 overflow-auto">
-            @foreach (var todoItem in _todoItems)
-            {
-                <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent todo-item @(todoItem.IsDone ? "text-decoration-line-through" : "")"
-                    style="cursor:pointer"
-                    @onclick="() => OpenTodoDetails(todoItem.Id)"
-                    @key="todoItem.Id">
+    <ul class="list-group flex-grow-1 overflow-auto">
+        @foreach (var todoItem in _todoItems)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent"
+                @key="todoItem.Id">
 
-                    <span>@todoItem.Description</span>
+                <div class="flex-grow-1 me-2">
+                    @if (_editingTodoId == todoItem.Id)
+                    {
+                        <input class="form-control form-control-sm"
+                               id="@($"todo-edit-{todoItem.Id}")"
+                               name="@($"todo-edit-{todoItem.Id}")"
+                               @ref="_editInputRef"
+                               maxlength="500"
+                               @bind-value="_editingDescription"
+                               @bind-value:event="oninput"
+                               @onblur="() => SaveEditAsync(todoItem.Id)"
+                               @onkeydown="HandleEditKeyDown" />
+                    }
+                    else
+                    {
+                        <span class="@(todoItem.IsDone ? "text-decoration-line-through text-muted" : "")"
+                              style="cursor:text"
+                              @onclick="() => BeginEdit(todoItem)">
+                            @todoItem.Description
+                        </span>
+                    }
+                </div>
 
-                    <div class="btn-group btn-group-sm">
-                        <button type="button"
-                                class="btn m-2"
-                                title="Basculer fait/pas fait"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => ToggleTodoDoneAsync(todoItem.Id)"
-                                disabled="@_isBusy">
-                            @(todoItem.IsDone ? "✔" : "✓")
-                        </button>
+                <div class="btn-group btn-group-sm">
+                    <button type="button"
+                            class="btn"
+                            title="Basculer fait/pas fait"
+                            @onclick="() => ToggleTodoDoneAsync(todoItem.Id)"
+                            disabled="@_isBusy">
+                        @(todoItem.IsDone ? "✔" : "✓")
+                    </button>
 
-                        <a class="btn m-2" href="@($"/Todos/Edit/{todoItem.Id}")">✎</a>
-
-                        <button type="button"
-                                class="btn m-2"
-                                title="Supprimer"
-                                @onclick:stopPropagation="true"
-                                @onclick="() => DeleteTodoAsync(todoItem.Id)"
-                                disabled="@_isBusy">
-                            ×
-                        </button>
-                    </div>
-                </li>
-            }
-        </ul>
-    }
+                    <button type="button"
+                            class="btn"
+                            title="Supprimer"
+                            @onclick="() => DeleteTodoAsync(todoItem.Id)"
+                            disabled="@_isBusy">
+                        ×
+                    </button>
+                </div>
+            </li>
+        }
+    </ul>
 </div>
 
 @code {
-    [Parameter] public string UserId { get; set; } = "";
-
     private bool _isBusy;
-    private string _newTodoDescription = "";
     private string? _errorMessage;
 
+    private string _newTodoDescription = "";
     private List<Todo> _todoItems = new();
 
-    protected override async Task OnParametersSetAsync()
-    {
-        if (string.IsNullOrWhiteSpace(UserId))
-        {
-            return;
-        }
+    // Inline edit state
+    private int? _editingTodoId;
+    private string _editingDescription = "";
+    private ElementReference _editInputRef;
 
+    protected override async Task OnInitializedAsync()
+    {
         await ReloadTodosAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Focus l'input quand on passe en mode édition
+        if (_editingTodoId.HasValue)
+        {
+            try
+            {
+                await _editInputRef.FocusAsync();
+            }
+            catch
+            {
+                // Si focus impossible (rare), on ignore
+            }
+        }
     }
 
     private async Task ReloadTodosAsync()
     {
         _errorMessage = null;
-
         try
         {
             _todoItems = await TodoService.GetAllAsync();
@@ -117,20 +137,18 @@
 
     private async Task AddTodoAsync()
     {
-        var normalizedDescription = _newTodoDescription.Trim();
-        if (normalizedDescription.Length == 0 || _isBusy)
-        {
-            return;
-        }
+        if (_isBusy) return;
+
+        var description = _newTodoDescription.Trim();
+        if (description.Length == 0) return;
 
         _isBusy = true;
         _errorMessage = null;
 
         try
         {
-            await TodoService.CreateAsync(normalizedDescription);
+            await TodoService.CreateAsync(description);
             _newTodoDescription = "";
-
             await ReloadTodosAsync();
         }
         catch (Exception exception)
@@ -145,10 +163,7 @@
 
     private async Task ToggleTodoDoneAsync(int todoId)
     {
-        if (_isBusy)
-        {
-            return;
-        }
+        if (_isBusy) return;
 
         _isBusy = true;
         _errorMessage = null;
@@ -170,16 +185,10 @@
 
     private async Task DeleteTodoAsync(int todoId)
     {
-        if (_isBusy)
-        {
-            return;
-        }
+        if (_isBusy) return;
 
         var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Supprimer ?");
-        if (!confirmed)
-        {
-            return;
-        }
+        if (!confirmed) return;
 
         _isBusy = true;
         _errorMessage = null;
@@ -199,16 +208,81 @@
         }
     }
 
-    private void OpenTodoDetails(int todoId)
+    private void BeginEdit(Todo todoItem)
     {
-        Navigation.NavigateTo($"/Todos/Details/{todoId}");
+        _editingTodoId = todoItem.Id;
+        _editingDescription = todoItem.Description;
+        // Le focus est fait dans OnAfterRenderAsync
+        StateHasChanged();
     }
 
-    private async Task HandleNewTodoKeyDown(KeyboardEventArgs keyboardEventArgs)
+    private async Task SaveEditAsync(int todoId)
     {
-        if (keyboardEventArgs.Key == "Enter")
+        if (_isBusy) return;
+        if (_editingTodoId != todoId) return;
+
+        var newDescription = _editingDescription.Trim();
+
+        // Si vide -> on annule l'édition (ou tu peux décider de supprimer)
+        if (newDescription.Length == 0)
+        {
+            CancelEdit();
+            return;
+        }
+
+        // Si inchangé -> on ferme
+        var current = _todoItems.FirstOrDefault(t => t.Id == todoId);
+        if (current != null && string.Equals(current.Description, newDescription, StringComparison.Ordinal))
+        {
+            CancelEdit();
+            return;
+        }
+
+        _isBusy = true;
+        _errorMessage = null;
+
+        try
+        {
+            await TodoService.UpdateAsync(todoId, newDescription);
+            CancelEdit();
+            await ReloadTodosAsync();
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isBusy = false;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        _editingTodoId = null;
+        _editingDescription = "";
+        StateHasChanged();
+    }
+
+    private async Task HandleNewTodoKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
         {
             await AddTodoAsync();
+        }
+    }
+
+    private async Task HandleEditKeyDown(KeyboardEventArgs e)
+    {
+        if (!_editingTodoId.HasValue) return;
+
+        if (e.Key == "Enter")
+        {
+            await SaveEditAsync(_editingTodoId.Value);
+        }
+        else if (e.Key == "Escape")
+        {
+            CancelEdit();
         }
     }
 }
