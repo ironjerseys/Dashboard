@@ -41,6 +41,10 @@
         <i class="bi bi-question-circle"></i> Logs ChessMultitool
     </a>
 
+    <button class="btn btn-sm btn-outline-light" @onclick="() => _emailSettingsOpen = true">
+        Paramètres emails
+    </button>
+
 
     @if (!string.IsNullOrWhiteSpace(_error))
     {
@@ -123,11 +127,13 @@
 
         <!-- Colonne droite: Todos -->
         <div class="col-lg-4">
-            <TodoPanel/>
+            <TodoPanel />
 
         </div>
     </div>
 </div>
+
+<EmailSettingsModal @bind-IsOpen="_emailSettingsOpen" />
 
 <ConfirmModal @bind-IsOpen="_deleteGoalModalOpen"
               Title="Supprimer l’objectif ?"
@@ -165,6 +171,9 @@
     private bool _deleteGoalModalOpen;
     private int _goalIdToDelete;
     private string _goalTitleToDelete = "";
+
+    private bool _emailSettingsOpen;
+
 
 
     protected override async Task OnInitializedAsync()
@@ -239,7 +248,7 @@
             // Articles (pour le select)
             _articles = (await ArticleService.GetArticles()).ToList();
 
-      
+
         }
         catch (Exception ex)
         {
@@ -306,7 +315,7 @@
         }
 
         await GoalService.DeleteAsync(goalId, _userId);
-        await LoadAsync(); 
+        await LoadAsync();
     }
 
 

@@ -75,6 +75,7 @@ builder.Services.AddScoped<IDbQuizService, DbQuizService>();
 builder.Services.AddScoped<IGoalService, GoalService>();
 builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<IAIChessLogService, AIChessLogService>();
+builder.Services.AddScoped<IEmailSettingsService, EmailSettingsService>();
 
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));

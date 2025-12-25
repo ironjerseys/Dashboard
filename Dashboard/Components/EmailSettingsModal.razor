@@ -1,0 +1,291 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Identity
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Web
+
+@using global::Dashboard.Entities
+@using global::Dashboard.Services
+
+@rendermode RenderMode.InteractiveServer
+
+@inject IEmailSettingsService EmailSettingsService
+@inject UserManager<IdentityUser> UserManager
+
+@attribute [Authorize]
+
+@if (IsOpen)
+{
+    <div class="modal fade show" style="display:block;" tabindex="-1" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document" @onclick:stopPropagation="true">
+            <div class="modal-content es-modal text-white">
+
+                <div class="modal-header border-0">
+                    <div>
+                        <h5 class="modal-title mb-0">Paramètres d'envoi d'emails</h5>
+                        <div class="text-white-50 small">Personnalisés pour ton compte</div>
+                    </div>
+
+                    <button type="button"
+                            class="btn-close btn-close-white"
+                            aria-label="Close"
+                            @onclick="CloseAsync"
+                            disabled="@_busy">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(_successMessage))
+                    {
+                        <div class="alert alert-success">@_successMessage</div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+                    {
+                        <div class="alert alert-danger">@_errorMessage</div>
+                    }
+
+                    @if (_loading)
+                    {
+                        <div class="text-white-50">Chargement…</div>
+                    }
+                    else
+                    {
+                        <EditForm Model="_model" OnValidSubmit="SaveAsync" FormName="email-settings-modal">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+
+                            <div class="form-check form-switch mb-3">
+                                <InputCheckbox class="form-check-input" @bind-Value="_model.Enabled" />
+                                <label class="form-check-label">Activer l'envoi</label>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Adresse de réception</label>
+                                    <InputText class="form-control" @bind-Value="_model.RecipientEmail" />
+                                    <ValidationMessage For="() => _model.RecipientEmail" />
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Périodicité</label>
+                                    <InputSelect class="form-select" @bind-Value="_model.Frequency">
+                                        @foreach (var value in Enum.GetValues<EmailFrequency>())
+                                        {
+                                            <option value="@value">@value</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <label class="form-label">Heure</label>
+                                    <div class="d-flex gap-2">
+                                        <InputNumber class="form-control" @bind-Value="_model.Hour" min="0" max="23" />
+                                        <InputNumber class="form-control" @bind-Value="_model.Minute" min="0" max="59" />
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <ValidationMessage For="() => _model.Hour" />
+                                        <ValidationMessage For="() => _model.Minute" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Jour de la semaine</label>
+                                    <InputSelect TValue="DayOfWeek ?" class="form-select"
+                                                 @bind-Value="_model.DayOfWeek"
+                                                 disabled="@(_model.Frequency != EmailFrequency.Weekly)">
+                                        <option value="">-- N/A --</option>
+                                        @foreach (var value in Enum.GetValues<DayOfWeek>())
+                                        {
+                                            <option value="@value">@value</option>
+                                        }
+                                    </InputSelect>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">Jour du mois</label>
+                                    <InputNumber class="form-control"
+                                                 @bind-Value="_model.DayOfMonth"
+                                                 min="1" max="31"
+                                                 disabled="@(_model.Frequency != EmailFrequency.Monthly)" />
+                                    <ValidationMessage For="() => _model.DayOfMonth" />
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        <InputCheckbox class="form-check-input" @bind-Value="_model.IncludeTodos" />
+                                        <label class="form-check-label">Inclure les Todos</label>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        <InputCheckbox class="form-check-input" @bind-Value="_model.IncludeGoals" />
+                                        <label class="form-check-label">Inclure les Objectifs</label>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        <InputCheckbox class="form-check-input" @bind-Value="_model.IncludeArticles" />
+                                        <label class="form-check-label">Inclure les Articles créés</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="text-white-50 small mb-3">
+                                Les emails contiendront les objectifs, les titres d’articles, et les todos (selon tes sélections).
+                            </div>
+
+                            <div class="d-flex justify-content-end gap-2">
+                                <button type="button" class="btn btn-secondary" @onclick="CloseAsync" disabled="@_busy">
+                                    Annuler
+                                </button>
+
+                                <button type="submit" class="btn btn-primary" disabled="@_busy">
+                                    Enregistrer
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show" @onclick="CloseAsync"></div>
+
+    <style>
+        .es-modal {
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(20, 20, 22, .88);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,.55);
+        }
+    </style>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    // Optionnel : le parent peut réagir après save
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    private EmailSettings _model = new();
+    private bool _loading;
+    private bool _busy;
+
+    private string? _successMessage;
+    private string? _errorMessage;
+
+    // Pour recharger à chaque ouverture (évite données périmées)
+    private bool _wasOpen;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            _wasOpen = true;
+            await LoadAsync();
+        }
+
+        if (!IsOpen)
+        {
+            _wasOpen = false;
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _busy = false;
+        _successMessage = null;
+        _errorMessage = null;
+
+        try
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated != true)
+            {
+                _errorMessage = "Non authentifié.";
+                return;
+            }
+
+            string userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                _errorMessage = "UserId introuvable.";
+                return;
+            }
+
+            var identityUser = await UserManager.GetUserAsync(user);
+            string defaultEmail =
+                identityUser is not null
+                    ? (await UserManager.GetEmailAsync(identityUser) ?? string.Empty)
+                    : (user.FindFirstValue(ClaimTypes.Email) ?? string.Empty);
+
+            _model = await EmailSettingsService.GetOrCreateAsync(userId, defaultEmail);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        _successMessage = null;
+        _errorMessage = null;
+
+        try
+        {
+            var authState = await AuthenticationStateTask;
+            var user = authState.User;
+
+            string userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                _errorMessage = "UserId introuvable.";
+                return;
+            }
+
+            await EmailSettingsService.SaveAsync(_model, userId);
+            _successMessage = "Paramètres enregistrés";
+
+            await OnSaved.InvokeAsync();
+
+            // Si tu préfères fermer automatiquement après save :
+            await IsOpenChanged.InvokeAsync(false);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private Task CloseAsync()
+    {
+        _successMessage = null;
+        _errorMessage = null;
+        return IsOpenChanged.InvokeAsync(false);
+    }
+}
