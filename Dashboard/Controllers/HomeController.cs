@@ -132,28 +132,4 @@ public class HomeController : Controller
 
         return View(websites);
     }
-
-  
-
-    [HttpGet("/privacy-policy")]
-    public IActionResult Privacy()
-    {
-        return View();
-    }
-
-    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-    public IActionResult Error()
-    {
-        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-    }
-}
-
-
-public class JsonQuestion
-{
-    public int Id { get; set; }
-    public string Question { get; set; }
-    public List<string> Choices { get; set; }
-    public int CorrectAnswer { get; set; }
-    public string Explanation { get; set; }
 }
