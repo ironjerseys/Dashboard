@@ -1,44 +1,108 @@
+﻿using Dashboard.Data;
 using Dashboard.Entities;
-using Dashboard.Models;
-using Dashboard.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace Dashboard.Services;
 
 public interface IDbQuizService
 {
-    Task<List<Question>> GetQuestionsAsync();
-    Task<QuizQuestion?> GetAsync(int id);
-    Task<int> CreateAsync(QuizQuestion q);
-    Task<List<QuizQuestion>> GetByArticleAsync(int articleId);
+    Task<List<QuizQuestion>> GetQuestionsAsync(CancellationToken cancellationToken = default);
+    Task<QuizQuestion?> GetAsync(int id, CancellationToken cancellationToken = default);
+    Task<int> CreateAsync(QuizQuestion quizQuestion, CancellationToken cancellationToken = default);
+    Task<bool> UpdateAsync(QuizQuestion quizQuestion, CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
+    Task<List<QuizQuestion>> GetByArticleAsync(int articleId, CancellationToken cancellationToken = default);
 }
 
-public class DbQuizService(BlogContext db) : IDbQuizService
+public sealed class DbQuizService : IDbQuizService
 {
-    private readonly BlogContext _db = db;
+    private readonly IDbContextFactory<BlogContext> _dbContextFactory;
 
-    public async Task<List<Question>> GetQuestionsAsync()
+    public DbQuizService(IDbContextFactory<BlogContext> dbContextFactory)
     {
-        var qs = await _db.QuizQuestions.AsNoTracking().OrderBy(q => q.Id).ToListAsync();
-        return qs.Select(q => new Question
+        _dbContextFactory = dbContextFactory;
+    }
+
+    public async Task<List<QuizQuestion>> GetQuestionsAsync(CancellationToken cancellationToken = default)
+    {
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.QuizQuestions
+            .AsNoTracking()
+            .OrderBy(question => question.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<QuizQuestion?> GetAsync(int id, CancellationToken cancellationToken = default)
+    {
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.QuizQuestions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(question => question.Id == id, cancellationToken);
+    }
+
+    public async Task<int> CreateAsync(QuizQuestion quizQuestion, CancellationToken cancellationToken = default)
+    {
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        dbContext.QuizQuestions.Add(quizQuestion);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return quizQuestion.Id;
+    }
+
+    public async Task<bool> UpdateAsync(QuizQuestion quizQuestion, CancellationToken cancellationToken = default)
+    {
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        QuizQuestion? existing = await dbContext.QuizQuestions
+            .FirstOrDefaultAsync(q => q.Id == quizQuestion.Id, cancellationToken);
+
+        if (existing is null)
         {
-            Id = q.Id,
-            QuestionText = q.QuestionText,
-            Choices = new List<string> { q.Choice0, q.Choice1, q.Choice2, q.Choice3 },
-            CorrectAnswer = q.CorrectAnswer,
-            Explanation = q.Explanation
-        }).ToList();
+            return false;
+        }
+
+        existing.QuestionText = quizQuestion.QuestionText;
+        existing.Choice0 = quizQuestion.Choice0;
+        existing.Choice1 = quizQuestion.Choice1;
+        existing.Choice2 = quizQuestion.Choice2;
+        existing.Choice3 = quizQuestion.Choice3;
+        existing.CorrectAnswer = quizQuestion.CorrectAnswer;
+        existing.Explanation = quizQuestion.Explanation;
+        existing.ArticleId = quizQuestion.ArticleId;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
     }
 
-    public Task<QuizQuestion?> GetAsync(int id) => _db.QuizQuestions.FirstOrDefaultAsync(q => q.Id == id);
-
-    public async Task<int> CreateAsync(QuizQuestion q)
+    public async Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default)
     {
-        _db.QuizQuestions.Add(q);
-        await _db.SaveChangesAsync();
-        return q.Id;
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        QuizQuestion? existing = await dbContext.QuizQuestions
+            .FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
+
+        if (existing is null)
+        {
+            return false;
+        }
+
+        dbContext.QuizQuestions.Remove(existing);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return true;
     }
 
-    public Task<List<QuizQuestion>> GetByArticleAsync(int articleId)
-        => _db.QuizQuestions.Where(q => q.ArticleId == articleId).OrderBy(q => q.Id).ToListAsync();
+    public async Task<List<QuizQuestion>> GetByArticleAsync(int articleId, CancellationToken cancellationToken = default)
+    {
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.QuizQuestions
+            .AsNoTracking()
+            .Where(q => q.ArticleId == articleId)
+            .OrderBy(q => q.Id)
+            .ToListAsync(cancellationToken);
+    }
 }

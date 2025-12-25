@@ -1,0 +1,241 @@
+﻿@page "/quiz"
+
+@using Microsoft.AspNetCore.Components.Web 
+@using Microsoft.AspNetCore.Components.Forms
+@using Dashboard.Components.Quiz
+
+@using global::Dashboard.Entities
+@using global::Dashboard.Services
+
+@inject IDbQuizService QuizService
+
+@rendermode RenderMode.InteractiveServer
+
+<div class="container mt-4">
+    <div class="card p-3 text-white"
+         style="background: rgba(20,20,22,.88); border-radius: 18px; border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(10px);">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="m-0">Quiz</h4>
+
+            <div class="d-flex align-items-center gap-2">
+                <div class="text-white-50 small">Score : @_score / @_questions.Count</div>
+                <button type="button" class="btn btn-sm btn-outline-light" @onclick="OpenCreateQuestion">
+                    <i class="bi bi-plus-lg"></i> Question
+                </button>
+            </div>
+
+            <div class="text-white-50 small">Score : @_score / @_questions.Count</div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_errorMessage))
+        {
+            <div class="alert alert-danger">@_errorMessage</div>
+        }
+
+        @if (_isLoading)
+        {
+            <div class="text-muted">Chargement…</div>
+        }
+        else if (_questions.Count == 0)
+        {
+            <div class="alert alert-warning mb-0">Aucune question.</div>
+        }
+        else if (_currentIndex >= _questions.Count)
+        {
+            <h5>Quiz terminé</h5>
+            <p>Votre score : <strong>@_score</strong> / <strong>@_questions.Count</strong></p>
+
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-info" @onclick="Restart">Recommencer</button>
+                <a class="btn btn-secondary" href="/dashboard">Retour Dashboard</a>
+            </div>
+        }
+        else
+        {
+            var currentQuestion = _questions[_currentIndex];
+            var choices = GetChoices(currentQuestion);
+
+            <h6 class="mb-2">Question @(_currentIndex + 1) sur @_questions.Count</h6>
+
+            @if (HasCodeFence(currentQuestion.QuestionText))
+            {
+                <pre class="mb-3 p-3"
+                     style="background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); border-radius: 12px; overflow:auto;">
+<code>@ExtractCode(currentQuestion.QuestionText)</code>
+</pre>
+            }
+            else
+            {
+                <p class="mb-3">@currentQuestion.QuestionText</p>
+            }
+
+            @if (!_showResult)
+            {
+                <InputRadioGroup @bind-Value="_selectedChoiceIndex">
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        var inputId = $"q{currentQuestion.Id}_c{i}";
+                        <div class="form-check mb-2">
+                            <InputRadio class="form-check-input" id="@inputId" Value="i" />
+                            <label class="form-check-label" for="@inputId">@choices[i]</label>
+                        </div>
+                    }
+                </InputRadioGroup>
+
+                <button type="button" class="btn btn-primary mt-3" @onclick="ValidateAnswerAsync">
+                    Valider
+                </button>
+            }
+            else
+            {
+                if (_isCorrect)
+                {
+                    <p class="text-success fw-semibold">Bonne réponse !</p>
+                }
+                else
+                {
+                    <p class="text-danger fw-semibold">
+                        Mauvaise réponse. La bonne réponse était : @choices[currentQuestion.CorrectAnswer]
+                    </p>
+                }
+
+                <p><strong>Explication :</strong> @currentQuestion.Explanation</p>
+
+                <button type="button" class="btn btn-primary mt-3" @onclick="Next">
+                    Suivant
+                </button>
+            }
+        }
+    </div>
+</div>
+
+<QuizQuestionEditorModal @bind-IsOpen="_createQuestionOpen"
+                         OnCreated="ReloadQuestionsAsync" />
+
+
+@code {
+    private bool _isLoading;
+    private string? _errorMessage;
+
+    private List<QuizQuestion> _questions = new();
+    private int _currentIndex;
+    private int _score;
+
+    private bool _showResult;
+    private bool _isCorrect;
+    private int? _selectedChoiceIndex;
+
+    private bool _createQuestionOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _questions = (await QuizService.GetQuestionsAsync()).ToList();
+            Restart();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+
+    private void OpenCreateQuestion()
+    {
+        _createQuestionOpen = true;
+    }
+
+    private async Task ReloadQuestionsAsync()
+    {
+        // Recharge depuis la DB (garde ton index/score si tu veux)
+        var previousIndex = _currentIndex;
+        var previousScore = _score;
+
+        _questions = await QuizService.GetQuestionsAsync();
+
+        // Option : revenir au même index
+        _currentIndex = Math.Min(previousIndex, Math.Max(_questions.Count - 1, 0));
+        _score = previousScore;
+
+        StateHasChanged();
+    }
+
+
+
+
+    private Task ValidateAnswerAsync()
+    {
+        _errorMessage = null;
+
+        if (_currentIndex >= _questions.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        if (!_selectedChoiceIndex.HasValue)
+        {
+            _errorMessage = "Choisissez une réponse.";
+            return Task.CompletedTask;
+        }
+
+        var q = _questions[_currentIndex];
+        _isCorrect = (_selectedChoiceIndex.Value == q.CorrectAnswer);
+
+        if (_isCorrect)
+        {
+            _score++;
+        }
+
+        _showResult = true;
+        return Task.CompletedTask;
+    }
+
+    private void Next()
+    {
+        _currentIndex++;
+        _showResult = false;
+        _isCorrect = false;
+        _selectedChoiceIndex = null;
+    }
+
+    private void Restart()
+    {
+        _currentIndex = 0;
+        _score = 0;
+        _showResult = false;
+        _isCorrect = false;
+        _selectedChoiceIndex = null;
+        _errorMessage = null;
+    }
+
+    private static string[] GetChoices(QuizQuestion q)
+    {
+        return new[] { q.Choice0, q.Choice1, q.Choice2, q.Choice3 };
+    }
+
+    private static bool HasCodeFence(string? text)
+        => !string.IsNullOrEmpty(text) && text.Contains("```", StringComparison.Ordinal);
+
+    private static string ExtractCode(string? text)
+    {
+        text ??= string.Empty;
+
+        int start = text.IndexOf("```", StringComparison.Ordinal);
+        int end = text.LastIndexOf("```", StringComparison.Ordinal);
+
+        if (start >= 0 && end > start)
+        {
+            return text.Substring(start + 3, end - start - 3).Trim();
+        }
+
+        return text.Trim();
+    }
+}

@@ -33,6 +33,11 @@
 <div class="container mt-5">
     <h1 class="mb-5">Dashboard</h1>
 
+    <a class="btn btn-sm btn-outline-light" href="/quiz">
+        <i class="bi bi-question-circle"></i> Quiz
+    </a>
+
+
     @if (!string.IsNullOrWhiteSpace(_error))
     {
         <div class="alert alert-danger">@_error</div>

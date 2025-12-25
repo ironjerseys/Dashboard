@@ -1,0 +1,199 @@
+﻿@namespace Dashboard.Components.Quiz
+
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+
+@using global::Dashboard.Entities
+@using global::Dashboard.Services
+
+@inject IDbQuizService QuizService
+@inject IArticleService ArticleService
+
+@rendermode RenderMode.InteractiveServer
+
+@if (IsOpen)
+{
+    <div class="modal fade show" style="display:block;" tabindex="-1" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document" @onclick:stopPropagation="true">
+            <div class="modal-content quiz-modal text-white">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">Créer une question</h5>
+
+                    <button type="button"
+                            class="btn-close btn-close-white"
+                            aria-label="Close"
+                            @onclick="CloseAsync"
+                            disabled="@Busy">
+                    </button>
+                </div>
+
+                <div class="modal-body">
+                    @if (!string.IsNullOrWhiteSpace(Error))
+                    {
+                        <div class="alert alert-danger">@Error</div>
+                    }
+
+                    <EditForm Model="_model" OnValidSubmit="CreateAsync" FormName="quiz-create">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="mb-3">
+                            <label class="form-label">Question</label>
+                            <InputTextArea class="form-control" @bind-Value="_model.QuestionText" rows="4" />
+                            <ValidationMessage For="() => _model.QuestionText" />
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Proposition 1</label>
+                                <InputText class="form-control" @bind-Value="_model.Choice0" />
+                                <ValidationMessage For="() => _model.Choice0" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Proposition 2</label>
+                                <InputText class="form-control" @bind-Value="_model.Choice1" />
+                                <ValidationMessage For="() => _model.Choice1" />
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Proposition 3</label>
+                                <InputText class="form-control" @bind-Value="_model.Choice2" />
+                                <ValidationMessage For="() => _model.Choice2" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Proposition 4</label>
+                                <InputText class="form-control" @bind-Value="_model.Choice3" />
+                                <ValidationMessage For="() => _model.Choice3" />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Bonne réponse</label>
+                            <InputSelect class="form-select" @bind-Value="_model.CorrectAnswer">
+                                <option value="0">0 — Proposition 1</option>
+                                <option value="1">1 — Proposition 2</option>
+                                <option value="2">2 — Proposition 3</option>
+                                <option value="3">3 — Proposition 4</option>
+                            </InputSelect>
+                            <ValidationMessage For="() => _model.CorrectAnswer" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Explication</label>
+                            <InputTextArea class="form-control" @bind-Value="_model.Explanation" rows="3" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Article lié (optionnel)</label>
+                            <InputSelect class="form-select" @bind-Value="_model.ArticleId">
+                                <option value="">-- Aucun --</option>
+                                @foreach (var article in _articles)
+                                {
+                                    <option value="@article.Id">@article.Titre</option>
+                                }
+                            </InputSelect>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseAsync" disabled="@Busy">
+                                Annuler
+                            </button>
+                            <button type="submit" class="btn btn-primary" disabled="@Busy">
+                                Créer
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show" @onclick="CloseAsync"></div>
+
+    <style>
+        .quiz-modal {
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(20, 20, 22, .88);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,.55);
+        }
+    </style>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    // Parent peut écouter pour recharger la liste
+    [Parameter] public EventCallback OnCreated { get; set; }
+
+    // Optionnel : pré-sélectionner un article quand on ouvre depuis un article
+    [Parameter] public int? DefaultArticleId { get; set; }
+
+    private QuizQuestion _model = new();
+    private bool Busy { get; set; }
+    private string? Error { get; set; }
+
+    private List<(int Id, string Titre)> _articles = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen)
+        {
+            await EnsureArticlesLoadedAsync();
+            ResetModel();
+        }
+    }
+
+    private async Task EnsureArticlesLoadedAsync()
+    {
+        if (_articles.Count > 0)
+        {
+            return;
+        }
+
+        var all = await ArticleService.GetArticles(sort: ArticleSort.DateNewest);
+        _articles = all.Select(a => (a.Id, a.Titre)).ToList();
+    }
+
+    private void ResetModel()
+    {
+        Error = null;
+        Busy = false;
+
+        _model = new QuizQuestion
+        {
+            ArticleId = DefaultArticleId,
+            CorrectAnswer = 0
+        };
+    }
+
+    private async Task CreateAsync()
+    {
+        Busy = true;
+        Error = null;
+
+        try
+        {
+            await QuizService.CreateAsync(_model);
+            await OnCreated.InvokeAsync();
+            await IsOpenChanged.InvokeAsync(false);
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            Busy = false;
+        }
+    }
+
+    private Task CloseAsync()
+    {
+        return IsOpenChanged.InvokeAsync(false);
+    }
+}
