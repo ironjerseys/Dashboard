@@ -1,12 +1,13 @@
-﻿using System.Security.Claims;
+﻿using Dashboard.Components;
 using Dashboard.Data;
 using Dashboard.Entities;
+using Dashboard.Models;
 using Dashboard.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Dashboard.Components;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -105,13 +106,71 @@ app.UseAntiforgery();
 // ======================
 // Endpoints
 // ======================
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
-// CORRECTION : On ne garde qu'un seul MapRazorComponents ici
-app.MapRazorComponents<App>()
-   .AddInteractiveServerRenderMode();
+
+// ======================
+// API: AIChessLogs ingest
+// ======================
+var aiChessLogsApi = app.MapGroup("/api/aichesslogs").AllowAnonymous();
+
+
+aiChessLogsApi.MapPost("", async (
+        AIChessLogCreateRequest request,
+        IAIChessLogService logService,
+        ILoggerFactory loggerFactory,
+        CancellationToken cancellationToken) =>
+{
+    var logger = loggerFactory.CreateLogger("AIChessLogsApi");
+
+    if (request is null)
+    {
+        return Results.BadRequest();
+    }
+
+    var entity = new AIChessLogs
+    {
+        TimestampUtc = DateTime.UtcNow,
+        Type = string.IsNullOrWhiteSpace(request.Type) ? "information" : request.Type.Trim(),
+
+        SearchDepth = request.SearchDepth,
+        DurationMs = request.DurationMs,
+        LegalMovesCount = request.LegalMovesCount,
+        EvaluatedMovesCount = request.EvaluatedMovesCount,
+
+        BestMoveUci = request.BestMoveUci,
+        BestScoreCp = request.BestScoreCp,
+
+        GeneratedMovesTotal = request.GeneratedMovesTotal,
+        NodesVisited = request.NodesVisited,
+        LeafEvaluations = request.LeafEvaluations,
+
+        EvaluatedMovesJson = request.EvaluatedMovesJson
+    };
+
+    try
+    {
+        int id = await logService.AddAsync(entity, cancellationToken);
+
+        logger.LogInformation(
+            "Stored AIChessLog Id={Id} Depth={Depth} DurMs={DurMs} Legal={Legal} Eval={Eval} Nodes={Nodes} Leaf={Leaf} Best={Best} Score={Score}",
+            id, entity.SearchDepth, entity.DurationMs, entity.LegalMovesCount, entity.EvaluatedMovesCount,
+            entity.NodesVisited, entity.LeafEvaluations, entity.BestMoveUci, entity.BestScoreCp);
+
+        return Results.Created($"/api/aichesslogs/{id}", new { id });
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "StoreFailed");
+        return Results.Problem("Erreur interne", statusCode: 500);
+    }
+})
+    .Accepts<AIChessLogCreateRequest>("application/json")
+    .Produces(StatusCodes.Status201Created)
+    .Produces(StatusCodes.Status400BadRequest)
+    .Produces(StatusCodes.Status500InternalServerError);
+
 
 // ======================
 // Migrations + Seed (Code inchangé)
@@ -124,7 +183,6 @@ using (var scope = app.Services.CreateScope())
     {
         var db = sp.GetRequiredService<BlogContext>();
         await db.Database.MigrateAsync();
-        // ... reste de votre code de seed ...
     }
     catch (Exception ex)
     {

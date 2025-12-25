@@ -1,4 +1,4 @@
-using Dashboard.Data;
+﻿using Dashboard.Data;
 using Dashboard.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,22 +6,37 @@ namespace Dashboard.Services;
 
 public interface IAIChessLogService
 {
-    Task<int> AddAsync(AIChessLogs entry);
-    Task<List<AIChessLogs>> GetRecentAsync(int take = 200);
+    Task<int> AddAsync(AIChessLogs entry, CancellationToken cancellationToken = default);
+    Task<List<AIChessLogs>> GetRecentAsync(int take = 200, CancellationToken cancellationToken = default);
 }
 
-public class AIChessLogService : IAIChessLogService
+public sealed class AIChessLogService : IAIChessLogService
 {
-    private readonly BlogContext _db;
-    public AIChessLogService(BlogContext db) => _db = db;
+    private readonly IDbContextFactory<BlogContext> _dbContextFactory;
 
-    public async Task<int> AddAsync(AIChessLogs entry)
+    public AIChessLogService(IDbContextFactory<BlogContext> dbContextFactory)
     {
-        _db.AIChessLogs.Add(entry);
-        await _db.SaveChangesAsync();
+        _dbContextFactory = dbContextFactory;
+    }
+
+    public async Task<int> AddAsync(AIChessLogs entry, CancellationToken cancellationToken = default)
+    {
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        dbContext.AIChessLogs.Add(entry);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
         return entry.Id;
     }
 
-    public Task<List<AIChessLogs>> GetRecentAsync(int take = 200)
-        => _db.AIChessLogs.OrderByDescending(l => l.TimestampUtc).Take(take).ToListAsync();
+    public async Task<List<AIChessLogs>> GetRecentAsync(int take = 200, CancellationToken cancellationToken = default)
+    {
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.AIChessLogs
+            .AsNoTracking()
+            .OrderByDescending(log => log.TimestampUtc)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+    }
 }

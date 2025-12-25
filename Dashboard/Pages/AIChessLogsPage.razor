@@ -1,0 +1,136 @@
+﻿@page "/aichesslogs"
+
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web
+
+@using global::Dashboard.Entities
+@using global::Dashboard.Services
+
+@inject IAIChessLogService LogService
+
+@rendermode RenderMode.InteractiveServer
+
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <h1 class="mb-0">AIChessLogs</h1>
+            <p class="text-muted mb-0">Derniers logs (max 500)</p>
+        </div>
+
+        <button class="btn btn-sm btn-outline-light" @onclick="ReloadAsync" disabled="@_busy">
+            <i class="bi bi-arrow-clockwise"></i> Rafraîchir
+        </button>
+    </div>
+
+    <div class="text-muted small mb-3">
+        NPS = Nodes / (Dur(ms)/1000) — Leaf/s = Leaf / (Dur/1000) — ms/node = Dur(ms)/Nodes
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>UTC</th>
+                    <th>Type</th>
+                    <th>Depth</th>
+                    <th>Dur (ms)</th>
+                    <th>Legal</th>
+                    <th>Eval</th>
+                    <th>Gen total</th>
+                    <th>Nodes</th>
+                    <th>Leaf eval</th>
+                    <th>NPS</th>
+                    <th>Leaf/s</th>
+                    <th>ms/node</th>
+                    <th>Best</th>
+                    <th>Score (cp)</th>
+                    <th>Evaluated JSON</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var log in _items)
+                {
+                    <tr>
+                        <td>@log.TimestampUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td>@log.Type</td>
+                        <td>@log.SearchDepth</td>
+                        <td>@log.DurationMs</td>
+                        <td>@log.LegalMovesCount</td>
+                        <td>@log.EvaluatedMovesCount</td>
+                        <td>@log.GeneratedMovesTotal</td>
+                        <td>@log.NodesVisited</td>
+                        <td>@log.LeafEvaluations</td>
+                        <td>@FormatNumber(Nps(log))</td>
+                        <td>@FormatNumber(LeafPerSecond(log))</td>
+                        <td>@FormatNumber(MsPerNode(log))</td>
+                        <td>@log.BestMoveUci</td>
+                        <td>@log.BestScoreCp</td>
+                        <td><code class="small" style="white-space:pre-wrap;">@log.EvaluatedMovesJson</code></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private readonly int _take = 500;
+
+    private bool _busy;
+    private string? _error;
+    private List<AIChessLogs> _items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _busy = true;
+        _error = null;
+
+        try
+        {
+            _items = await LogService.GetRecentAsync(_take);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static double Nps(AIChessLogs log)
+    {
+        if (log.DurationMs <= 0) return 0;
+        return log.NodesVisited / (log.DurationMs / 1000d);
+    }
+
+    private static double LeafPerSecond(AIChessLogs log)
+    {
+        if (log.DurationMs <= 0) return 0;
+        return log.LeafEvaluations / (log.DurationMs / 1000d);
+    }
+
+    private static double MsPerNode(AIChessLogs log)
+    {
+        if (log.NodesVisited <= 0) return 0;
+        return log.DurationMs / (double)log.NodesVisited;
+    }
+
+    private static string FormatNumber(double value)
+    {
+        return value.ToString("0.##");
+    }
+}
