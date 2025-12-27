@@ -6,6 +6,8 @@
 @using Dashboard.Entities
 @using Dashboard.Services
 @using Microsoft.AspNetCore.Components.Authorization
+@using Dashboard.Components.Quiz
+
 
 @inject IArticleService ArticleService
 @inject IDbQuizService QuizService
@@ -70,24 +72,25 @@ else
             @if (_isAdmin)
             {
                 <a class="btn btn-primary" href="@($"/articles/edit/{_article.Id}")">Modifier</a>
-               
+
                 <button class="btn btn-danger" type="button" @onclick="OpenDeleteConfirm">
                     Supprimer
                 </button>
 
-                @* Tant que QuizAdmin est encore MVC *@
-                <a class="btn"
-                   href="@($"/QuizAdmin/Create?articleId={_article.Id}")">
-                    @(_questions.Count == 0 ? "Créer une question liée" : "Ajouter une question liée")
-                </a>
+                <button type="button" class="btn btn-outline-light" @onclick="OpenCreateQuestion">
+                    Ajouter une question liée
+                </button>
+
+
+               
             }
 
             <a class="btn btn-secondary" href="/articles">Retour à la liste</a>
         </div>
     </div>
 }
-
-<ConfirmModal IsOpen="_showDeleteConfirm"
+@* 
+ <ConfirmModal IsOpen="_showDeleteConfirm"
               IsOpenChanged="OnDeleteModalChanged"
               Title="Supprimer l’article"
               Message="Cette action est définitive. Voulez-vous vraiment supprimer cet article ?"
@@ -95,7 +98,20 @@ else
               ConfirmButtonClass="btn-danger"
               Busy="_isDeleting"
               Error="_deleteError"
+              OnConfirm="DeleteConfirmedAsync" /> *@
+
+            <Dashboard.Components.Dashboard.ConfirmModal IsOpen="_showDeleteConfirm"
+              IsOpenChanged="OnDeleteModalChanged"
+              Title="Supprimer l’article"
+              Message="Cette action est définitive. Voulez-vous vraiment supprimer cet article ?"
+              ConfirmLabel="Supprimer"
+              Busy="_isDeleting"
               OnConfirm="DeleteConfirmedAsync" />
+
+<Dashboard.Components.Quiz.QuizQuestionEditorModal IsOpen="_createQuestionOpen"
+                IsOpenChanged="OnCreateQuestionOpenChanged"
+                DefaultArticleId="Id"
+                OnCreated="ReloadQuestions" />
 
 
 @code {
@@ -103,6 +119,8 @@ else
 
     private bool _isLoading = true;
     private string? _error;
+    private string? _errorMessage;
+
 
     private Article? _article;
     private List<QuizQuestion> _questions = new();
@@ -113,6 +131,8 @@ else
     private bool _showDeleteConfirm;
     private bool _isDeleting;
     private string? _deleteError;
+
+    private bool _createQuestionOpen;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -190,4 +210,37 @@ else
             _isDeleting = false;
         }
     }
+
+    private void OpenCreateQuestion()
+    {
+        _createQuestionOpen = true;
+    }
+
+    private Task OnCreateQuestionOpenChanged(bool isOpen)
+    {
+        _createQuestionOpen = isOpen;
+        return Task.CompletedTask;
+    }
+
+    private async Task ReloadQuestions()
+    {
+        try
+        {
+            _errorMessage = null;
+
+            // recharge uniquement les questions liées à cet article
+            _questions = await QuizService.GetByArticleAsync(Id);
+
+            // optionnel : si ta modale ne se ferme pas toute seule
+            _createQuestionOpen = false;
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = ex.Message;
+            StateHasChanged();
+        }
+    }
+
 }
