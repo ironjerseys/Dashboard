@@ -1,5 +1,4 @@
-﻿@page "/articles/edit/{Id:int}"
-
+﻿@page "/articles/create"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 
 @using System.ComponentModel.DataAnnotations
@@ -9,13 +8,14 @@
 @using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Web
 
+
+@rendermode RenderMode.InteractiveServer
+
 @inject IArticleService ArticleService
 @inject NavigationManager Navigation
 @inject IJSRuntime JavaScript
 
-@rendermode RenderMode.InteractiveServer
-
-<h1 class="mt-4">Modifier un article</h1>
+<h1 class="mt-4">Nouvel article</h1>
 
 @if (_isLoading)
 {
@@ -25,35 +25,28 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
 {
     <div class="alert alert-danger">@_loadError</div>
 }
-else if (_editModel is null)
-{
-    <div class="alert alert-warning">Article introuvable.</div>
-}
 else
 {
     <div class="container mt-4 article-page">
         <div class="card article-card">
 
-            <EditForm EditContext="_editContext" OnValidSubmit="SaveAsync">
+            <EditForm EditContext="_editContext" OnSubmit="HandleSubmit">
                 <DataAnnotationsValidator />
                 <ValidationSummary />
 
                 <div class="mb-3">
                     <label class="form-label">Titre</label>
-                    <InputText class="form-control" @bind-Value="_editModel.Titre" />
-                    <ValidationMessage For="() => _editModel.Titre" />
+                    <InputText class="form-control" @bind-Value="_model.Titre" />
+                    <ValidationMessage For="() => _model.Titre" />
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label">Contenu</label>
 
-                    @* Option simple : textarea *@
-                    @* <InputTextArea class="form-control" rows="10" @bind-Value="_editModel.Contenu" /> *@
-
-                    @* Option Summernote : on laisse un textarea et on synchronise via JS interop *@
+                    @* Summernote / éditeur JS s’attache à ce textarea *@
                     <textarea class="form-control" rows="10" @ref="_contentTextArea"></textarea>
 
-                    <ValidationMessage For="() => _editModel.Contenu" />
+                    <ValidationMessage For="() => _model.Contenu" />
                 </div>
 
                 <div class="row mb-3">
@@ -61,20 +54,22 @@ else
                         <label class="form-label">Labels existants</label>
 
                         <div class="border rounded p-2" style="max-height: 220px; overflow:auto;">
-                            @if (_allLabels.Count == 0)
+                            @if (_labels.Count == 0)
                             {
                                 <div class="text-muted">Aucun label.</div>
                             }
                             else
                             {
-                                @foreach (var label in _allLabels)
+                                @foreach (var label in _labels)
                                 {
                                     var checkboxId = $"lbl_{label.Id}";
+                                    var isChecked = _model.SelectedLabelIds.Contains(label.Id);
+
                                     <div class="form-check">
                                         <input class="form-check-input"
                                                type="checkbox"
                                                id="@checkboxId"
-                                               checked="@_editModel.SelectedLabelIds.Contains(label.Id)"
+                                               checked="@isChecked"
                                                @onchange="(e) => OnLabelChanged(label.Id, e)" />
                                         <label class="form-check-label" for="@checkboxId">@label.Name</label>
                                     </div>
@@ -87,12 +82,14 @@ else
 
                     <div class="col-md-6">
                         <label class="form-label">Nouveaux labels (séparés par des virgules)</label>
-                        <InputText class="form-control" @bind-Value="_editModel.NewLabelsCsv" placeholder="ex: C#, OOP" />
+                        <InputText class="form-control"
+                                   @bind-Value="_model.NewLabelsCsv"
+                                   placeholder="ex: C#, OOP" />
                     </div>
                 </div>
 
                 <div class="form-check form-switch mb-3">
-                    <InputCheckbox class="form-check-input" @bind-Value="_editModel.IsPublic" />
+                    <InputCheckbox class="form-check-input" @bind-Value="_model.IsPublic" />
                     <label class="form-check-label">Article public</label>
                 </div>
 
@@ -102,7 +99,7 @@ else
                 }
 
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary" disabled="@_isBusy">Enregistrer</button>
+                    <button type="submit" class="btn btn-success" disabled="@_isBusy">Publier</button>
                     <button type="button" class="btn btn-secondary" @onclick="Cancel" disabled="@_isBusy">Annuler</button>
                 </div>
             </EditForm>
@@ -112,55 +109,32 @@ else
 }
 
 @code {
-    [Parameter] public int Id { get; set; }
-
     private bool _isLoading = true;
     private bool _isBusy;
     private string? _loadError;
     private string? _saveError;
 
-    private ArticleEditModel? _editModel;
-    private EditContext _editContext = default!;
+    private readonly List<Label> _labels = new();
 
-    private readonly List<Label> _allLabels = new();
+    private CreateArticleModel _model = new();
+    private EditContext _editContext = default!;
 
     private ElementReference _contentTextArea;
     private bool _shouldInitEditor;
 
-    protected override async Task OnParametersSetAsync()
+    protected override async Task OnInitializedAsync()
     {
+        _editContext = new EditContext(_model);
+
         _isLoading = true;
         _loadError = null;
-        _saveError = null;
 
         try
         {
-            // IMPORTANT : adapte le nom si ton service n’a pas exactement cette méthode.
-            // Objectif: récupérer l’article + ses labels.
-            var article = await ArticleService.GetArticleAsync(Id);
-            if (article is null)
-            {
-                _editModel = null;
-                return;
-            }
-
             var labels = await ArticleService.GetLabelsAsync();
-            _allLabels.Clear();
-            _allLabels.AddRange(labels);
+            _labels.Clear();
+            _labels.AddRange(labels);
 
-            _editModel = new ArticleEditModel
-            {
-                Id = article.Id,
-                Titre = article.Titre ?? string.Empty,
-                Contenu = article.Contenu ?? string.Empty,
-                IsPublic = article.IsPublic,
-                NewLabelsCsv = string.Empty,
-                SelectedLabelIds = new HashSet<int>(article.Labels?.Select(l => l.Id) ?? Enumerable.Empty<int>())
-            };
-
-            _editContext = new EditContext(_editModel);
-
-            // On initialise (ou met à jour) Summernote après le rendu
             _shouldInitEditor = true;
         }
         catch (Exception exception)
@@ -175,62 +149,38 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_editModel is null) return;
-
         if (_shouldInitEditor)
         {
             _shouldInitEditor = false;
-
-            // Si Summernote n’est pas chargé, la fonction JS mettra juste la valeur dans le textarea.
-            await JavaScript.InvokeVoidAsync("articleEditor.init", _contentTextArea, _editModel.Contenu);
+            await JavaScript.InvokeVoidAsync("articleEditor.init", _contentTextArea, _model.Contenu);
         }
     }
 
-    private void OnLabelChanged(int labelId, ChangeEventArgs changeEventArgs)
+    private async Task HandleSubmit(EditContext editContext)
     {
-        if (_editModel is null) return;
-
-        var isChecked = changeEventArgs.Value is bool b && b;
-        if (isChecked)
-        {
-            _editModel.SelectedLabelIds.Add(labelId);
-        }
-        else
-        {
-            _editModel.SelectedLabelIds.Remove(labelId);
-        }
-    }
-
-    private async Task SaveAsync()
-    {
-        if (_editModel is null) return;
-
         _isBusy = true;
         _saveError = null;
 
         try
         {
-            // Récupère le HTML depuis Summernote (ou le textarea si Summernote absent)
-            _editModel.Contenu = await JavaScript.InvokeAsync<string>("articleEditor.getHtml", _contentTextArea);
+            // Sync contenu depuis l’éditeur JS (Summernote)
+            _model.Contenu = await JavaScript.InvokeAsync<string>("articleEditor.getHtml", _contentTextArea);
 
-            // Revalide après sync (sinon Contenu peut rester vide côté model)
-            if (!_editContext.Validate())
-            {
+            // Valider après synchro
+            if (!editContext.Validate())
                 return;
-            }
 
-            string[]? newLabels = ParseNewLabels(_editModel.NewLabelsCsv);
-            int[] selectedLabelIds = _editModel.SelectedLabelIds.ToArray();
+            var newLabels = ParseNewLabels(_model.NewLabelsCsv);
+            var selectedLabelIds = _model.SelectedLabelIds.Count == 0 ? null : _model.SelectedLabelIds.ToArray();
 
-            var updatedArticle = new Article
+            var article = new Article
             {
-                Id = _editModel.Id,
-                Titre = _editModel.Titre,
-                Contenu = _editModel.Contenu,
-                IsPublic = _editModel.IsPublic
+                Titre = _model.Titre,
+                Contenu = _model.Contenu,
+                IsPublic = _model.IsPublic
             };
 
-            await ArticleService.UpdateArticleAsync(updatedArticle, newLabels, selectedLabelIds);
+            await ArticleService.CreateArticleAsync(article, newLabels, selectedLabelIds);
 
             Navigation.NavigateTo("/articles");
         }
@@ -249,18 +199,32 @@ else
         Navigation.NavigateTo("/articles");
     }
 
+    private void OnLabelChanged(int labelId, ChangeEventArgs changeEventArgs)
+    {
+        // Robuste : bool ou string ("true"/"false"/"on")
+        var raw = changeEventArgs.Value;
+        var isChecked =
+            raw is bool b ? b :
+            string.Equals(raw?.ToString(), "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(raw?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
+
+        if (isChecked)
+            _model.SelectedLabelIds.Add(labelId);
+        else
+            _model.SelectedLabelIds.Remove(labelId);
+    }
+
     private static string[]? ParseNewLabels(string? csv)
     {
-        if (string.IsNullOrWhiteSpace(csv)) return null;
+        if (string.IsNullOrWhiteSpace(csv))
+            return null;
 
         var items = csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return items.Length == 0 ? null : items;
     }
 
-    private sealed class ArticleEditModel
+    private sealed class CreateArticleModel
     {
-        public int Id { get; set; }
-
         [Required(ErrorMessage = "Le titre est requis.")]
         public string Titre { get; set; } = string.Empty;
 

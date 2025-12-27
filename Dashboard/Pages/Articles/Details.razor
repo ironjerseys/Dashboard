@@ -1,0 +1,193 @@
+﻿@page "/articles/{Id:int}"
+
+@rendermode RenderMode.InteractiveServer
+
+@using Microsoft.AspNetCore.Components.Web
+@using Dashboard.Entities
+@using Dashboard.Services
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject IArticleService ArticleService
+@inject IDbQuizService QuizService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Détails</PageTitle>
+
+@if (_isLoading)
+{
+    <p class="mt-4">Chargement…</p>
+}
+else if (!string.IsNullOrWhiteSpace(_error))
+{
+    <div class="alert alert-danger mt-4">@_error</div>
+}
+else if (_article is null || _notFound)
+{
+    <div class="container mt-5 article-page">
+        <div class="alert alert-warning">Article introuvable.</div>
+        <a class="btn btn-secondary" href="/articles-v2">Retour à la liste</a>
+    </div>
+}
+else
+{
+    <div class="container mt-5 article-page">
+        <h1>@_article.Titre</h1>
+
+        <p class="text-muted">
+            Publié le @_article.DateCreation.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+        </p>
+
+        @if (_article.Labels?.Any() ?? false)
+        {
+            <p class="text-muted">
+                Labels:
+                @foreach (var label in _article.Labels)
+                {
+                    <span class="badge bg-secondary me-1">@label.Name</span>
+                }
+            </p>
+        }
+
+        <div class="mb-5 article-content card p-3">
+            @((MarkupString)(_article.Contenu ?? string.Empty))
+        </div>
+
+        @if (_questions.Count > 0)
+        {
+            <div class="card p-3 mb-3">
+                <h5>Questions liées</h5>
+                <ul class="mb-0">
+                    @foreach (var question in _questions)
+                    {
+                        <li>@question.QuestionText</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <div class="d-flex gap-2 flex-wrap">
+            @if (_isAdmin)
+            {
+                <a class="btn btn-primary" href="@($"/articles/edit/{_article.Id}")">Modifier</a>
+               
+                <button class="btn btn-danger" type="button" @onclick="OpenDeleteConfirm">
+                    Supprimer
+                </button>
+
+                @* Tant que QuizAdmin est encore MVC *@
+                <a class="btn"
+                   href="@($"/QuizAdmin/Create?articleId={_article.Id}")">
+                    @(_questions.Count == 0 ? "Créer une question liée" : "Ajouter une question liée")
+                </a>
+            }
+
+            <a class="btn btn-secondary" href="/articles">Retour à la liste</a>
+        </div>
+    </div>
+}
+
+<ConfirmModal IsOpen="_showDeleteConfirm"
+              IsOpenChanged="OnDeleteModalChanged"
+              Title="Supprimer l’article"
+              Message="Cette action est définitive. Voulez-vous vraiment supprimer cet article ?"
+              ConfirmLabel="Supprimer"
+              ConfirmButtonClass="btn-danger"
+              Busy="_isDeleting"
+              Error="_deleteError"
+              OnConfirm="DeleteConfirmedAsync" />
+
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool _isLoading = true;
+    private string? _error;
+
+    private Article? _article;
+    private List<QuizQuestion> _questions = new();
+
+    private bool _isAdmin;
+    private bool _notFound;
+
+    private bool _showDeleteConfirm;
+    private bool _isDeleting;
+    private string? _deleteError;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _error = null;
+        _notFound = false;
+        _article = null;
+        _questions = new();
+
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            _isAdmin = authState.User.IsInRole("Admin");
+
+            _article = await ArticleService.GetArticleAsync(Id);
+
+            if (_article is null)
+            {
+                _notFound = true;
+                return;
+            }
+
+            if (!_isAdmin && !_article.IsPublic)
+            {
+                _notFound = true;
+                _article = null;
+                return;
+            }
+
+            _questions = await QuizService.GetByArticleAsync(Id);
+        }
+        catch (Exception exception)
+        {
+            _error = exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void OpenDeleteConfirm()
+    {
+        _deleteError = null;
+        _showDeleteConfirm = true;
+    }
+
+    private Task OnDeleteModalChanged(bool isOpen)
+    {
+        _showDeleteConfirm = isOpen;
+        return Task.CompletedTask;
+    }
+
+    private async Task DeleteConfirmedAsync()
+    {
+        if (_article is null) return;
+
+        _isDeleting = true;
+        _deleteError = null;
+
+        try
+        {
+            // IMPORTANT : adapte au nom exact de ta méthode de suppression
+            await ArticleService.DeleteAsync(_article.Id);
+
+            _showDeleteConfirm = false;
+            Navigation.NavigateTo("/articles-v2");
+        }
+        catch (Exception ex)
+        {
+            _deleteError = ex.Message;
+        }
+        finally
+        {
+            _isDeleting = false;
+        }
+    }
+}

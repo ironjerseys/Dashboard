@@ -3,6 +3,8 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+    <base href="/" />
+
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
@@ -14,8 +16,8 @@
     <script type="importmap"></script>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.7/dist/lux/bootstrap.min.css" />
-    <link rel="stylesheet" href="/css/site.css"/>
-    <link rel="stylesheet" href="/Dashboard.styles.css"/>
+    <link rel="stylesheet" href="/css/site.css" />
+    <link rel="stylesheet" href="/Dashboard.styles.css" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,7 +29,8 @@
 <body>
     <Routes @rendermode="RenderMode.InteractiveServer" />
     <script src="/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="_framework/blazor.web.js"></script>
+    @*     <script src="_framework/blazor.web.js"></script>    *@    
+    <script src="/_framework/blazor.web.js"></script>
     <script src="/js/site.js"></script>
     <script src="/js/articleEditor.js"></script>
 </body>

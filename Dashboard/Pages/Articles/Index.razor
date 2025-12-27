@@ -1,4 +1,4 @@
-﻿@page "/articles-v2"
+﻿@page "/articles"
 @rendermode Microsoft.AspNetCore.Components.Web.RenderMode.InteractiveServer
 
 @using System.Text.RegularExpressions
@@ -119,7 +119,7 @@
                             </div>
                             <div class="ms-2">
                                 @* Tant que Details est encore MVC *@
-                                <a class="btn btn-sm" href="@($"/Articles/Details/{article.Id}")">Lire</a>
+                                <a class="btn btn-sm" href="@($"/Articles/{article.Id}")">Lire</a>
                             </div>
                         </div>
 
