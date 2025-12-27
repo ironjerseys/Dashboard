@@ -155,7 +155,7 @@
             return;
         }
 
-        var all = await ArticleService.GetArticles(sort: ArticleSort.DateNewest);
+        var all = await ArticleService.GetArticlesAsync(sort: ArticleSort.DateNewest);
         _articles = all.Select(a => (a.Id, a.Titre)).ToList();
     }
 

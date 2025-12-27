@@ -246,7 +246,7 @@
             _calendarRows = BuildCalendarRows(_year, _month, _coverageMap);
 
             // Articles (pour le select)
-            _articles = (await ArticleService.GetArticles()).ToList();
+            _articles = (await ArticleService.GetArticlesAsync()).ToList();
 
 
         }

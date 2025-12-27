@@ -20,14 +20,14 @@ public class ArticlesController : Controller
 
     public async Task<IActionResult> Index([FromQuery] int[] labels, [FromQuery] ArticleSort sort = ArticleSort.DateNewest, [FromQuery] string? search = null)
     {
-        var articles = await _articleService.GetArticles(labels, sort, search);
+        var articles = await _articleService.GetArticlesAsync(labels, sort, search);
 
         if (!User.IsInRole("Admin"))
         {
             articles = articles.Where(a => a.IsPublic);
         }
 
-        ViewBag.Labels = await _articleService.GetLabels();
+        ViewBag.Labels = await _articleService.GetLabelsAsync();
         ViewBag.SelectedLabelIds = labels ?? Array.Empty<int>();
         ViewBag.SelectedSort = sort;
         ViewBag.Search = search ?? string.Empty;
@@ -36,7 +36,7 @@ public class ArticlesController : Controller
 
     public async Task<IActionResult> Details(int id)
     {
-        var article = await _articleService.GetArticle(id);
+        var article = await _articleService.GetArticleAsync(id);
 
         if (!User.IsInRole("Admin") && !article.IsPublic)
         {
@@ -51,7 +51,7 @@ public class ArticlesController : Controller
     [Authorize]
     public async Task<IActionResult> Create()
     {
-        ViewBag.Labels = await _articleService.GetLabels();
+        ViewBag.Labels = await _articleService.GetLabelsAsync();
         return View();
     }
 
@@ -61,18 +61,18 @@ public class ArticlesController : Controller
     {
         if (!ModelState.IsValid)
         {
-            ViewBag.Labels = await _articleService.GetLabels();
+            ViewBag.Labels = await _articleService.GetLabelsAsync();
             return View(article);
         }
-        await _articleService.CreateArticle(article, newLabels, selectedLabelIds);
+        await _articleService.CreateArticleAsync(article, newLabels, selectedLabelIds);
         return RedirectToAction(nameof(Index));
     }
 
     [Authorize]
     public async Task<IActionResult> Edit(int id)
     {
-        var article = await _articleService.GetArticle(id);
-        ViewBag.Labels = await _articleService.GetLabels();
+        var article = await _articleService.GetArticleAsync(id);
+        ViewBag.Labels = await _articleService.GetLabelsAsync();
         return View(article);
     }
 
@@ -84,10 +84,10 @@ public class ArticlesController : Controller
 
         if (!ModelState.IsValid)
         {
-            ViewBag.Labels = await _articleService.GetLabels();
+            ViewBag.Labels = await _articleService.GetLabelsAsync();
             return View(article);
         }
-        await _articleService.UpdateArticle(article, newLabels, selectedLabelIds);
+        await _articleService.UpdateArticleAsync(article, newLabels, selectedLabelIds);
         return RedirectToAction(nameof(Index));
     }
 
@@ -95,7 +95,7 @@ public class ArticlesController : Controller
     [HttpGet]
     public async Task<IActionResult> Delete(int id)
     {
-        var article = await _articleService.GetArticle(id);
+        var article = await _articleService.GetArticleAsync(id);
         if (article == null) return NotFound();
         return View(article);
     }
@@ -104,7 +104,7 @@ public class ArticlesController : Controller
     [HttpPost, ActionName("Delete")]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
-        await _articleService.Delete(id);
+        await _articleService.DeleteAsync(id);
         return RedirectToAction(nameof(Index));
     }
 }

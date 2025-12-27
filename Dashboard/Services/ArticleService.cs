@@ -15,12 +15,12 @@ public enum ArticleSort
 
 public interface IArticleService
 {
-    Task<IEnumerable<Article>> GetArticles(IEnumerable<int>? includeLabelIds = null, ArticleSort sort = ArticleSort.DateNewest, string? search = null);
-    Task<Article> GetArticle(int id);
-    Task CreateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null);
-    Task UpdateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null);
-    Task Delete(int id);
-    Task<List<Label>> GetLabels();
+    Task<IEnumerable<Article>> GetArticlesAsync(IEnumerable<int>? includeLabelIds = null, ArticleSort sort = ArticleSort.DateNewest, string? search = null);
+    Task<Article> GetArticleAsync(int id);
+    Task CreateArticleAsync(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null);
+    Task UpdateArticleAsync(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null);
+    Task DeleteAsync(int id);
+    Task<List<Label>> GetLabelsAsync();
 }
 
 public class ArticleService : IArticleService
@@ -40,7 +40,7 @@ public class ArticleService : IArticleService
         _sanitizer.AllowedSchemes.Add("data");
     }
 
-    public async Task<IEnumerable<Article>> GetArticles(IEnumerable<int>? includeLabelIds = null, ArticleSort sort = ArticleSort.DateNewest, string? search = null)
+    public async Task<IEnumerable<Article>> GetArticlesAsync(IEnumerable<int>? includeLabelIds = null, ArticleSort sort = ArticleSort.DateNewest, string? search = null)
     {
         var q = _context.Articles.Include(a => a.Author).Include(a => a.Labels).AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
@@ -64,7 +64,7 @@ public class ArticleService : IArticleService
         return await q.ToListAsync();
     }
 
-    public async Task<Article> GetArticle(int id)
+    public async Task<Article> GetArticleAsync(int id)
     {
         return await _context.Articles.Include(a => a.Labels).FirstOrDefaultAsync(a => a.Id == id) ?? new Article();
     }
@@ -95,12 +95,12 @@ public class ArticleService : IArticleService
         return result;
     }
 
-    public async Task<List<Label>> GetLabels()
+    public async Task<List<Label>> GetLabelsAsync()
     {
         return await _context.Labels.OrderBy(l => l.Name).ToListAsync();
     }
 
-    public async Task CreateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
+    public async Task CreateArticleAsync(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
     {
         article.Contenu = _sanitizer.Sanitize(article.Contenu);
         var labels = new List<Label>();
@@ -116,7 +116,7 @@ public class ArticleService : IArticleService
         await _context.SaveChangesAsync();
     }
 
-    public async Task UpdateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
+    public async Task UpdateArticleAsync(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
     {
         var sanitized = _sanitizer.Sanitize(article.Contenu);
 
@@ -164,7 +164,7 @@ public class ArticleService : IArticleService
         await _context.SaveChangesAsync();
     }
 
-    public async Task Delete(int id)
+    public async Task DeleteAsync(int id)
     {
         var article = await _context.Articles.FindAsync(id);
 

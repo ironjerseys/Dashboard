@@ -177,14 +177,14 @@
         try
         {
             _labels.Clear();
-            _labels.AddRange(await ArticleService.GetLabels());
+            _labels.AddRange(await ArticleService.GetLabelsAsync());
 
             _labelSelection = _labels.ToDictionary(
                 label => label.Id,
                 label => Labels.Contains(label.Id)
             );
 
-            var articles = await ArticleService.GetArticles(Labels, _sort, Search);
+            var articles = await ArticleService.GetArticlesAsync(Labels, _sort, Search);
 
             // Admin check (équivalent au contrôleur)
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
