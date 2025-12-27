@@ -1,0 +1,270 @@
+﻿@page "/articles-v2"
+@rendermode Microsoft.AspNetCore.Components.Web.RenderMode.InteractiveServer
+
+@using System.Text.RegularExpressions
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@using global::Dashboard.Entities
+@using global::Dashboard.Services
+
+@inject IArticleService ArticleService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Articles</PageTitle>
+
+<div class="mt-5 mb-5 article-page article-list">
+
+    <h1 class="mb-3">Derniers articles</h1>
+
+    <div class="mb-4">
+        <strong>Labels:</strong>
+
+        <div class="d-flex flex-wrap align-items-center gap-2 ms-0">
+
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @if (_labels.Count == 0)
+                {
+                    <span class="text-muted">Aucun label</span>
+                }
+                else
+                {
+                    @foreach (var label in _labels)
+                    {
+                        _labelSelection.TryGetValue(label.Id, out var isChecked);
+
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   id="@($"lbl_{label.Id}")"
+                                   checked="@isChecked"
+                                   @onchange="(e) => OnLabelChanged(label.Id, (bool)e.Value!)" />
+
+                            <label class="form-check-label" for="@($"lbl_{label.Id}")">@label.Name</label>
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <input type="text"
+                       class="form-control form-control-sm"
+                       placeholder="Rechercher..."
+                       style="max-width:220px"
+                       @bind="_searchText"
+                       @bind:event="oninput" />
+
+                <select class="form-select form-select-sm"
+                        style="width:auto"
+                        @bind="_selectedSort">
+                    <option value="@ArticleSort.DateNewest">Plus récent → plus ancien</option>
+                    <option value="@ArticleSort.DateOldest">Plus ancien → plus récent</option>
+                    <option value="@ArticleSort.TitleAsc">Titre A → Z</option>
+                    <option value="@ArticleSort.TitleDesc">Titre Z → A</option>
+                </select>
+
+                <button class="btn btn-sm" @onclick="ApplyFilters" disabled="_loading">Filtrer</button>
+                <button class="btn btn-sm" @onclick="ResetFilters" disabled="_loading">Réinitialiser</button>
+            </div>
+        </div>
+    </div>
+
+    <AuthorizeView>
+        <Authorized>
+            @* Tant que Create est encore MVC *@
+            <a class="btn btn-primary mt-3" href="/Articles/Create">Nouvel article</a>
+        </Authorized>
+    </AuthorizeView>
+
+    @if (_loading)
+    {
+        <p class="text-muted mt-3">Chargement…</p>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="alert alert-danger mt-3">@_error</div>
+    }
+    else if (_articles.Count == 0)
+    {
+        <p class="mt-3">Aucun article pour le moment.</p>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-3 g-4 mt-2">
+            @foreach (var article in _articles)
+            {
+                <div class="col">
+                    <div class="card border-primary mb-3 h-100 d-flex flex-column article-card">
+
+                        <div class="card-body">
+                            <h5 class="card-title">@article.Titre</h5>
+                            <div class="card-text small excerpt">
+                                @PlainExcerpt(article.Contenu ?? "", 160)
+                            </div>
+                        </div>
+
+                        <div class="py-2">
+                            <div class="labels-line text-truncate"
+                                 title="@string.Join(", ", (article.Labels?.Select(l => l.Name) ?? Enumerable.Empty<string>()))">
+                                @if (article.Labels?.Any() ?? false)
+                                {
+                                    @string.Join(", ", article.Labels.Select(l => l.Name))
+                                }
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                            <div class="small text-muted">
+                                @article.DateCreation.ToLocalTime().ToString("dd/MM/yyyy")
+                            </div>
+                            <div class="ms-2">
+                                @* Tant que Details est encore MVC *@
+                                <a class="btn btn-sm" href="@($"/Articles/Details/{article.Id}")">Lire</a>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    // Query-string (équivalent [FromQuery])
+    [SupplyParameterFromQuery(Name = "labels")]
+    public int[] Labels { get; set; } = Array.Empty<int>();
+
+    [SupplyParameterFromQuery(Name = "sort")]
+    public string? Sort { get; set; }
+
+    private ArticleSort _sort = ArticleSort.DateNewest;
+
+
+    [SupplyParameterFromQuery(Name = "search")]
+    public string? Search { get; set; }
+
+    private readonly List<Article> _articles = new();
+    private readonly List<Label> _labels = new();
+    private Dictionary<int, bool> _labelSelection = new();
+
+    private ArticleSort _selectedSort = ArticleSort.DateNewest;
+    private string _searchText = "";
+
+    private bool _loading;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _sort = ArticleSort.DateNewest;
+
+        if (!string.IsNullOrWhiteSpace(Sort) &&
+            Enum.TryParse<ArticleSort>(Sort, ignoreCase: true, out var parsedSort))
+        {
+            _sort = parsedSort;
+        }
+
+        _searchText = Search ?? string.Empty;
+
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+
+        try
+        {
+            _labels.Clear();
+            _labels.AddRange(await ArticleService.GetLabels());
+
+            _labelSelection = _labels.ToDictionary(
+                label => label.Id,
+                label => Labels.Contains(label.Id)
+            );
+
+            var articles = await ArticleService.GetArticles(Labels, _sort, Search);
+
+            // Admin check (équivalent au contrôleur)
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+            var isAdmin = user.IsInRole("Admin");
+
+            if (!isAdmin)
+            {
+                articles = articles.Where(a => a.IsPublic);
+            }
+
+            _articles.Clear();
+            _articles.AddRange(articles);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OnLabelChanged(int labelId, bool isChecked)
+    {
+        _labelSelection[labelId] = isChecked;
+    }
+
+    private void ApplyFilters()
+    {
+        var selectedLabelIds = _labelSelection
+            .Where(kvp => kvp.Value)
+            .Select(kvp => kvp.Key)
+            .ToList();
+
+        var queryParts = new List<string>();
+
+        foreach (var id in selectedLabelIds)
+        {
+            queryParts.Add($"labels={id}");
+        }
+
+        queryParts.Add($"sort={_selectedSort}");
+
+
+        if (!string.IsNullOrWhiteSpace(_searchText))
+        {
+            queryParts.Add($"search={Uri.EscapeDataString(_searchText)}");
+        }
+
+        var url = "/articles-v2";
+        if (queryParts.Count > 0)
+        {
+            url += "?" + string.Join("&", queryParts);
+        }
+
+        Navigation.NavigateTo(url);
+    }
+
+    private void ResetFilters()
+    {
+        Navigation.NavigateTo("/articles-v2");
+    }
+
+    private static string PlainExcerpt(string html, int maxChars)
+    {
+        if (string.IsNullOrEmpty(html))
+        {
+            return string.Empty;
+        }
+
+        var text = Regex.Replace(html, "<.*?>", " ");
+        text = Regex.Replace(text, @"\s+", " ").Trim();
+
+        if (text.Length <= maxChars)
+        {
+            return text;
+        }
+
+        return text.Substring(0, maxChars).Trim() + "…";
+    }
+}

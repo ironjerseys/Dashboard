@@ -3,8 +3,7 @@
 using Dashboard.Entities;
 using Data;
 using Microsoft.EntityFrameworkCore;
-using Models;
-using Ganss.Xss; // HtmlSanitizer
+using Ganss.Xss; 
 
 public enum ArticleSort
 {
@@ -73,28 +72,33 @@ public class ArticleService : IArticleService
     private async Task<List<Label>> EnsureLabels(string[]? newLabels)
     {
         var result = new List<Label>();
+
         if (newLabels == null || newLabels.Length == 0) return result;
+
         foreach (var raw in newLabels)
         {
             var name = (raw ?? "").Trim();
             if (string.IsNullOrEmpty(name)) continue;
             var parts = name.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach(var p in parts)
+            foreach(var part in parts)
             {
-                var existing = await _context.Labels.FirstOrDefaultAsync(l => l.Name == p);
+                var existing = await _context.Labels.FirstOrDefaultAsync(l => l.Name == part);
                 if (existing != null) result.Add(existing);
                 else {
-                    var l = new Label { Name = p };
-                    _context.Labels.Add(l);
+                    var label = new Label { Name = part };
+                    _context.Labels.Add(label);
                     await _context.SaveChangesAsync();
-                    result.Add(l);
+                    result.Add(label);
                 }
             }
         }
         return result;
     }
 
-    public async Task<List<Label>> GetLabels() => await _context.Labels.OrderBy(l => l.Name).ToListAsync();
+    public async Task<List<Label>> GetLabels()
+    {
+        return await _context.Labels.OrderBy(l => l.Name).ToListAsync();
+    }
 
     public async Task CreateArticle(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
     {
@@ -138,8 +142,11 @@ public class ArticleService : IArticleService
         var desiredIds = desired.Select(l => l.Id).Distinct().ToHashSet();
 
         // Remove unselected labels
-        var toRemove = existing.Labels.Where(l => !desiredIds.Contains(l.Id)).ToList();
-        foreach (var l in toRemove) existing.Labels.Remove(l);
+        List<Label> labelsToRemove = existing.Labels.Where(l => !desiredIds.Contains(l.Id)).ToList();
+        foreach (var labelToRemove in labelsToRemove)
+        {
+            existing.Labels.Remove(labelToRemove);
+        }
 
         // Add missing labels
         var existingIds = existing.Labels.Select(l => l.Id).ToHashSet();
@@ -160,7 +167,9 @@ public class ArticleService : IArticleService
     public async Task Delete(int id)
     {
         var article = await _context.Articles.FindAsync(id);
+
         if (article == null) return;
+
         _context.Articles.Remove(article);
         await _context.SaveChangesAsync();
     }
