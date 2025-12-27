@@ -173,6 +173,11 @@ aiChessLogsApi.MapPost("", async (
     .Produces(StatusCodes.Status500InternalServerError);
 
 
+//app.MapGet("/", () => Results.Redirect("/cv2"));
+
+
+
+
 // ======================
 // Migrations + Seed (Code inchangé)
 // ======================
