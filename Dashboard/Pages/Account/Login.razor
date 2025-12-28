@@ -1,0 +1,81 @@
+﻿@page "/account/login"
+
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components
+
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Connexion</PageTitle>
+
+<div class="container mt-5 article-page">
+    <h1 class="mb-3">Connexion</h1>
+
+    @if (!string.IsNullOrWhiteSpace(_errorMessage))
+    {
+        <div class="alert alert-danger">@_errorMessage</div>
+    }
+
+    <form method="post" action="/Account/Login" class="mt-3" data-enhance="false">
+        <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+
+        <div class="mb-3">
+            <label class="form-label" for="Email">Email</label>
+            <input id="Email"
+                   name="Email"
+                   class="form-control"
+                   value="@Email"
+                   autocomplete="username"
+                   required />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="Password">Mot de passe</label>
+            <input id="Password"
+                   name="Password"
+                   type="password"
+                   class="form-control"
+                   autocomplete="current-password"
+                   required />
+        </div>
+
+        <div class="mb-3 form-check">
+            <input id="RememberMe"
+                   name="RememberMe"
+                   type="checkbox"
+                   class="form-check-input"
+                   value="true"
+                   checked="@RememberMe" />
+            <label class="form-check-label" for="RememberMe">Se souvenir de moi</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Se connecter</button>
+    </form>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    [SupplyParameterFromQuery(Name = "email")]
+    public string? Email { get; set; }
+
+    [SupplyParameterFromQuery(Name = "rememberMe")]
+    public bool RememberMe { get; set; }
+
+    private string? _errorMessage;
+
+    protected override void OnParametersSet()
+    {
+        ReturnUrl ??= "/dashboard";
+
+        _errorMessage = Error switch
+        {
+            "required" => "Email et mot de passe requis.",
+            "invalid" => "Identifiants invalides.",
+            _ => null
+        };
+    }
+}
