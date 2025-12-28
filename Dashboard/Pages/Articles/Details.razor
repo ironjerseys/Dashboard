@@ -80,38 +80,26 @@ else
                 <button type="button" class="btn btn-outline-light" @onclick="OpenCreateQuestion">
                     Ajouter une question liée
                 </button>
-
-
-               
             }
 
             <a class="btn btn-secondary" href="/articles">Retour à la liste</a>
         </div>
     </div>
 }
-@* 
- <ConfirmModal IsOpen="_showDeleteConfirm"
-              IsOpenChanged="OnDeleteModalChanged"
-              Title="Supprimer l’article"
-              Message="Cette action est définitive. Voulez-vous vraiment supprimer cet article ?"
-              ConfirmLabel="Supprimer"
-              ConfirmButtonClass="btn-danger"
-              Busy="_isDeleting"
-              Error="_deleteError"
-              OnConfirm="DeleteConfirmedAsync" /> *@
 
-            <Dashboard.Components.Dashboard.ConfirmModal IsOpen="_showDeleteConfirm"
-              IsOpenChanged="OnDeleteModalChanged"
-              Title="Supprimer l’article"
-              Message="Cette action est définitive. Voulez-vous vraiment supprimer cet article ?"
-              ConfirmLabel="Supprimer"
-              Busy="_isDeleting"
-              OnConfirm="DeleteConfirmedAsync" />
+<Dashboard.Components.Dashboard.ConfirmModal 
+    IsOpen="_showDeleteConfirm"
+    IsOpenChanged="OnDeleteModalChanged"
+    Title="Supprimer l’article"
+    Message="Cette action est définitive. Voulez-vous vraiment supprimer cet article ?"
+    ConfirmLabel="Supprimer"
+    Busy="_isDeleting"
+    OnConfirm="DeleteConfirmedAsync" />
 
 <Dashboard.Components.Quiz.QuizQuestionEditorModal IsOpen="_createQuestionOpen"
-                IsOpenChanged="OnCreateQuestionOpenChanged"
-                DefaultArticleId="Id"
-                OnCreated="ReloadQuestions" />
+    IsOpenChanged="OnCreateQuestionOpenChanged"
+    DefaultArticleId="Id"
+    OnCreated="ReloadQuestions" />
 
 
 @code {
@@ -195,11 +183,10 @@ else
 
         try
         {
-            // IMPORTANT : adapte au nom exact de ta méthode de suppression
             await ArticleService.DeleteAsync(_article.Id);
 
             _showDeleteConfirm = false;
-            Navigation.NavigateTo("/articles-v2");
+            Navigation.NavigateTo("/articles");
         }
         catch (Exception ex)
         {
@@ -231,7 +218,6 @@ else
             // recharge uniquement les questions liées à cet article
             _questions = await QuizService.GetByArticleAsync(Id);
 
-            // optionnel : si ta modale ne se ferme pas toute seule
             _createQuestionOpen = false;
 
             StateHasChanged();
@@ -242,5 +228,4 @@ else
             StateHasChanged();
         }
     }
-
 }

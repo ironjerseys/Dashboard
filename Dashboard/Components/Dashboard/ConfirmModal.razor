@@ -1,7 +1,8 @@
 ﻿@namespace Dashboard.Components.Dashboard
 
-@rendermode Microsoft.AspNetCore.Components.Web.RenderMode.InteractiveServer
+@using Microsoft.AspNetCore.Components.Web
 
+@rendermode RenderMode.InteractiveServer
 
 @if (IsOpen)
 {
@@ -23,17 +24,11 @@
                 </div>
 
                 <div class="modal-footer border-0">
-                    <button type="button"
-                            class="btn btn-secondary"
-                            @onclick="CloseAsync"
-                            disabled="@Busy">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseAsync" disabled="@Busy">
                         Annuler
                     </button>
 
-                    <button type="button"
-                            class="btn btn-danger"
-                            @onclick="ConfirmAsync"
-                            disabled="@Busy">
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmAsync" disabled="@Busy">
                         @ConfirmLabel
                     </button>
                 </div>
@@ -66,6 +61,5 @@
     [Parameter] public EventCallback OnConfirm { get; set; }
 
     private Task ConfirmAsync() => OnConfirm.InvokeAsync();
-
     private Task CloseAsync() => IsOpenChanged.InvokeAsync(false);
 }
