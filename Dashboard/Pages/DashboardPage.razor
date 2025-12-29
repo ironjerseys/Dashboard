@@ -33,15 +33,19 @@
 <div class="container mt-5">
     <h1 class="mb-5">Dashboard</h1>
 
-    <a class="btn btn-sm btn-outline-light" href="/quiz">
-        <i class="bi bi-question-circle"></i> Quiz
+    <a class="btn" href="/review">
+        <i class="bi bi-question-circle"></i> Questions du jour
     </a>
 
-    <a class="btn btn-sm btn-outline-light" href="/aichesslogs">
+    <a class="btn" href="/quiz">
+        <i class="bi bi-question-circle"></i> Liste de questions
+    </a>
+
+    <a class="btn" href="/aichesslogs">
         <i class="bi bi-question-circle"></i> Logs ChessMultitool
     </a>
 
-    <button class="btn btn-sm btn-outline-light" @onclick="() => _emailSettingsOpen = true">
+    <button class="btn" @onclick="() => _emailSettingsOpen = true">
         Paramètres emails
     </button>
 

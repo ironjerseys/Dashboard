@@ -1,0 +1,317 @@
+﻿@page "/review"
+
+@using System.Security.Claims
+@using Dashboard.Entities
+@using Dashboard.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Forms
+
+@rendermode RenderMode.InteractiveServer
+
+@inject ILeitnerService LeitnerService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<div class="container mt-4">
+    <div class="card p-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h2 class="mb-0">Révisions du jour</h2>
+            <span class="text-muted small">@_status</span>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="alert alert-danger mt-3">@_error</div>
+    }
+
+    @if (_loading)
+    {
+        <div class="mt-3 text-muted">Chargement…</div>
+    }
+    else if (_dueItems.Count == 0)
+    {
+        <div class="card p-4 mt-3">
+            <h4 class="mb-1">Rien à réviser</h4>
+            <div class="text-muted">Aucune question n’est due aujourd’hui.</div>
+        </div>
+    }
+    else
+    {
+        var current = _dueItems[_currentIndex];
+        var question = current.Question;
+
+        <div class="card p-4 mt-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    Question @(_currentIndex + 1) / @_dueItems.Count — Boîte @current.Box
+                </div>
+                <div class="text-muted small">
+                    Due: @current.NextDueDate.ToString("yyyy-MM-dd")
+                </div>
+            </div>
+
+            <hr />
+
+            @RenderQuestionText(question.QuestionText)
+
+            @*       <div class="mt-3">
+                @for (int choiceIndex = 0; choiceIndex < 4; choiceIndex++)
+                {
+                    string choiceText = GetChoiceText(question, choiceIndex);
+                    <div class="form-check mb-2">
+                        <input class="form-check-input"
+                               type="radio"
+                               name="choice"
+                               value="@choiceIndex"
+                               checked="@(_selectedChoice == choiceIndex)"
+                               @onchange="() => _selectedChoice = choiceIndex"
+                               disabled="@_busy || _showResult" />
+                        <label class="form-check-label">@choiceText</label>
+                    </div>
+                }
+            </div> *@
+
+            <InputRadioGroup TValue="int?" @bind-Value="_selectedChoice" Name="choice">
+                @for (var choiceIndex = 0; choiceIndex < 4; choiceIndex++)
+                {
+                    var choiceText = GetChoiceText(question, choiceIndex);
+
+                    <div class="form-check mb-2">
+                        <InputRadio TValue="int?"
+                                    class="form-check-input"
+                                    Value="@choiceIndex"
+                                    disabled="@(_busy || _showResult)" />
+                        <label class="form-check-label">@choiceText</label>
+                    </div>
+                }
+            </InputRadioGroup>
+
+
+            @if (_showResult)
+            {
+                <div class="mt-3">
+                    @if (_isCorrect)
+                    {
+                        <div class="alert alert-success mb-2">Bonne réponse.</div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-danger mb-2">
+                            Mauvaise réponse. La bonne réponse était : <b>@GetChoiceText(question, question.CorrectAnswer)</b>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(question.Explanation))
+                    {
+                        <div class="card p-3">
+                            <div class="fw-bold mb-1">Explication</div>
+                            <div>@question.Explanation</div>
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="d-flex gap-2 mt-4">
+                @if (!_showResult)
+                {
+                    <button class="btn btn-primary"
+                            disabled="@_busy"
+                            @onclick="SubmitAnswerAsync">
+                        Valider
+                    </button>
+                }
+                else
+                {
+                    <button class="btn btn-primary"
+                            disabled="@_busy"
+                            @onclick="NextAsync">
+                        Suivant
+                    </button>
+                }
+
+                <button class="btn btn-secondary"
+                        disabled="@_busy"
+                        @onclick="ReloadAsync">
+                    Recharger
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code
+{
+    private string _ownerId = string.Empty;
+
+    private bool _loading = true;
+    private bool _busy = false;
+
+    private string _status = string.Empty;
+    private string? _error;
+
+    private List<LeitnerDueItem> _dueItems = new();
+    private int _currentIndex = 0;
+
+    private int? _selectedChoice;
+    private bool _showResult = false;
+    private bool _isCorrect = false;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await EnsureAuthenticatedAsync();
+        await ReloadAsync();
+    }
+
+    private async Task EnsureAuthenticatedAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
+
+        if (!(user.Identity?.IsAuthenticated ?? false))
+        {
+            string returnUrl = Uri.EscapeDataString("/review");
+            NavigationManager.NavigateTo($"/account/login?returnUrl={returnUrl}", forceLoad: true);
+            return;
+        }
+
+        _ownerId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+    }
+
+    private async Task ReloadAsync()
+    {
+        try
+        {
+            _error = null;
+            _loading = true;
+
+            DateOnly todayUtc = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            await LeitnerService.SyncMissingCardsAsync(_ownerId);
+            IReadOnlyList<LeitnerDueItem> due = await LeitnerService.GetDueAsync(_ownerId, todayUtc, take: 50);
+
+            _dueItems = due.ToList();
+            _currentIndex = 0;
+
+            _selectedChoice = null;
+            _showResult = false;
+            _isCorrect = false;
+
+            _status = $"{_dueItems.Count} question(s) due";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task SubmitAnswerAsync()
+    {
+        if (_selectedChoice is null)
+        {
+            _error = "Sélectionne une réponse.";
+            return;
+        }
+
+        try
+        {
+            _error = null;
+            _busy = true;
+
+            LeitnerDueItem current = _dueItems[_currentIndex];
+            QuizQuestion question = current.Question;
+
+            _isCorrect = (_selectedChoice.Value == question.CorrectAnswer);
+            _showResult = true;
+
+            DateOnly todayUtc = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            await LeitnerService.RecordReviewAsync(
+                ownerId: _ownerId,
+                cardId: current.CardId,
+                isCorrect: _isCorrect,
+                todayUtc: todayUtc);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task NextAsync()
+    {
+        // Après validation, la card a une NextDueDate future => on la retire de la liste UI
+        _dueItems.RemoveAt(_currentIndex);
+
+        _selectedChoice = null;
+        _showResult = false;
+        _isCorrect = false;
+
+        if (_dueItems.Count == 0)
+        {
+            await ReloadAsync();
+            return;
+        }
+
+        if (_currentIndex >= _dueItems.Count)
+        {
+            _currentIndex = 0;
+        }
+
+        _status = $"{_dueItems.Count} question(s) due";
+    }
+
+    private static string GetChoiceText(QuizQuestion question, int choiceIndex)
+    {
+        return choiceIndex switch
+        {
+            0 => question.Choice0,
+            1 => question.Choice1,
+            2 => question.Choice2,
+            3 => question.Choice3,
+            _ => string.Empty
+        };
+    }
+
+    private RenderFragment RenderQuestionText(string? text) => builder =>
+    {
+        string value = text ?? string.Empty;
+
+        if (!value.Contains("```", StringComparison.Ordinal))
+        {
+            builder.OpenElement(0, "p");
+            builder.AddContent(1, value);
+            builder.CloseElement();
+            return;
+        }
+
+        int start = value.IndexOf("```", StringComparison.Ordinal);
+        int end = value.LastIndexOf("```", StringComparison.Ordinal);
+
+        string before = start > 0 ? value[..start] : string.Empty;
+        string code = (start >= 0 && end > start) ? value.Substring(start + 3, end - start - 3) : value;
+
+        if (!string.IsNullOrWhiteSpace(before))
+        {
+            builder.OpenElement(2, "p");
+            builder.AddContent(3, before);
+            builder.CloseElement();
+        }
+
+        builder.OpenElement(4, "pre");
+        builder.OpenElement(5, "code");
+        builder.AddContent(6, code.Trim());
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+}

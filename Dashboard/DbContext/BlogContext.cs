@@ -1,5 +1,4 @@
-using Dashboard.Models;
-using Dashboard.Entities;
+﻿using Dashboard.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +17,8 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<Label> Labels => Set<Label>();
     public DbSet<EmailSettings> EmailSettings => Set<EmailSettings>();
     public DbSet<QuizQuestion> QuizQuestions => Set<QuizQuestion>();
+    public DbSet<LeitnerCard> LeitnerCards => Set<LeitnerCard>();
+    public DbSet<LeitnerReview> LeitnerReviews => Set<LeitnerReview>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -71,5 +72,15 @@ public class BlogContext : IdentityDbContext<IdentityUser>
              .HasForeignKey(q => q.ArticleId)
              .OnDelete(DeleteBehavior.SetNull);
         });
+
+        builder.Entity<LeitnerCard>()
+            .HasIndex(card => new { card.OwnerId, card.QuizQuestionId })
+            .IsUnique();
+
+        builder.Entity<LeitnerCard>()
+            .HasOne(card => card.Question)
+            .WithMany()
+            .HasForeignKey(card => card.QuizQuestionId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
