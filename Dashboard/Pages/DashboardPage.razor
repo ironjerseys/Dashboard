@@ -21,6 +21,8 @@
 @inject IArticleService ArticleService
 @inject IDbContextFactory<BlogContext> DbFactory
 @inject IJSRuntime JS
+@inject ILeitnerService LeitnerService
+
 
 @attribute [Authorize]
 
@@ -32,11 +34,46 @@
 
 <div class="container mt-5">
 
-    <h1 class="mb-5">Dashboard</h1>
+    <div class="row align-items-start">
 
-    <a class="btn btn-primary p-4" href="/review">
-        <i class="bi bi-question-circle"></i> Questions du jour
-    </a>
+        <div class="col">
+            <h1 class="mb-0">Dashboard</h1>
+        </div>
+
+        <div class="col-auto">
+            <div class="card p-3 mt-0">
+                <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
+                    <div>
+                        <h3 class="mb-1">Questions techniques du jour</h3>
+                    </div>
+                    <div class="text-md-end">
+
+                        @if (_dueLoading)
+                        {
+                            <div class="text-muted">Chargement…</div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(_dueError))
+                        {
+                            <div class="text-danger small">@_dueError</div>
+                        }
+                        else if (_dueCount == 0)
+                        {
+                            <div class="text-muted">Aucune question à réviser aujourd’hui.</div>
+                        }
+                        else
+                        {
+                            <div class="fw-semibold">@_dueCount question(s) à réviser aujourd’hui.</div>
+                        }
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a class="btn btn-primary p-4" href="/review">
+                        Questions techniques
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 
 
     @if (!string.IsNullOrWhiteSpace(_error))
@@ -185,6 +222,11 @@
 
     private bool _emailSettingsOpen;
 
+    private bool _dueLoading = true;
+    private string? _dueError;
+    private int _dueCount = 0;
+
+
 
 
     protected override async Task OnInitializedAsync()
@@ -199,6 +241,7 @@
 
         ResetGoalFormForCreate();
         await LoadAsync();
+        await LoadDueCountAsync();
     }
 
     private bool _goalModalOpen;
@@ -487,4 +530,34 @@
 
         return rows;
     }
+
+    private async Task LoadDueCountAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_userId))
+            return;
+
+        try
+        {
+            _dueError = null;
+            _dueLoading = true;
+
+            // Même logique que /review
+            DateOnly todayUtc = DateOnly.FromDateTime(DateTime.UtcNow);
+
+            await LeitnerService.SyncMissingCardsAsync(_userId);
+            IReadOnlyList<LeitnerDueItem> due = await LeitnerService.GetDueAsync(_userId, todayUtc, take: 50);
+
+            _dueCount = due.Count;
+        }
+        catch (Exception ex)
+        {
+            _dueError = ex.Message;
+            _dueCount = 0;
+        }
+        finally
+        {
+            _dueLoading = false;
+        }
+    }
+
 }

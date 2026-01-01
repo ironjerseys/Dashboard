@@ -6,11 +6,11 @@ namespace Dashboard.Services;
 
 public class GoalReminderService : BackgroundService
 {
-    private readonly IServiceProvider _sp;
+    private readonly IServiceProvider _serviceProvider;
 
-    public GoalReminderService(IServiceProvider sp)
+    public GoalReminderService(IServiceProvider serviceProvider)
     {
-        _sp = sp;
+        _serviceProvider = serviceProvider;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -36,11 +36,10 @@ public class GoalReminderService : BackgroundService
         await LogAsync("Info", "ServiceStopped", "GoalReminderService arrêté");
     }
 
-    private static DateTime GetLocalNow() => DateTime.Now;
 
     private async Task ProcessSchedules(CancellationToken ct)
     {
-        using var scope = _sp.CreateScope();
+        using var scope = _serviceProvider.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BlogContext>();
         var mail = scope.ServiceProvider.GetRequiredService<IEmailSender>();
         var todoService = scope.ServiceProvider.GetRequiredService<ITodoService>();
@@ -48,7 +47,7 @@ public class GoalReminderService : BackgroundService
         var leitnerService = scope.ServiceProvider.GetRequiredService<ILeitnerService>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
-        var now = GetLocalNow();
+        var now = DateTime.Now;
         var today = DateOnly.FromDateTime(now);
 
         var baseUrl = configuration["App:BaseUrl"];
@@ -240,7 +239,7 @@ public class GoalReminderService : BackgroundService
     {
         try
         {
-            using var scope = _sp.CreateScope();
+            using var scope = _serviceProvider.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<BlogContext>();
             db.Logs.Add(new Log
             {
