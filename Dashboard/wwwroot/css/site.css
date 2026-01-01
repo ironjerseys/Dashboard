@@ -20,14 +20,15 @@ body {
     line-height: 1.6;
     margin: 0;
     padding: 0;
-    color: white!important;
+    color: white !important;
     background-image: linear-gradient(-225deg, #231557 0%, #44107A 29%, #FF1361 67%, #fa9b48 100%);
     background-size: cover;
     background-repeat: no-repeat;
     background-attachment: fixed;
+    background-position: center;
 }
 
-.h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6{
+.h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6 {
     color: white;
 }
 
@@ -35,10 +36,11 @@ body {
 .theme-light body, .theme-light {
     color: #222 !important;
 }
-.theme-light .h1, .theme-light .h2, .theme-light .h3, .theme-light h1, .theme-light h2, .theme-light h3,
-.theme-light .h4, .theme-light .h5, .theme-light .h6, .theme-light h4, .theme-light h5, .theme-light h6 {
-    color: #000 !important;
-}
+
+    .theme-light .h1, .theme-light .h2, .theme-light .h3, .theme-light h1, .theme-light h2, .theme-light h3,
+    .theme-light .h4, .theme-light .h5, .theme-light .h6, .theme-light h4, .theme-light h5, .theme-light h6 {
+        color: #000 !important;
+    }
 
 #title {
     font-size: 70px;
@@ -93,10 +95,10 @@ img {
     background-color: transparent !important;
 }
 
-/* Les cellules reçoivent un background via Bootstrap : on force transparent */
-.table > :not(caption) > * > * {
-    background-color: transparent !important;
-}
+    /* Les cellules reçoivent un background via Bootstrap : on force transparent */
+    .table > :not(caption) > * > * {
+        background-color: transparent !important;
+    }
 
 /* Exceptions pour le calendrier */
 .calendar.table > :not(caption) > * > * {
@@ -104,37 +106,50 @@ img {
 }
 
 .calendar td.bg-danger {
-    background-color:#dc3545 !important;
-    color:#fff !important;
+    background-color: #dc3545 !important;
+    color: #fff !important;
 }
 
 .calendar td.bg-success {
-    background-color:#198754 !important;
-    color:#fff !important;
+    background-color: #198754 !important;
+    color: #fff !important;
 }
 
 .calendar td.bg-light {
-/*    background-color:#f8f9fa !important; */
-    color:#000 !important;
+    /*    background-color:#f8f9fa !important; */
+    color: #000 !important;
 }
 
 /* En-tête calendrier transparent en thème sombre, visible en thème clair */
-.calendar .d-flex.bg-primary { background: transparent !important; }
-.theme-light .calendar .d-flex.bg-primary { background: #0d6efd !important; }
+.calendar .d-flex.bg-primary {
+    background: transparent !important;
+}
+
+.theme-light .calendar .d-flex.bg-primary {
+    background: #0d6efd !important;
+}
 
 /* Tbody calendrier transparent (bordures conservées) */
-.calendar table tbody { background: transparent !important; }
+.calendar table tbody {
+    background: transparent !important;
+}
 
 /* Todo list transparent */
-#todo-list { background: transparent !important; }
-
-/* Items todo: bordure et couleur texte adaptative */
-#todo-list .list-group-item, .list-group-item.todo-item, .list-group-item.todo-item:hover {
+#todo-list {
     background: transparent !important;
-    border-color: rgba(255,255,255,.15);
-    color: inherit;
 }
-.theme-light #todo-list .list-group-item, .theme-light .list-group-item.todo-item { color: #222 !important; border-color:#ced4da !important; }
+
+    /* Items todo: bordure et couleur texte adaptative */
+    #todo-list .list-group-item, .list-group-item.todo-item, .list-group-item.todo-item:hover {
+        background: transparent !important;
+        border-color: rgba(255,255,255,.15);
+        color: inherit;
+    }
+
+.theme-light #todo-list .list-group-item, .theme-light .list-group-item.todo-item {
+    color: #222 !important;
+    border-color: #ced4da !important;
+}
 
 /* Inputs style global + bordure comme les cards */
 .form-control,
@@ -142,7 +157,7 @@ img {
 textarea.form-control,
 .form-select,
 .form-select:focus,
-.btn{
+.btn {
     color: inherit;
     box-shadow: none;
     background: rgba(255, 255, 255, .2) !important;
@@ -160,20 +175,32 @@ textarea.form-control,
 
 /* Bold visible dans l’éditeur Summernote */
 .note-editor .note-editable b,
-.note-editor .note-editable strong { font-weight: 700 !important; }
+.note-editor .note-editable strong {
+    font-weight: 700 !important;
+}
 
 /* Bold côté rendu article */
 .article-content b,
-.article-content strong { font-weight: 700; }
+.article-content strong {
+    font-weight: 700;
+}
 
-/* Cards : marge top uniforme et bordure thème clair */
 .card {
-    padding: 30px;
-    background: rgba(255, 255, 255, .1);
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(14px) saturate(1.2);
+    -webkit-backdrop-filter: blur(14px) saturate(1.2);
     border-radius: 12px;
     color: white;
     margin-top: 2rem;
+    padding: 30px;
 }
+
+
+
+
+
 .theme-light .card {
     background: transparent !important;
     color: #222 !important;
@@ -198,44 +225,44 @@ textarea.form-control,
     background-image: none !important;
 }
 
-.theme-light h1, .theme-light .h1,
-.theme-light h2, .theme-light .h2,
-.theme-light h3, .theme-light .h3 {
-    color: #000 !important;
-}
-/* Navbar noire en thème clair */
-.theme-light .navbar {
-    background-color: #000 !important;
-}
+    .theme-light h1, .theme-light .h1,
+    .theme-light h2, .theme-light .h2,
+    .theme-light h3, .theme-light .h3 {
+        color: #000 !important;
+    }
+    /* Navbar noire en thème clair */
+    .theme-light .navbar {
+        background-color: #000 !important;
+    }
 
 
-/* Thème clair pour les articles: texte noir, pas de background, bordure grise */
-.theme-light .card {
-    background: transparent !important;
-    color: #222 !important;
-    border: 1px solid #ced4da !important; /* gris Bootstrap */
-    border-radius: 12px;
-}
+    /* Thème clair pour les articles: texte noir, pas de background, bordure grise */
+    .theme-light .card {
+        background: transparent !important;
+        color: #222 !important;
+        border: 1px solid #ced4da !important; /* gris Bootstrap */
+        border-radius: 12px;
+    }
 
-.theme-light .article-card .card-footer {
-    background: transparent !important;
-    /*  border-top: 1px solid #ced4da !important; 
+    .theme-light .article-card .card-footer {
+        background: transparent !important;
+        /*  border-top: 1px solid #ced4da !important; 
 */
-}
+    }
 
-.theme-light .article-content.card {
-    background: transparent !important;
-    color: #222 !important;
-    border: 1px solid #ced4da !important;
-}
+    .theme-light .article-content.card {
+        background: transparent !important;
+        color: #222 !important;
+        border: 1px solid #ced4da !important;
+    }
 
-/* Thème clair : normaliser fond des form controls */
-.theme-light .form-control,
-.theme-light .form-select,
-.theme-light .input-group-text {
-    background: #fff !important;
-    color: #222 !important;
-}
+    /* Thème clair : normaliser fond des form controls */
+    .theme-light .form-control,
+    .theme-light .form-select,
+    .theme-light .input-group-text {
+        background: #fff !important;
+        color: #222 !important;
+    }
 
 .article-card .card-title {
     font-weight: 700;
@@ -250,22 +277,22 @@ textarea.form-control,
 }
 
 /* Bouton lire */
-.article-card  {
+.article-card {
     color: #fff;
     border-color: #bbb;
 }
 
 
 /* En thème clair sur cartes transparentes */
-.theme-light .article-card  {
+.theme-light .article-card {
     color: #222;
     border-color: #6c757d;
 }
 
-.theme-light .article-card:hover {
-    background: #6c757d;
-    color: #fff;
-}
+    .theme-light .article-card:hover {
+        background: #6c757d;
+        color: #fff;
+    }
 
 /* Images: taille naturelle (ne pas forcer 100% comme dans site.css) */
 .article-content img,
