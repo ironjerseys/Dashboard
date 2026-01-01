@@ -31,27 +31,12 @@
 <PageTitle>Dashboard</PageTitle>
 
 <div class="container mt-5">
+
     <h1 class="mb-5">Dashboard</h1>
 
-    <a class="btn" href="/review">
+    <a class="btn btn-primary p-4" href="/review">
         <i class="bi bi-question-circle"></i> Questions du jour
     </a>
-
-    <a class="btn" href="/quiz">
-        <i class="bi bi-question-circle"></i> Liste de questions
-    </a>
-
-    <a class="btn" href="/quiz/questions">
-        <i class="bi bi-question-circle"></i> Admin questions
-    </a>
-
-    <a class="btn" href="/aichesslogs">
-        <i class="bi bi-question-circle"></i> Logs ChessMultitool
-    </a>
-
-    <button class="btn" @onclick="() => _emailSettingsOpen = true">
-        Paramètres emails
-    </button>
 
 
     @if (!string.IsNullOrWhiteSpace(_error))
@@ -110,6 +95,7 @@
                 </div>
             </div>
 
+
             <!-- Objectifs -->
             <GoalsPanel Goals="_goals"
                         SelectedGoalId="_selectedGoal?.Id"
@@ -131,6 +117,22 @@
                              Error="@_goalFormError"
                              OnSubmit="HandleGoalSubmit" />
 
+            <div class="card p-3">
+                <h3 class="mb-3">Autre</h3>
+                <div class="d-flex flex-wrap gap-2">
+
+                    <a class="btn btn-primary p-4" href="/quiz/questions">
+                        Admin questions
+                    </a>
+
+                    <a class="btn btn-primary p-4" href="/aichesslogs">
+                        Logs ChessMultitool
+                    </a>
+                    <button class="btn btn-primary p-4" @onclick="() => _emailSettingsOpen = true">
+                        Paramètres emails
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Colonne droite: Todos -->
@@ -138,6 +140,7 @@
             <TodoPanel />
 
         </div>
+
     </div>
 </div>
 

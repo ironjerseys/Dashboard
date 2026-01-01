@@ -21,9 +21,9 @@
 
             <div class="d-flex align-items-center gap-2">
                 <div class="text-white-50 small">Score : @_score / @_questions.Count</div>
-                <button type="button" class="btn btn-sm btn-outline-light" @onclick="OpenCreateQuestion">
+@*                 <button type="button" class="btn btn-sm btn-outline-light" @onclick="OpenCreateQuestion">
                     <i class="bi bi-plus-lg"></i> Question
-                </button>
+                </button> *@
             </div>
 
             <div class="text-white-50 small">Score : @_score / @_questions.Count</div>
@@ -110,7 +110,7 @@
         }
     </div>
 </div>
-
+@* 
 <QuizQuestionEditorModal @bind-IsOpen="_createQuestionOpen"
                          Title="Nouvelle question"
                          SubmitLabel="Créer"
@@ -118,14 +118,14 @@
                          Error="_createError"
                          Model="_createModel"
                          Articles="_articles"
-                         OnSubmit="CreateQuestionAsync" />
+                         OnSubmit="CreateQuestionAsync" /> *@
 
 
 @code {
     private bool _isLoading;
     private string? _errorMessage;
 
-    private List<QuizQuestion> _questions = new();
+    private List<QuestionTechnique> _questions = new();
     private int _currentIndex;
     private int _score;
 
@@ -137,7 +137,7 @@
     private bool _createBusy;
     private string? _createError;
 
-    private QuizQuestion _createModel = new();
+    private QuestionTechnique _createModel = new();
     private List<Article> _articles = new();
 
 
@@ -165,16 +165,16 @@
     }
 
 
-    private void OpenCreateQuestion()
-    {
-        _createError = null;
-        _createModel = new QuizQuestion
-        {
-            CorrectAnswer = 0,
-            ArticleId = null
-        };
-        _createQuestionOpen = true;
-    }
+    // private void OpenCreateQuestion()
+    // {
+    //     _createError = null;
+    //     _createModel = new QuestionTechnique
+    //     {
+    //         CorrectAnswer = 0,
+    //         ArticleId = null
+    //     };
+    //     _createQuestionOpen = true;
+    // }
 
     private async Task ReloadQuestionsAsync()
     {
@@ -239,7 +239,7 @@
         _errorMessage = null;
     }
 
-    private static string[] GetChoices(QuizQuestion q)
+    private static string[] GetChoices(QuestionTechnique q)
     {
         return new[] { q.Choice0, q.Choice1, q.Choice2, q.Choice3 };
     }
@@ -262,24 +262,24 @@
         return text.Trim();
     }
 
-    private async Task CreateQuestionAsync(QuizQuestion model)
-    {
-        _createBusy = true;
-        _createError = null;
+    // private async Task CreateQuestionAsync(QuestionTechnique model)
+    // {
+    //     _createBusy = true;
+    //     _createError = null;
 
-        try
-        {
-            await QuizService.CreateAsync(model);
-            _createQuestionOpen = false;
-            await ReloadQuestionsAsync(); // ta méthode existante
-        }
-        catch (Exception ex)
-        {
-            _createError = ex.Message;
-        }
-        finally
-        {
-            _createBusy = false;
-        }
-    }
+    //     try
+    //     {
+    //         await QuizService.CreateAsync(model);
+    //         _createQuestionOpen = false;
+    //         await ReloadQuestionsAsync(); // ta méthode existante
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         _createError = ex.Message;
+    //     }
+    //     finally
+    //     {
+    //         _createBusy = false;
+    //     }
+    // }
 }

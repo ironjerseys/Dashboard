@@ -8,7 +8,7 @@ public sealed record LeitnerDueItem(
     int CardId,
     int Box,
     DateOnly NextDueDate,
-    QuizQuestion Question
+    QuestionTechnique Question
 );
 
 public sealed record LeitnerReviewResult(

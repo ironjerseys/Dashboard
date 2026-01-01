@@ -14,7 +14,7 @@ public class LeitnerCard
     public int QuizQuestionId { get; set; }
 
     [ForeignKey(nameof(QuizQuestionId))]
-    public QuizQuestion? Question { get; set; }
+    public QuestionTechnique? Question { get; set; }
 
     [Range(1, 20)]
     public int Box { get; set; } = 1;

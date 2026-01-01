@@ -1,4 +1,4 @@
-using Dashboard.Data;
+﻿using Dashboard.Data;
 using Dashboard.Entities;
 using Microsoft.Extensions.Options;
 using System.Net;
@@ -53,7 +53,7 @@ public class SmtpEmailSender(IOptions<SmtpOptions> options, IServiceProvider sp)
         {
             using var scope = _sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<BlogContext>();
-            db.Logs.Add(new LogEntry
+            db.Logs.Add(new Log
             {
                 Level = level,
                 Source = source,

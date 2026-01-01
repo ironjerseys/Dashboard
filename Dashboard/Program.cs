@@ -71,7 +71,7 @@ builder.Services.AddCascadingAuthenticationState();
 // App services
 // ======================
 builder.Services.AddScoped<IArticleService, ArticleService>();
-builder.Services.AddScoped<IDbQuizService, DbQuizService>();
+builder.Services.AddScoped<IDbQuizService, QuestionTechniqueService>();
 builder.Services.AddScoped<IGoalService, GoalService>();
 builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<IAIChessLogService, AIChessLogService>();

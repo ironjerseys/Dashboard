@@ -1,9 +1,9 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Dashboard.Entities;
 
-public class QuizQuestion
+public class QuestionTechnique
 {
     public int Id { get; set; }
     [Required]
@@ -19,6 +19,8 @@ public class QuizQuestion
     [Range(0,3)]
     public int CorrectAnswer { get; set; }
     public string Explanation { get; set; } = string.Empty;
+    public bool IsPublic { get; set; } = false;
+    public ICollection<Label> Labels { get; set; } = new List<Label>();
 
     public int? ArticleId { get; set; }
     [ForeignKey(nameof(ArticleId))]

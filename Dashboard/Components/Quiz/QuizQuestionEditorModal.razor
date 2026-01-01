@@ -123,16 +123,16 @@
     [Parameter] public bool Busy { get; set; }
     [Parameter] public string? Error { get; set; }
 
-    [Parameter] public QuizQuestion Model { get; set; } = new();
+    [Parameter] public QuestionTechnique Model { get; set; } = new();
     [Parameter] public IEnumerable<Article> Articles { get; set; } = Array.Empty<Article>();
 
-    [Parameter] public EventCallback<QuizQuestion> OnSubmit { get; set; }
+    [Parameter] public EventCallback<QuestionTechnique> OnSubmit { get; set; }
 
-    private QuizQuestion _editModel = new();
+    private QuestionTechnique _editModel = new();
 
     protected override void OnParametersSet()
     {
-        _editModel = new QuizQuestion
+        _editModel = new QuestionTechnique
         {
             Id = Model.Id,
             QuestionText = Model.QuestionText,

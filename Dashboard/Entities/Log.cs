@@ -1,8 +1,8 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace Dashboard.Entities;
 
-public class LogEntry
+public class Log
 {
     public int Id { get; set; }
 

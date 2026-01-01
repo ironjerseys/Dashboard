@@ -12,11 +12,11 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<Article> Articles => Set<Article>();
     public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<Todo> Todos => Set<Todo>();
-    public DbSet<LogEntry> Logs => Set<LogEntry>();
+    public DbSet<Log> Logs => Set<Log>();
     public DbSet<AIChessLogs> AIChessLogs => Set<AIChessLogs>();
     public DbSet<Label> Labels => Set<Label>();
     public DbSet<EmailSettings> EmailSettings => Set<EmailSettings>();
-    public DbSet<QuizQuestion> QuizQuestions => Set<QuizQuestion>();
+    public DbSet<QuestionTechnique> QuizQuestions => Set<QuestionTechnique>();
     public DbSet<LeitnerCard> LeitnerCards => Set<LeitnerCard>();
     public DbSet<LeitnerReview> LeitnerReviews => Set<LeitnerReview>();
 
@@ -34,7 +34,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             e.HasIndex(g => new { g.OwnerId, g.Debut, g.Fin });
         });
 
-        builder.Entity<LogEntry>(e =>
+        builder.Entity<Log>(e =>
         {
             e.HasIndex(l => l.TimestampUtc);
             e.HasIndex(l => l.Level);
@@ -65,7 +65,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             e.Property(x => x.RecipientEmail).HasMaxLength(256);
         });
 
-        builder.Entity<QuizQuestion>(e =>
+        builder.Entity<QuestionTechnique>(e =>
         {
             e.HasOne(q => q.Article)
              .WithMany()

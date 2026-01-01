@@ -47,7 +47,7 @@
             </thead>
 
             <tbody>
-                @foreach (QuizQuestion question in _questions)
+                @foreach (QuestionTechnique question in _questions)
                 {
                     <tr>
                         <td class="col-question">
@@ -189,7 +189,7 @@
 </style>
 
 @code {
-    private List<QuizQuestion> _questions = new();
+    private List<QuestionTechnique> _questions = new();
     private List<Article> _articles = new();
 
     private bool _busy;
@@ -200,7 +200,7 @@
     private string _editorTitle = "Nouvelle question";
     private string _editorSubmitLabel = "Créer";
     private string? _editorError;
-    private QuizQuestion _editorModel = new();
+    private QuestionTechnique _editorModel = new();
     private bool _isEditMode;
 
     // Delete confirm
@@ -242,7 +242,7 @@
         _editorSubmitLabel = "Créer";
         _editorError = null;
 
-        _editorModel = new QuizQuestion
+        _editorModel = new QuestionTechnique
         {
             CorrectAnswer = 0
         };
@@ -250,14 +250,14 @@
         _editorOpen = true;
     }
 
-    private void OpenEditModal(QuizQuestion question)
+    private void OpenEditModal(QuestionTechnique question)
     {
         _isEditMode = true;
         _editorTitle = "Modifier la question";
         _editorSubmitLabel = "Enregistrer";
         _editorError = null;
 
-        _editorModel = new QuizQuestion
+        _editorModel = new QuestionTechnique
         {
             Id = question.Id,
             QuestionText = question.QuestionText,
@@ -279,7 +279,7 @@
         return Task.CompletedTask;
     }
 
-    private async Task SaveQuestionAsync(QuizQuestion model)
+    private async Task SaveQuestionAsync(QuestionTechnique model)
     {
         _editorError = null;
 
@@ -314,7 +314,7 @@
         }
     }
 
-    private void AskDelete(QuizQuestion question)
+    private void AskDelete(QuestionTechnique question)
     {
         _deleteQuestionId = question.Id;
         string preview = MakePreview(question.QuestionText, 90);

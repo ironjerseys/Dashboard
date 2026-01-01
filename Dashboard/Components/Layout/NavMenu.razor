@@ -21,18 +21,20 @@
 
                 <!-- Liens droite -->
                 <ul class="navbar-nav ms-auto align-items-center">
-                    <li class="nav-item me-2">
-                        <a href="#" class="nav-link d-flex align-items-center" id="themeToggleBtn"
-                           title="Basculer le style" aria-label="Basculer le style">
-                            <i id="themeIcon" class="bi bi-circle-half fs-5"></i>
-                        </a>
-                    </li>
+                  
 
                     <AuthorizeView Context="auth">
                         <Authorized>
                             @* Bloc Admin *@
                             @if (auth.User.IsInRole("Admin"))
                             {
+                                <li class="nav-item me-2">
+                                    <a href="#" class="nav-link d-flex align-items-center" id="themeToggleBtn"
+                                       title="Basculer le style" aria-label="Basculer le style">
+                                        <i id="themeIcon" class="bi bi-circle-half fs-5"></i>
+                                    </a>
+                                </li>
+                                <li class="nav-item"><a class="nav-link" href="/quiz">Questions Techniques</a></li>
                                 <li class="nav-item"><a class="nav-link" href="/dashboard">Dashboard</a></li>
                             }
 

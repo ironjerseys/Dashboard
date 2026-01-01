@@ -242,7 +242,7 @@ public class GoalReminderService : BackgroundService
         {
             using var scope = _sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<BlogContext>();
-            db.Logs.Add(new LogEntry
+            db.Logs.Add(new Log
             {
                 Level = level,
                 Source = nameof(GoalReminderService),

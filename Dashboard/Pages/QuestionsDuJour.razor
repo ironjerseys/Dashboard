@@ -208,7 +208,7 @@
             _busy = true;
 
             LeitnerDueItem current = _dueItems[_currentIndex];
-            QuizQuestion question = current.Question;
+            QuestionTechnique question = current.Question;
 
             _isCorrect = (_selectedChoice.Value == question.CorrectAnswer);
             _showResult = true;
@@ -254,7 +254,7 @@
         _status = $"{_dueItems.Count} question(s) due";
     }
 
-    private static string GetChoiceText(QuizQuestion question, int choiceIndex)
+    private static string GetChoiceText(QuestionTechnique question, int choiceIndex)
     {
         return choiceIndex switch
         {

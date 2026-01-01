@@ -6,24 +6,24 @@ namespace Dashboard.Services;
 
 public interface IDbQuizService
 {
-    Task<List<QuizQuestion>> GetQuestionsAsync(CancellationToken cancellationToken = default);
-    Task<QuizQuestion?> GetAsync(int id, CancellationToken cancellationToken = default);
-    Task<int> CreateAsync(QuizQuestion quizQuestion, CancellationToken cancellationToken = default);
-    Task<bool> UpdateAsync(QuizQuestion quizQuestion, CancellationToken cancellationToken = default);
+    Task<List<QuestionTechnique>> GetQuestionsAsync(CancellationToken cancellationToken = default);
+    Task<QuestionTechnique?> GetAsync(int id, CancellationToken cancellationToken = default);
+    Task<int> CreateAsync(QuestionTechnique quizQuestion, CancellationToken cancellationToken = default);
+    Task<bool> UpdateAsync(QuestionTechnique quizQuestion, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
-    Task<List<QuizQuestion>> GetByArticleAsync(int articleId, CancellationToken cancellationToken = default);
+    Task<List<QuestionTechnique>> GetByArticleAsync(int articleId, CancellationToken cancellationToken = default);
 }
 
-public sealed class DbQuizService : IDbQuizService
+public sealed class QuestionTechniqueService : IDbQuizService
 {
     private readonly IDbContextFactory<BlogContext> _dbContextFactory;
 
-    public DbQuizService(IDbContextFactory<BlogContext> dbContextFactory)
+    public QuestionTechniqueService(IDbContextFactory<BlogContext> dbContextFactory)
     {
         _dbContextFactory = dbContextFactory;
     }
 
-    public async Task<List<QuizQuestion>> GetQuestionsAsync(CancellationToken cancellationToken = default)
+    public async Task<List<QuestionTechnique>> GetQuestionsAsync(CancellationToken cancellationToken = default)
     {
         await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -33,7 +33,7 @@ public sealed class DbQuizService : IDbQuizService
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<QuizQuestion?> GetAsync(int id, CancellationToken cancellationToken = default)
+    public async Task<QuestionTechnique?> GetAsync(int id, CancellationToken cancellationToken = default)
     {
         await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -42,7 +42,7 @@ public sealed class DbQuizService : IDbQuizService
             .FirstOrDefaultAsync(question => question.Id == id, cancellationToken);
     }
 
-    public async Task<int> CreateAsync(QuizQuestion quizQuestion, CancellationToken cancellationToken = default)
+    public async Task<int> CreateAsync(QuestionTechnique quizQuestion, CancellationToken cancellationToken = default)
     {
         await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -52,11 +52,11 @@ public sealed class DbQuizService : IDbQuizService
         return quizQuestion.Id;
     }
 
-    public async Task<bool> UpdateAsync(QuizQuestion quizQuestion, CancellationToken cancellationToken = default)
+    public async Task<bool> UpdateAsync(QuestionTechnique quizQuestion, CancellationToken cancellationToken = default)
     {
         await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        QuizQuestion? existing = await dbContext.QuizQuestions
+        QuestionTechnique? existing = await dbContext.QuizQuestions
             .FirstOrDefaultAsync(q => q.Id == quizQuestion.Id, cancellationToken);
 
         if (existing is null)
@@ -81,7 +81,7 @@ public sealed class DbQuizService : IDbQuizService
     {
         await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        QuizQuestion? existing = await dbContext.QuizQuestions
+        QuestionTechnique? existing = await dbContext.QuizQuestions
             .FirstOrDefaultAsync(q => q.Id == id, cancellationToken);
 
         if (existing is null)
@@ -95,7 +95,7 @@ public sealed class DbQuizService : IDbQuizService
         return true;
     }
 
-    public async Task<List<QuizQuestion>> GetByArticleAsync(int articleId, CancellationToken cancellationToken = default)
+    public async Task<List<QuestionTechnique>> GetByArticleAsync(int articleId, CancellationToken cancellationToken = default)
     {
         await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
