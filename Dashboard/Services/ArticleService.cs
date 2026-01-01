@@ -2,8 +2,8 @@
 
 using Dashboard.Entities;
 using Data;
-using Microsoft.EntityFrameworkCore;
 using Ganss.Xss; 
+using Microsoft.EntityFrameworkCore;
 
 public enum ArticleSort
 {
@@ -25,12 +25,12 @@ public interface IArticleService
 
 public class ArticleService : IArticleService
 {
-    private readonly BlogContext _context;
+    private readonly IDbContextFactory<BlogContext> _dbContextFactory;
     private readonly HtmlSanitizer _sanitizer;
 
-    public ArticleService(BlogContext context)
+    public ArticleService(IDbContextFactory<BlogContext> dbContextFactory)
     {
-        _context = context;
+        _dbContextFactory = dbContextFactory;
         _sanitizer = new HtmlSanitizer();
         foreach(var t in new [] { "code", "pre", "span", "table", "thead", "tbody", "tr", "th", "td", "h2", "h3", "h4", "img" })
             _sanitizer.AllowedTags.Add(t);
@@ -42,6 +42,8 @@ public class ArticleService : IArticleService
 
     public async Task<IEnumerable<Article>> GetArticlesAsync(IEnumerable<int>? includeLabelIds = null, ArticleSort sort = ArticleSort.DateNewest, string? search = null)
     {
+        await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
+
         var q = _context.Articles.Include(a => a.Author).Include(a => a.Labels).AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -66,11 +68,15 @@ public class ArticleService : IArticleService
 
     public async Task<Article> GetArticleAsync(int id)
     {
+        await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
+
         return await _context.Articles.Include(a => a.Labels).FirstOrDefaultAsync(a => a.Id == id) ?? new Article();
     }
 
     private async Task<List<Label>> EnsureLabels(string[]? newLabels)
     {
+        await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
+
         var result = new List<Label>();
 
         if (newLabels == null || newLabels.Length == 0) return result;
@@ -97,11 +103,15 @@ public class ArticleService : IArticleService
 
     public async Task<List<Label>> GetLabelsAsync()
     {
+        await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
+
         return await _context.Labels.OrderBy(l => l.Name).ToListAsync();
     }
 
     public async Task CreateArticleAsync(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
     {
+        await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
+
         article.Contenu = _sanitizer.Sanitize(article.Contenu);
         var labels = new List<Label>();
         if (selectedLabelIds != null && selectedLabelIds.Length > 0)
@@ -118,6 +128,8 @@ public class ArticleService : IArticleService
 
     public async Task UpdateArticleAsync(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
     {
+        await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
+
         var sanitized = _sanitizer.Sanitize(article.Contenu);
 
         // Load tracked entity including current labels
@@ -166,6 +178,8 @@ public class ArticleService : IArticleService
 
     public async Task DeleteAsync(int id)
     {
+        await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
+
         var article = await _context.Articles.FindAsync(id);
 
         if (article == null) return;
