@@ -56,23 +56,6 @@
 
             @RenderQuestionText(question.QuestionText)
 
-            @*       <div class="mt-3">
-                @for (int choiceIndex = 0; choiceIndex < 4; choiceIndex++)
-                {
-                    string choiceText = GetChoiceText(question, choiceIndex);
-                    <div class="form-check mb-2">
-                        <input class="form-check-input"
-                               type="radio"
-                               name="choice"
-                               value="@choiceIndex"
-                               checked="@(_selectedChoice == choiceIndex)"
-                               @onchange="() => _selectedChoice = choiceIndex"
-                               disabled="@_busy || _showResult" />
-                        <label class="form-check-label">@choiceText</label>
-                    </div>
-                }
-            </div> *@
-
             <InputRadioGroup TValue="int?" @bind-Value="_selectedChoice" Name="choice">
                 @for (var choiceIndex = 0; choiceIndex < 4; choiceIndex++)
                 {
@@ -131,11 +114,11 @@
                     </button>
                 }
 
-                <button class="btn btn-secondary"
+       @*          <button class="btn btn-secondary"
                         disabled="@_busy"
                         @onclick="ReloadAsync">
                     Recharger
-                </button>
+                </button> *@
             </div>
         </div>
     }

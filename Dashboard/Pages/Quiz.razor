@@ -8,6 +8,8 @@
 @using global::Dashboard.Services
 
 @inject IDbQuizService QuizService
+@inject IArticleService ArticleService
+
 
 @rendermode RenderMode.InteractiveServer
 
@@ -110,7 +112,13 @@
 </div>
 
 <QuizQuestionEditorModal @bind-IsOpen="_createQuestionOpen"
-                         OnCreated="ReloadQuestionsAsync" />
+                         Title="Nouvelle question"
+                         SubmitLabel="Créer"
+                         Busy="_createBusy"
+                         Error="_createError"
+                         Model="_createModel"
+                         Articles="_articles"
+                         OnSubmit="CreateQuestionAsync" />
 
 
 @code {
@@ -126,6 +134,13 @@
     private int? _selectedChoiceIndex;
 
     private bool _createQuestionOpen;
+    private bool _createBusy;
+    private string? _createError;
+
+    private QuizQuestion _createModel = new();
+    private List<Article> _articles = new();
+
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -135,6 +150,8 @@
         try
         {
             _questions = (await QuizService.GetQuestionsAsync()).ToList();
+            _articles = (await ArticleService.GetArticlesAsync(sort: ArticleSort.DateNewest)).ToList();
+
             Restart();
         }
         catch (Exception ex)
@@ -150,6 +167,12 @@
 
     private void OpenCreateQuestion()
     {
+        _createError = null;
+        _createModel = new QuizQuestion
+        {
+            CorrectAnswer = 0,
+            ArticleId = null
+        };
         _createQuestionOpen = true;
     }
 
@@ -237,5 +260,26 @@
         }
 
         return text.Trim();
+    }
+
+    private async Task CreateQuestionAsync(QuizQuestion model)
+    {
+        _createBusy = true;
+        _createError = null;
+
+        try
+        {
+            await QuizService.CreateAsync(model);
+            _createQuestionOpen = false;
+            await ReloadQuestionsAsync(); // ta méthode existante
+        }
+        catch (Exception ex)
+        {
+            _createError = ex.Message;
+        }
+        finally
+        {
+            _createBusy = false;
+        }
     }
 }

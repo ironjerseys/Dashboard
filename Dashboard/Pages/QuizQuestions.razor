@@ -1,0 +1,367 @@
+﻿@page "/quiz/questions"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+
+@using Dashboard.Entities
+@using Dashboard.Services
+
+@using Microsoft.AspNetCore.Components.Web
+@rendermode RenderMode.InteractiveServer
+
+@inject IDbQuizService QuizService
+@inject IArticleService ArticleService
+
+@using Dashboard.Components.Quiz
+@using Dashboard.Components.Dashboard
+
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="mb-0">Questions</h1>
+            <div class="text-muted">Gestion des questions</div>
+        </div>
+
+        <button class="btn btn-primary" @onclick="OpenCreateModal" disabled="@_busy">
+            + Nouvelle question
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_pageError))
+    {
+        <div class="alert alert-danger">@_pageError</div>
+    }
+
+    <div class="table-responsive">
+        <table class="table table-sm table-striped table-bordered align-middle quiz-table">
+            <thead class="quiz-thead">
+                <tr>
+                    <th class="col-question">Question</th>
+                    <th class="col-choice">Choix 1</th>
+                    <th class="col-choice">Choix 2</th>
+                    <th class="col-choice">Choix 3</th>
+                    <th class="col-choice">Choix 4</th>
+                    <th class="col-correct text-center">Bonne</th>
+                    <th class="col-article">Article</th>
+                    <th class="col-action text-center">Modifier</th>
+                    <th class="col-action text-center">Supprimer</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @foreach (QuizQuestion question in _questions)
+                {
+                    <tr>
+                        <td class="col-question">
+                            <div class="cell-wrap">@question.QuestionText</div>
+                        </td>
+
+                        <td class="col-choice">
+                            <div class="cell-wrap">@question.Choice0</div>
+                        </td>
+
+                        <td class="col-choice">
+                            <div class="cell-wrap">@question.Choice1</div>
+                        </td>
+
+                        <td class="col-choice">
+                            <div class="cell-wrap">@question.Choice2</div>
+                        </td>
+
+                        <td class="col-choice">
+                            <div class="cell-wrap">@question.Choice3</div>
+                        </td>
+
+                        <td class="col-correct text-center">
+                            @question.CorrectAnswer
+                        </td>
+
+                        <td class="col-article">
+                            @if (question.ArticleId.HasValue)
+                            {
+                                <div class="cell-wrap small">
+                                    @if (question.Article is not null)
+                                    {
+                                        @question.Article.Titre
+                                    }
+                                    else
+                                    {
+                                        @($"Article #{question.ArticleId.Value}")
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                        </td>
+
+                        <td class="col-action text-center">
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    title="Modifier"
+                                    @onclick="() => OpenEditModal(question)"
+                                    disabled="@_busy">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </td>
+
+                        <td class="col-action text-center">
+                            <button class="btn btn-sm btn-outline-danger"
+                                    title="Supprimer"
+                                    @onclick="() => AskDelete(question)"
+                                    disabled="@_busy">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<QuizQuestionEditorModal IsOpen="_editorOpen"
+                         IsOpenChanged="OnEditorOpenChanged"
+                         Title="@_editorTitle"
+                         SubmitLabel="@_editorSubmitLabel"
+                         Busy="_busy"
+                         Error="_editorError"
+                         Model="_editorModel"
+                         Articles="_articles"
+                         OnSubmit="SaveQuestionAsync" />
+
+<ConfirmModal IsOpen="_deleteConfirmOpen"
+              IsOpenChanged="OnDeleteConfirmOpenChanged"
+              Title="Supprimer la question"
+              Message="@_deleteMessage"
+              ConfirmLabel="Supprimer"
+              Busy="_busy"
+              OnConfirm="DeleteConfirmedAsync" />
+
+<style>
+    /* Lisibilité : bordures discrètes + colonnes visibles */
+    .quiz-table {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .quiz-thead th {
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    /* Bordures plus discrètes (surtout utile si ton thème est sombre) */
+    .quiz-table.table-bordered > :not(caption) > * > * {
+        border-color: rgba(255,255,255,.10);
+    }
+
+    /* Cellules lisibles, sans casser toute la table */
+    .cell-wrap {
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.25rem;
+    }
+
+    /* Largeurs (ajuste si besoin) */
+    .col-question {
+        min-width: 320px;
+    }
+
+    .col-choice {
+        min-width: 220px;
+    }
+
+    .col-article {
+        min-width: 200px;
+    }
+
+    .col-correct {
+        width: 80px;
+    }
+
+    .col-action {
+        width: 100px;
+    }
+
+    /* Un peu d’air */
+    .quiz-table td, .quiz-table th {
+        padding: .6rem .6rem;
+        vertical-align: top;
+    }
+</style>
+
+@code {
+    private List<QuizQuestion> _questions = new();
+    private List<Article> _articles = new();
+
+    private bool _busy;
+    private string? _pageError;
+
+    // Editor modal
+    private bool _editorOpen;
+    private string _editorTitle = "Nouvelle question";
+    private string _editorSubmitLabel = "Créer";
+    private string? _editorError;
+    private QuizQuestion _editorModel = new();
+    private bool _isEditMode;
+
+    // Delete confirm
+    private bool _deleteConfirmOpen;
+    private int _deleteQuestionId;
+    private string _deleteMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _pageError = null;
+        _editorError = null;
+
+        try
+        {
+            _busy = true;
+
+            _questions = await QuizService.GetQuestionsAsync();
+            _articles = (await ArticleService.GetArticlesAsync(sort: ArticleSort.DateNewest)).ToList();
+        }
+        catch (Exception ex)
+        {
+            _pageError = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        _isEditMode = false;
+        _editorTitle = "Nouvelle question";
+        _editorSubmitLabel = "Créer";
+        _editorError = null;
+
+        _editorModel = new QuizQuestion
+        {
+            CorrectAnswer = 0
+        };
+
+        _editorOpen = true;
+    }
+
+    private void OpenEditModal(QuizQuestion question)
+    {
+        _isEditMode = true;
+        _editorTitle = "Modifier la question";
+        _editorSubmitLabel = "Enregistrer";
+        _editorError = null;
+
+        _editorModel = new QuizQuestion
+        {
+            Id = question.Id,
+            QuestionText = question.QuestionText,
+            Choice0 = question.Choice0,
+            Choice1 = question.Choice1,
+            Choice2 = question.Choice2,
+            Choice3 = question.Choice3,
+            CorrectAnswer = question.CorrectAnswer,
+            Explanation = question.Explanation,
+            ArticleId = question.ArticleId
+        };
+
+        _editorOpen = true;
+    }
+
+    private Task OnEditorOpenChanged(bool open)
+    {
+        _editorOpen = open;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveQuestionAsync(QuizQuestion model)
+    {
+        _editorError = null;
+
+        try
+        {
+            _busy = true;
+
+            if (_isEditMode)
+            {
+                bool ok = await QuizService.UpdateAsync(model);
+                if (!ok)
+                {
+                    _editorError = "Question introuvable (elle a peut-être été supprimée).";
+                    return;
+                }
+            }
+            else
+            {
+                await QuizService.CreateAsync(model);
+            }
+
+            _editorOpen = false;
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            _editorError = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void AskDelete(QuizQuestion question)
+    {
+        _deleteQuestionId = question.Id;
+        string preview = MakePreview(question.QuestionText, 90);
+        _deleteMessage = $"Supprimer cette question ?\n\n\"{preview}\"\n\nCette action est définitive.";
+        _deleteConfirmOpen = true;
+    }
+
+    private Task OnDeleteConfirmOpenChanged(bool open)
+    {
+        _deleteConfirmOpen = open;
+        return Task.CompletedTask;
+    }
+
+    private async Task DeleteConfirmedAsync()
+    {
+        try
+        {
+            _busy = true;
+
+            await QuizService.DeleteAsync(_deleteQuestionId);
+
+            _deleteConfirmOpen = false;
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            _pageError = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string MakePreview(string? text, int maxChars)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return "";
+        }
+
+        string normalized = text.Replace("\r", " ").Replace("\n", " ").Trim();
+        if (normalized.Length <= maxChars)
+        {
+            return normalized;
+        }
+
+        return normalized[..maxChars].TrimEnd() + "…";
+    }
+}
