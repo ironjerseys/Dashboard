@@ -33,68 +33,74 @@ else if (_article is null || _notFound)
 }
 else
 {
-    <div class="container mt-5 article-page">
-        <h1>@_article.Titre</h1>
-
-        <p class="text-muted">
-            Publié le @_article.DateCreation.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
-        </p>
-
-        @if (_article.Labels?.Any() ?? false)
-        {
-            <p class="text-muted">
-                Labels:
-                @foreach (var label in _article.Labels)
-                {
-                    <span class="badge bg-secondary me-1">@label.Name</span>
-                }
-            </p>
-        }
-
+    <div class="container mt-5 mb-5 article-page">
         <div class="mb-5 article-content card p-3">
-            @((MarkupString)(_article.Contenu ?? string.Empty))
-        </div>
+            <h1>@_article.Titre</h1>
 
-        @if (_questions.Count > 0)
-        {
-            <div class="card p-3 mb-3">
-                <h5>Questions liées</h5>
-                <ul class="mb-0">
-                    @foreach (var question in _questions)
-                    {
-                        <li>@question.QuestionText</li>
-                    }
-                </ul>
-            </div>
-        }
+            <p class="small">
+                Publié le @_article.DateCreation.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+            </p>
 
-        <div class="d-flex gap-2 flex-wrap">
-            @if (_isAdmin)
+            @if (_article.Labels?.Any() ?? false)
             {
-                <a class="btn btn-primary" href="@($"/articles/edit/{_article.Id}")">Modifier</a>
+                <p class="small">
+                    Labels:
+                    @foreach (var label in _article.Labels)
+                    {
+                        <span class="badge bg-secondary me-1">@label.Name</span>
+                    }
+                </p>
+            }
+            <hr style="border-top:1px solid rgba(255,255,255,.35); opacity:1;" />
 
-                <button class="btn btn-danger" type="button" @onclick="OpenDeleteConfirm">
-                    Supprimer
-                </button>
+            @((MarkupString)(_article.Contenu ?? string.Empty))
 
-                <button type="button" class="btn btn-outline-light" @onclick="OpenCreateQuestion">
-                    Ajouter une question liée
-                </button>
+            <hr style="border-top:1px solid rgba(255,255,255,.35); opacity:1;" class="mb-4" />
+
+            @if (_questions.Count > 0)
+            {
+                <div class="card p-3 mb-3">
+                    <h5>Questions liées</h5>
+                    <ul class="mb-0">
+                        @foreach (var question in _questions)
+                        {
+                            <li>@question.QuestionText</li>
+                        }
+                    </ul>
+                </div>
             }
 
-            <a class="btn btn-secondary" href="/articles">Retour à la liste</a>
+            <div class="d-flex gap-2 flex-wrap">
+                @if (_isAdmin)
+                {
+                    <a class="btn btn-primary" href="@($"/articles/edit/{_article.Id}")"> <i class="bi bi-pencil"></i></a>
+
+                    <button class="btn btn-danger" type="button" @onclick="OpenDeleteConfirm">
+                        <i class="bi bi-trash"></i>
+                    </button>
+
+                    <button type="button" class="btn btn-outline-light" @onclick="OpenCreateQuestion">
+                        Ajouter une question liée
+                    </button>
+                }
+
+                <a class="btn btn-secondary" href="/articles">Retour à la liste</a>
+            </div>
+
+
         </div>
+
+       
     </div>
 }
 
-<Dashboard.Components.Dashboard.ConfirmModal 
-    IsOpen="_showDeleteConfirm"
-    IsOpenChanged="OnDeleteModalChanged"
-    Title="Supprimer l’article"
-    Message="Cette action est définitive. Voulez-vous vraiment supprimer cet article ?"
-    ConfirmLabel="Supprimer"
-    Busy="_isDeleting"
-    OnConfirm="DeleteConfirmedAsync" />
+<Dashboard.Components.Dashboard.ConfirmModal IsOpen="_showDeleteConfirm"
+                                             IsOpenChanged="OnDeleteModalChanged"
+                                             Title="Supprimer l’article"
+                                             Message="Cette action est définitive. Voulez-vous vraiment supprimer cet article ?"
+                                             ConfirmLabel="Supprimer"
+                                             Busy="_isDeleting"
+                                             OnConfirm="DeleteConfirmedAsync" />
 
 <Dashboard.Components.Quiz.QuizQuestionEditorModal IsOpen="_createQuestionOpen"
                                                    IsOpenChanged="OnCreateQuestionOpenChanged"
@@ -259,7 +265,7 @@ else
         try
         {
             await QuizService.CreateAsync(questionTechnique);
-            await ReloadQuestions();         
+            await ReloadQuestions();
             _createQuestionOpen = false;
         }
         catch (Exception ex)
