@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Label = Dashboard.Entities.Label;
 
 namespace Dashboard.Data;
 
@@ -19,6 +20,9 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<QuestionTechnique> QuizQuestions => Set<QuestionTechnique>();
     public DbSet<LeitnerCard> LeitnerCards => Set<LeitnerCard>();
     public DbSet<LeitnerReview> LeitnerReviews => Set<LeitnerReview>();
+    public DbSet<Quantifier> Quantifiers => Set<Quantifier>();
+    public DbSet<QuantifierEntry> QuantifierEntries => Set<QuantifierEntry>();
+
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -82,5 +86,17 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             .WithMany()
             .HasForeignKey(card => card.QuizQuestionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<Quantifier>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            e.HasIndex(x => new { x.UserId, x.Name }).IsUnique(); // optionnel mais utile
+        });
+
+        builder.Entity<QuantifierEntry>(e =>
+        {
+            e.Property(x => x.Date).HasColumnType("date");
+            e.HasIndex(x => new { x.QuantifierId, x.Date }).IsUnique(); // 1 valeur par jour
+        });
     }
 }

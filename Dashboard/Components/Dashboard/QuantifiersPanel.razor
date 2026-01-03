@@ -1,0 +1,247 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components.Forms
+@using global::Dashboard.DTO
+@using global::Dashboard.Services
+@using Microsoft.AspNetCore.Components.Web
+
+
+@inject IQuantifierService QuantifierService
+
+@rendermode RenderMode.InteractiveServer
+
+
+@if (string.IsNullOrWhiteSpace(UserId))
+{
+    <div class="alert alert-warning">Utilisateur non initialisé.</div>
+    return;
+}
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+    @foreach (var card in _cards)
+    {
+        <div class="col">
+            <div class="card p-3 h-100">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <h5 class="mb-2">@card.Name</h5>
+                </div>
+
+                <div class="d-flex align-items-end gap-2 flex-wrap">
+                    <div>
+                        <label class="form-label small mb-1">Date</label>
+                        <InputDate class="form-control"
+                                   @bind-Value="card.SelectedDate"
+                                   />
+                    </div>
+
+                    <div>
+                        <label class="form-label small mb-1">Valeur</label>
+                        <InputNumber class="form-control"
+                                     @bind-Value="card.Value" />
+                    </div>
+
+                    <button class="btn btn-primary"
+                            disabled="@(_savingId == card.Id)"
+                            @onclick="() => SaveAsync(card)">
+                        Enregistrer
+                    </button>
+                </div>
+
+                <div class="mt-3">
+                    <div class="small text-muted mb-1">Derniers jours</div>
+
+                    @if (card.History.Count == 0)
+                    {
+                        <div class="small text-muted">Aucune donnée.</div>
+                    }
+                    else
+                    {
+                        <ul class="small mb-0 ps-3">
+                            @foreach (var h in card.History.Take(7))
+                            {
+                                <li>@h.Date.ToString("yyyy-MM-dd") : <strong>@h.Value</strong></li>
+                            }
+                        </ul>
+                    }
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(card.Error))
+                {
+                    <div class="alert alert-danger mt-3 mb-0 p-2 small">@card.Error</div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Card + -->
+    <div class="col">
+        <div class="card p-3 h-100 d-flex align-items-center justify-content-center">
+            <button class="btn btn-outline-light"
+                    style="min-height:64px; min-width:64px;"
+                    @onclick="OpenCreate">
+                +
+            </button>
+            <div class="small text-muted mt-2">Ajouter une mesure</div>
+        </div>
+    </div>
+</div>
+
+@if (_createOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ajouter une mesure</h5>
+                    <button type="button" class="btn-close" @onclick="CloseCreate"></button>
+                </div>
+
+                <EditForm Model="_create" OnValidSubmit="CreateAsync">
+                    <DataAnnotationsValidator />
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nom</label>
+                            <InputText class="form-control" @bind-Value="_create.Name" />
+                            <ValidationMessage For="@(() => _create.Name)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Valeur</label>
+                            <InputNumber class="form-control" @bind-Value="_create.Value" />
+                            <ValidationMessage For="@(() => _create.Value)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Date</label>
+                            <InputDate class="form-control" @bind-Value="_create.Date" />
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_createError))
+                        {
+                            <div class="alert alert-danger mb-0">@_createError</div>
+                        }
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseCreate">Annuler</button>
+                        <button type="submit" class="btn btn-primary" disabled="@_createBusy">
+                            Ajouter
+                        </button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public string UserId { get; set; } = "";
+
+    private sealed class CardVm
+    {
+        public int Id { get; init; }
+        public string Name { get; init; } = "";
+        public DateTime SelectedDate { get; set; } = DateTime.Today; // InputDate = DateTime
+        public decimal Value { get; set; }
+        public List<QuantifierEntryDto> History { get; set; } = new();
+        public string? Error { get; set; }
+    }
+
+    private sealed class CreateVm
+    {
+        [Required, StringLength(100)]
+        public string Name { get; set; } = "";
+
+        [Range(-999999, 999999)]
+        public decimal Value { get; set; } = 0;
+
+        public DateTime Date { get; set; } = DateTime.Today;
+    }
+
+    private List<CardVm> _cards = new();
+    private int? _savingId;
+
+    private bool _createOpen;
+    private bool _createBusy;
+    private string? _createError;
+    private CreateVm _create = new();
+
+    protected override async Task OnParametersSetAsync()
+        => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        var dtos = await QuantifierService.GetDashboardAsync(UserId, historyDays: 7);
+
+        _cards = dtos.Select(d =>
+        {
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var todayEntry = d.History.FirstOrDefault(x => x.Date == today);
+
+            return new CardVm
+            {
+                Id = d.Id,
+                Name = d.Name,
+                SelectedDate = DateTime.Today,
+                Value = todayEntry?.Value ?? 0,
+                History = d.History
+            };
+        }).ToList();
+    }
+
+    private void OpenCreate()
+    {
+        _createError = null;
+        _create = new CreateVm { Date = DateTime.Today };
+        _createOpen = true;
+    }
+
+    private void CloseCreate()
+    {
+        _createOpen = false;
+        _createBusy = false;
+        _createError = null;
+    }
+
+    private async Task CreateAsync()
+    {
+        _createBusy = true;
+        _createError = null;
+
+        try
+        {
+            var date = DateOnly.FromDateTime(_create.Date);
+            await QuantifierService.CreateWithFirstEntryAsync(UserId, _create.Name, date, _create.Value);
+            _createOpen = false;
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            _createError = ex.Message;
+        }
+        finally
+        {
+            _createBusy = false;
+        }
+    }
+
+    private async Task SaveAsync(CardVm card)
+    {
+        card.Error = null;
+        _savingId = card.Id;
+
+        try
+        {
+            var date = DateOnly.FromDateTime(card.SelectedDate);
+            await QuantifierService.UpsertEntryAsync(UserId, card.Id, date, card.Value);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            card.Error = ex.Message;
+        }
+        finally
+        {
+            _savingId = null;
+        }
+    }
+}
