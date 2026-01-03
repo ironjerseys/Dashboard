@@ -53,23 +53,19 @@ builder.Services.AddAuthorization(options =>
         }));
 });
 
-// ======================
-// MVC + Session
-// ======================
 builder.Services.AddControllersWithViews();
 builder.Services.AddSession();
 
-// ======================
-// Blazor (Razor components)
-// ======================
+
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddHubOptions(o =>
+    {
+        o.MaximumReceiveMessageSize = 10 * 1024 * 1024; 
+    });
 
 builder.Services.AddCascadingAuthenticationState();
 
-// ======================
-// App services
-// ======================
 builder.Services.AddScoped<IArticleService, ArticleService>();
 builder.Services.AddScoped<IDbQuizService, QuestionTechniqueService>();
 builder.Services.AddScoped<IGoalService, GoalService>();
@@ -85,9 +81,7 @@ builder.Services.AddHostedService<GoalReminderService>();
 
 var app = builder.Build();
 
-// ======================
-// Middleware
-// ======================
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -103,12 +97,9 @@ app.UseSession();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// IMPORTANT : nécessaire pour les formulaires Blazor
 app.UseAntiforgery();
 
-// ======================
-// Helper (anti open-redirect)
-// ======================
+
 static string SafeReturnUrl(string? returnUrl, string fallback = "/dashboard")
 {
     if (string.IsNullOrWhiteSpace(returnUrl)) return fallback;
@@ -118,11 +109,6 @@ static string SafeReturnUrl(string? returnUrl, string fallback = "/dashboard")
     return returnUrl;
 }
 
-// ======================
-// Auth endpoints (Blazor forms -> minimal API)
-// IMPORTANT : si tu as encore un AccountController MVC, supprime-le,
-// sinon tu auras 2 endpoints /Account/Login en concurrence.
-// ======================
 var account = app.MapGroup("/Account");
 
 account.MapPost("/Login", async (
@@ -185,9 +171,7 @@ account.MapPost("/Logout", async (SignInManager<IdentityUser> signInManager) =>
     .RequireAuthorization()
     .DisableAntiforgery();
 
-// ======================
-// Endpoints
-// ======================
+
 app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapControllers();
 
@@ -254,7 +238,6 @@ aiChessLogsApi.MapPost("", async (
     .Produces(StatusCodes.Status400BadRequest)
     .Produces(StatusCodes.Status500InternalServerError);
 
-// Home -> CV
 app.MapGet("/", () => Results.Redirect("/cv"));
 
 // ======================
