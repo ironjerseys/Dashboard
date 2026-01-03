@@ -34,13 +34,15 @@
 
 <div class="container mt-5">
 
-    <div class="row align-items-start">
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
 
-        <div class="col">
-            <h1 class="mb-0">Dashboard</h1>
-        </div>
+    <div class="row g-4">
+        <!-- Colonne gauche -->
+        <div class="col-lg-8 d-flex flex-column gap-4">
 
-        <div class="col-auto">
             <div class="card p-3 mt-0">
                 <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
                     <div>
@@ -71,19 +73,8 @@
                         Questions techniques
                     </a>
                 </div>
+
             </div>
-        </div>
-    </div>
-
-
-    @if (!string.IsNullOrWhiteSpace(_error))
-    {
-        <div class="alert alert-danger">@_error</div>
-    }
-
-    <div class="row g-4">
-        <!-- Colonne gauche -->
-        <div class="col-lg-8 d-flex flex-column gap-4">
 
             <!-- Calendrier -->
             <div class="calendar card p-3">
@@ -154,6 +145,15 @@
                              Error="@_goalFormError"
                              OnSubmit="HandleGoalSubmit" />
 
+
+            <QuantifiersPanel UserId="_userId" />
+
+        </div>
+
+        <!-- Colonne droite: Todos -->
+        <div class="col-lg-4">
+            <TodoPanel />
+
             <div class="card p-3">
                 <h3 class="mb-3">Autre</h3>
                 <div class="d-flex flex-wrap gap-2">
@@ -170,13 +170,6 @@
                     </button>
                 </div>
             </div>
-            <QuantifiersPanel UserId="_userId" />
-
-        </div>
-
-        <!-- Colonne droite: Todos -->
-        <div class="col-lg-4">
-            <TodoPanel />
 
         </div>
 
