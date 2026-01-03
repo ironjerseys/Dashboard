@@ -8,6 +8,6 @@ public class QuantifierEntry
     public Quantifier Quantifier { get; set; } = default!;
 
     public DateOnly Date { get; set; }
-    public decimal Value { get; set; }
+    public int Value { get; set; }
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }

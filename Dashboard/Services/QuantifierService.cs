@@ -8,8 +8,8 @@ namespace Dashboard.Services;
 public interface IQuantifierService
 {
     Task<List<QuantifierCardDto>> GetDashboardAsync(string userId, int historyDays = 7);
-    Task<int> CreateWithFirstEntryAsync(string userId, string name, DateOnly date, decimal value);
-    Task UpsertEntryAsync(string userId, int quantifierId, DateOnly date, decimal value);
+    Task<int> CreateWithFirstEntryAsync(string userId, string name, DateOnly date, int value);
+    Task UpsertEntryAsync(string userId, int quantifierId, DateOnly date, int value);
 }
 
 
@@ -63,7 +63,7 @@ public class QuantifierService : IQuantifierService
         ).ToList();
     }
 
-    public async Task<int> CreateWithFirstEntryAsync(string userId, string name, DateOnly date, decimal value)
+    public async Task<int> CreateWithFirstEntryAsync(string userId, string name, DateOnly date, int value)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
 
@@ -85,7 +85,7 @@ public class QuantifierService : IQuantifierService
         return q.Id;
     }
 
-    public async Task UpsertEntryAsync(string userId, int quantifierId, DateOnly date, decimal value)
+    public async Task UpsertEntryAsync(string userId, int quantifierId, DateOnly date, int value)
     {
         await using var db = await _dbFactory.CreateDbContextAsync();
 

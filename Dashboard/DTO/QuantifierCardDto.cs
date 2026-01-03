@@ -6,4 +6,4 @@ public sealed record QuantifierCardDto(
      List<QuantifierEntryDto> History
 );
 
-public sealed record QuantifierEntryDto(DateOnly Date, decimal Value);
+public sealed record QuantifierEntryDto(DateOnly Date, int Value);
