@@ -2,7 +2,7 @@
 
 using Dashboard.Entities;
 using Data;
-using Ganss.Xss; 
+using Ganss.Xss;
 using Microsoft.EntityFrameworkCore;
 
 public enum ArticleSort
@@ -32,10 +32,10 @@ public class ArticleService : IArticleService
     {
         _dbContextFactory = dbContextFactory;
         _sanitizer = new HtmlSanitizer();
-        foreach(var t in new [] { "code", "pre", "span", "table", "thead", "tbody", "tr", "th", "td", "h2", "h3", "h4", "img" })
+        foreach (var t in new[] { "code", "pre", "span", "table", "thead", "tbody", "tr", "th", "td", "h2", "h3", "h4", "img" })
             _sanitizer.AllowedTags.Add(t);
         _sanitizer.AllowDataAttributes = false;
-        foreach(var a in new [] { "style", "src", "alt", "title", "width", "height" })
+        foreach (var a in new[] { "style", "src", "alt", "title", "width", "height" })
             _sanitizer.AllowedAttributes.Add(a);
         _sanitizer.AllowedSchemes.Add("data");
     }
@@ -73,33 +73,48 @@ public class ArticleService : IArticleService
         return await _context.Articles.Include(a => a.Labels).FirstOrDefaultAsync(a => a.Id == id) ?? new Article();
     }
 
-    private async Task<List<Label>> EnsureLabels(string[]? newLabels)
+    private async Task<List<Label>> EnsureLabelsAsync(BlogContext context, string[]? newLabels)
     {
-        await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
-
         var result = new List<Label>();
+        if (newLabels is null || newLabels.Length == 0) return result;
 
-        if (newLabels == null || newLabels.Length == 0) return result;
+        // Normalise: split CSV + trim + distinct
+        var names = newLabels
+            .SelectMany(raw => (raw ?? "")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Select(x => x.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        foreach (var raw in newLabels)
+        if (names.Count == 0) return result;
+
+        // Charge ceux qui existent déjà
+        // (si ta collation SQL est case-insensitive, l'égalité suffit généralement)
+        var existing = await context.Labels
+            .Where(l => names.Contains(l.Name))
+            .ToListAsync();
+
+        var existingByName = existing.ToDictionary(l => l.Name, StringComparer.OrdinalIgnoreCase);
+
+        // Ajoute existants + crée manquants
+        foreach (var name in names)
         {
-            var name = (raw ?? "").Trim();
-            if (string.IsNullOrEmpty(name)) continue;
-            var parts = name.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach(var part in parts)
+            if (existingByName.TryGetValue(name, out var found))
             {
-                var existing = await _context.Labels.FirstOrDefaultAsync(l => l.Name == part);
-                if (existing != null) result.Add(existing);
-                else {
-                    var label = new Label { Name = part };
-                    _context.Labels.Add(label);
-                    await _context.SaveChangesAsync();
-                    result.Add(label);
-                }
+                result.Add(found);
+            }
+            else
+            {
+                var created = new Label { Name = name };
+                context.Labels.Add(created);     // pas de SaveChanges ici
+                result.Add(created);
             }
         }
+
         return result;
     }
+
 
     public async Task<List<Label>> GetLabelsAsync()
     {
@@ -110,71 +125,98 @@ public class ArticleService : IArticleService
 
     public async Task CreateArticleAsync(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
     {
-        await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-        article.Contenu = _sanitizer.Sanitize(article.Contenu);
+        article.Contenu = _sanitizer.Sanitize(article.Contenu ?? string.Empty);
+
         var labels = new List<Label>();
-        if (selectedLabelIds != null && selectedLabelIds.Length > 0)
+
+        // 1) Labels existants sélectionnés (même DbContext)
+        if (selectedLabelIds is { Length: > 0 })
         {
-            var existing = await _context.Labels.Where(l => selectedLabelIds.Contains(l.Id)).ToListAsync();
+            var existing = await context.Labels
+                .Where(l => selectedLabelIds.Contains(l.Id))
+                .ToListAsync();
+
             labels.AddRange(existing);
         }
-        var created = await EnsureLabels(newLabels);
-        labels.AddRange(created);
-        article.Labels = labels.DistinctBy(l => l.Id).ToList();
-        _context.Articles.Add(article);
-        await _context.SaveChangesAsync();
+
+        // 2) Labels à créer si besoin (même DbContext)
+        var ensured = await EnsureLabelsAsync(context, newLabels);
+        labels.AddRange(ensured);
+
+        // 3) Dédup (par Id si connu, sinon par Name)
+        var dedup = new Dictionary<string, Label>(StringComparer.OrdinalIgnoreCase);
+        foreach (var l in labels)
+        {
+            var key = l.Id != 0 ? $"id:{l.Id}" : $"name:{l.Name}";
+            if (!dedup.ContainsKey(key))
+                dedup[key] = l;
+        }
+
+        article.Labels = dedup.Values.ToList();
+
+        context.Articles.Add(article);
+        await context.SaveChangesAsync();
     }
+
 
     public async Task UpdateArticleAsync(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null)
     {
-        await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
 
-        var sanitized = _sanitizer.Sanitize(article.Contenu);
+        var sanitized = _sanitizer.Sanitize(article.Contenu ?? string.Empty);
 
-        // Load tracked entity including current labels
-        var existing = await _context.Articles.Include(a => a.Labels).FirstOrDefaultAsync(a => a.Id == article.Id);
-        if (existing == null) return;
+        // Charge l’entité suivie + labels
+        var existing = await context.Articles
+            .Include(a => a.Labels)
+            .FirstOrDefaultAsync(a => a.Id == article.Id);
 
-        // Update scalar properties
+        if (existing is null) return;
+
+        // Scalars
         existing.Titre = article.Titre;
         existing.Contenu = sanitized;
         existing.IsPublic = article.IsPublic;
-        // existing.DateCreation stays unchanged
 
-        // Build desired labels set
+        // Labels désirés (même DbContext)
         var desired = new List<Label>();
-        if (selectedLabelIds != null && selectedLabelIds.Length > 0)
+
+        if (selectedLabelIds is { Length: > 0 })
         {
-            var existingLabels = await _context.Labels.Where(l => selectedLabelIds.Contains(l.Id)).ToListAsync();
+            var existingLabels = await context.Labels
+                .Where(l => selectedLabelIds.Contains(l.Id))
+                .ToListAsync();
+
             desired.AddRange(existingLabels);
         }
-        var created = await EnsureLabels(newLabels);
-        desired.AddRange(created);
-        var desiredIds = desired.Select(l => l.Id).Distinct().ToHashSet();
 
-        // Remove unselected labels
-        List<Label> labelsToRemove = existing.Labels.Where(l => !desiredIds.Contains(l.Id)).ToList();
-        foreach (var labelToRemove in labelsToRemove)
-        {
-            existing.Labels.Remove(labelToRemove);
-        }
+        var ensured = await EnsureLabelsAsync(context, newLabels);
+        desired.AddRange(ensured);
 
-        // Add missing labels
-        var existingIds = existing.Labels.Select(l => l.Id).ToHashSet();
+        // Dédup par Id si possible, sinon par Name
+        var desiredById = desired
+            .Where(l => l.Id != 0)
+            .GroupBy(l => l.Id)
+            .Select(g => g.First())
+            .ToList();
+
+        var desiredNamesForNew = desired
+            .Where(l => l.Id == 0 && !string.IsNullOrWhiteSpace(l.Name))
+            .GroupBy(l => l.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
+
+        desired = desiredById.Concat(desiredNamesForNew).ToList();
+
+        // Remplacement simple : on met la collection exactement à l’état désiré
+        existing.Labels.Clear();
         foreach (var l in desired)
-        {
-            if (!existingIds.Contains(l.Id))
-            {
-                // Ensure label is attached
-                if (_context.Entry(l).State == EntityState.Detached)
-                    _context.Labels.Attach(l);
-                existing.Labels.Add(l);
-            }
-        }
+            existing.Labels.Add(l);
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
+
 
     public async Task DeleteAsync(int id)
     {
