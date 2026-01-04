@@ -16,6 +16,53 @@
     <div class="d-flex justify-content-between align-items-center mb-2">
         <div>
             <h1 class="mb-0">AIChessLogs</h1>
+
+            <div class="small">
+
+                <u>Légende :</u>
+                <ul class="mb-2">
+                    <li>
+                        <b>Dur (ms) :</b> durée totale de réflexion pour ce coup, en millisecondes
+                    </li>
+                    <li>
+                        <strong>Legal :</strong> nombre de coups légaux à la racine (dans la position actuelle)
+                    </li>
+                    <li>
+                        Gen total : total de coups générés pendant toute la recherche (sommes des listes générées à chaque noeud, ou compteur équivalent)
+                    </li>
+                    <li>
+                        Eval :
+                    </li>
+                    <li>
+                        Nodes : nombre de nœuds visités (appels de Search/Quiescence
+                    </li>
+                    <li>
+                        Leaf eval : nombre d’évaluations “feuilles” (combien de fois Evaluate() a été appelée, typiquement en quiescence / à la fin)
+                    </li>
+                </ul>
+            </div>
+            <div class="mb-1">
+                <u>Quelques exemple d'indicateurs à calculer :</u>
+                <ul class="mb-0">
+
+                    <li>
+                        Nœuds par seconde (NPS)<br />
+                        NPS = Nodes / (Dur(ms)/1000)<br />
+                        Ex: 4205 ms, Nodes 537 → ~ 128 noeuds/s
+                    </li>
+                    <li>
+                        Coût moyen par nœud<br />
+                        Coût moyen par nœud<br />
+                        Ex: 4205ms pour 537 noeuds = → ~ 7.83ms/noeud
+                    </li>
+                    <li>
+                        Feuilles par seconde<br />
+                        Leaf eval / (Dur/1000)<br />
+                        Ex: 4205 ms, Leaf 305 → ~ 72 leaf/s
+                    </li>
+                </ul>
+            </div>
+
             <p class="text-muted mb-0">Derniers logs (max 500)</p>
         </div>
 
