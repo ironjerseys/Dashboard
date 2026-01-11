@@ -27,8 +27,7 @@
 @attribute [Authorize]
 
 
-@rendermode RenderMode.InteractiveServer
-
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <PageTitle>Dashboard</PageTitle>
 

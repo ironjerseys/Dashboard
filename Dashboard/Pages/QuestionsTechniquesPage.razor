@@ -13,6 +13,7 @@
 
 @rendermode RenderMode.InteractiveServer
 
+
 <div class="container mt-4">
     <div class="card p-3 text-white"
          style="background: rgba(20,20,22,.88); border-radius: 18px; border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(10px);">
@@ -110,16 +111,6 @@
         }
     </div>
 </div>
-@* 
-<QuizQuestionEditorModal @bind-IsOpen="_createQuestionOpen"
-                         Title="Nouvelle question"
-                         SubmitLabel="Créer"
-                         Busy="_createBusy"
-                         Error="_createError"
-                         Model="_createModel"
-                         Articles="_articles"
-                         OnSubmit="CreateQuestionAsync" /> *@
-
 
 @code {
     private bool _isLoading;
@@ -150,7 +141,7 @@
         try
         {
             _questions = (await QuizService.GetQuestionsAsync()).ToList();
-            _articles = (await ArticleService.GetArticlesAsync(sort: ArticleSort.DateNewest)).ToList();
+            // _articles = (await ArticleService.GetArticlesAsync(sort: ArticleSort.DateNewest)).ToList();
 
             Restart();
         }
@@ -163,18 +154,6 @@
             _isLoading = false;
         }
     }
-
-
-    // private void OpenCreateQuestion()
-    // {
-    //     _createError = null;
-    //     _createModel = new QuestionTechnique
-    //     {
-    //         CorrectAnswer = 0,
-    //         ArticleId = null
-    //     };
-    //     _createQuestionOpen = true;
-    // }
 
     private async Task ReloadQuestionsAsync()
     {
@@ -261,25 +240,4 @@
 
         return text.Trim();
     }
-
-    // private async Task CreateQuestionAsync(QuestionTechnique model)
-    // {
-    //     _createBusy = true;
-    //     _createError = null;
-
-    //     try
-    //     {
-    //         await QuizService.CreateAsync(model);
-    //         _createQuestionOpen = false;
-    //         await ReloadQuestionsAsync(); // ta méthode existante
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         _createError = ex.Message;
-    //     }
-    //     finally
-    //     {
-    //         _createBusy = false;
-    //     }
-    // }
 }
