@@ -8,7 +8,7 @@
 @rendermode RenderMode.InteractiveServer
 
 <style>
-    .technos span { display:inline-block; margin:5px; padding:5px 10px; font-size:.9rem; border-radius:5px; }
+    .technos span { display:inline-block; margin:5px; padding:5px 10px; font-size:.9rem; }
 
     .techno-csharp{ background-color:#823eb7; color:white; }
     .techno-javascript{ background-color:#f7df1e; color:black; }
@@ -25,7 +25,6 @@
     .techno-asp{ background-color:#0078d7; color:white; }
 
     .techno-default { background-color: rgba(255,255,255,.12); color:white; }
-    .cv-card { margin-bottom: 1rem; }
 </style>
 
 <div class="container">
@@ -35,10 +34,20 @@
 
     @foreach (var exp in Experiences)
     {
-        <div class="card afficher cv-card" data-index="@index">
-            <h2>@exp.Titre</h2>
-            <h3>@exp.Entreprise</h3>
-            <p><strong>Période :</strong> @exp.Periode</p>
+        <div class="card afficher mb-3 p-4" data-index="@index">
+
+            <div class="d-flex flex-column flex-md-row gap-2 mt-2">
+                <div class="bb-box-orange-fill flex-grow-1 d-flex align-items-center">
+                    <h2 class="m-0">@exp.Titre</h2>
+                </div>
+
+                <div class="bb-box-red flex-grow-1 d-flex align-items-center justify-content-end">
+                    <h2 class="m-0">@exp.Entreprise</h2>
+                </div>
+            </div>
+
+
+            <span class="bb-text-orange">Période : @exp.Periode</span>
 
             <!-- Equivalent de Html.Raw -->
             <div>@((MarkupString)exp.Description)</div>

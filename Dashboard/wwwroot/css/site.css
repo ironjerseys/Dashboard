@@ -1,4 +1,14 @@
-﻿html {
+﻿/* =========================================================
+   Dashboard - Terminal theme (Bloomberg-inspired)
+   Palette requested:
+   - BG: #000000
+   - Main text: #DDDEE2
+   - Accents: #47CAE6 (cyan), #EFA65A (orange)
+   - Box borders: #FBA31D (orange), #901B19 (dark red)
+   ========================================================= */
+
+/* --- Base / scale --- */
+html {
     font-size: 14px;
     position: relative;
     min-height: 100%;
@@ -10,99 +20,328 @@
     }
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-    box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+/* --- Variables --- */
+:root {
+    /* Core */
+    --bb-bg: #000000;
+    --bb-surface: #050607;
+    --bb-surface-2: #0a0c0f;
+    --bb-surface-3: #0f1318;
+    --bb-text: #DDDEE2;
+    --bb-muted: #9a9da6;
+    /* Accents */
+    --bb-cyan: #47CAE6;
+    --bb-orange-text: #EFA65A;
+    /* “Encadré” borders */
+    --bb-orange-border: #FBA31D;
+    --bb-red-border: #901B19;
+    /* General borders */
+    --bb-border: #1a1f26;
+    /* Shadows + radius */
+    --bb-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+    /* Focus */
+    --bb-focus: 0 0 0 .2rem rgba(71, 202, 230, 0.25);
 }
 
+/* --- Body / typography --- */
 body {
-    margin-bottom: 60px;
-    font-family: 'Roboto', sans-serif;
-    line-height: 1.6;
     margin: 0;
     padding: 0;
-    color: white !important;
-    background-image: linear-gradient(-225deg, #231557 0%, #44107A 29%, #FF1361 67%, #fa9b48 100%);
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-    background-position: center;
+    margin-bottom: 60px;
+    font-family: 'Roboto', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+    line-height: 1.55;
+    color: var(--bb-text);
+    background: var(--bb-bg);
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-variant-numeric: tabular-nums;
 }
 
-.h1, .h2, .h3, .h4, .h5, .h6, h1, h2, h3, h4, h5, h6 {
-    color: white;
+/*h1, h2, h3, h4, h5, h6 {
+    color: var(--bb-text);
+}*/
+
+/* Links */
+a {
+    color: var(--bb-cyan);
 }
 
-/* Theme clair: texte noir global et corrections */
-.theme-light body, .theme-light {
-    color: #222 !important;
+    a:hover {
+        color: rgba(71, 202, 230, 0.85);
+    }
+
+/* Focus ring */
+.btn:focus, .btn:active:focus,
+.btn-link.nav-link:focus,
+.form-control:focus,
+.form-check-input:focus,
+.form-select:focus {
+    box-shadow: var(--bb-focus);
 }
 
-    .theme-light .h1, .theme-light .h2, .theme-light .h3, .theme-light h1, .theme-light h2, .theme-light h3,
-    .theme-light .h4, .theme-light .h5, .theme-light .h6, .theme-light h4, .theme-light h5, .theme-light h6 {
+/* HR visible */
+hr {
+    border: 0;
+    border-top: 1px solid rgba(221, 222, 226, 0.14);
+    opacity: 1;
+    margin: 1rem 0;
+}
+
+/* Images */
+img {
+    max-width: 100%;
+    height: auto;
+    margin: 1.25rem 0;
+}
+
+/* =========================================================
+   Navbar
+   ========================================================= */
+.navbar {
+    background: #000 !important;
+    border-bottom: 1px solid var(--bb-border);
+}
+
+    .navbar .navbar-brand,
+    .navbar .nav-link {
+        color: var(--bb-text) !important;
+    }
+
+        .navbar .nav-link:hover {
+            color: var(--bb-cyan) !important;
+        }
+
+/* =========================================================
+   Cards / Panels
+   ========================================================= */
+.card {
+    background: var(--bb-surface);
+    border: 1px solid var(--bb-border);
+    box-shadow: var(--bb-shadow);
+    color: var(--bb-text);
+}
+
+    .card.card-flat {
+        box-shadow: none;
+    }
+
+.card-header, .card-footer {
+    background: transparent;
+    border-color: var(--bb-border);
+}
+
+/* “Bloomberg-like” framed panels */
+.bb-box-orange,
+.bb-box-red {
+    background: var(--bb-surface-2);
+    padding: 0 10px;
+}
+
+.bb-box-orange {
+    border: 1px solid rgba(251, 163, 29, 0.85);
+    box-shadow: 0 0 0 1px rgba(251, 163, 29, 0.15) inset;
+}
+
+.bb-box-red {
+    background: #901B19; /* remplissage rouge */
+    color: #DDDEE2; /* texte lisible */
+    border: 1px solid rgba(0,0,0,0.45); /* optionnel: séparation subtile */
+    padding: 12px 14px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06) inset; /* optionnel: léger relief */
+}
+
+/* Accent text helpers */
+.bb-text-cyan {
+    color: var(--bb-cyan) !important;
+    margin: 10px 0;
+}
+
+.bb-text-orange {
+    color: var(--bb-orange-text) !important;
+    margin: 10px 0;
+}
+
+.bb-muted {
+    color: var(--bb-muted) !important;
+    margin: 10px 0;
+}
+
+.bb-box-orange-fill {
+    background: #FBA31D; /* remplissage orange */
+    color: #000; /* texte noir */
+    border: 1px solid rgba(0,0,0,0.45); /* séparation subtile */
+    border-radius: var(--bb-radius);
+    padding: 12px 14px;
+}
+
+.bb-muted {
+    color: var(--bb-muted) !important;
+}
+
+/* =========================================================
+   Forms / controls
+   ========================================================= */
+.form-control,
+textarea.form-control,
+.form-select,
+.input-group-text {
+    background: var(--bb-surface-3) !important;
+    color: var(--bb-text) !important;
+    border: 1px solid var(--bb-border) !important;
+    box-shadow: none !important;
+}
+
+    .form-control::placeholder,
+    textarea.form-control::placeholder {
+        color: rgba(221, 222, 226, 0.45);
+    }
+
+.form-check-input {
+    background-color: var(--bb-surface-3);
+    border-color: var(--bb-border);
+}
+
+    .form-check-input:checked {
+        background-color: var(--bb-cyan);
+        border-color: var(--bb-cyan);
+    }
+
+/* =========================================================
+   Buttons (terminal style)
+   ========================================================= */
+
+
+/* Primary: Bloomberg orange (filled) */
+.btn-primary {
+    background: #FBA31D !important;
+    border: 1px solid rgba(0, 0, 0, 0.55) !important;
+    color: #000 !important;
+}
+
+    .btn-primary:hover {
+        background: #ffb23a !important; /* un peu plus clair au hover */
+        border-color: rgba(0, 0, 0, 0.65) !important;
         color: #000 !important;
     }
 
-#title {
-    font-size: 70px;
-    margin-top: 5rem;
-    text-align: center
+    .btn-primary:active,
+    .btn-primary.active {
+        background: #e89212 !important; /* un peu plus sombre au click */
+        border-color: rgba(0, 0, 0, 0.70) !important;
+        color: #000 !important;
+    }
+
+
+/* Secondary: dark neutral */
+.btn-secondary,
+.btn-outline-light {
+    background: rgba(221, 222, 226, 0.06) !important;
+    border: 1px solid rgba(221, 222, 226, 0.18) !important;
+    color: var(--bb-text) !important;
 }
 
-.left {
-    text-align: left;
+    .btn-secondary:hover,
+    .btn-outline-light:hover {
+        border-color: rgba(71, 202, 230, 0.40) !important;
+    }
+
+/* Danger: dark red framed */
+.btn-danger,
+.btn-outline-danger {
+    background: rgba(144, 27, 25, 0.18) !important;
+    border: 1px solid rgba(144, 27, 25, 0.85) !important;
+    color: var(--bb-text) !important;
 }
 
-.right {
-    font-size: 20px;
-    display: flex;
-    justify-content: flex-end;
+    .btn-danger:hover,
+    .btn-outline-danger:hover {
+        background: rgba(144, 27, 25, 0.28) !important;
+        border-color: rgba(144, 27, 25, 0.95) !important;
+    }
+
+/* Warning: orange framed */
+.btn-warning,
+.btn-outline-warning {
+    background: rgba(251, 163, 29, 0.14) !important;
+    border: 1px solid rgba(251, 163, 29, 0.85) !important;
+    color: var(--bb-text) !important;
 }
 
-.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-    color: var(--bs-secondary-color);
-    text-align: end;
+    .btn-warning:hover,
+    .btn-outline-warning:hover {
+        background: rgba(251, 163, 29, 0.22) !important;
+    }
+
+/* =========================================================
+   Badges / alerts
+   ========================================================= */
+.badge {
+    border: 1px solid rgba(221, 222, 226, 0.18);
 }
 
-.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
-    text-align: start;
+    .badge.bg-secondary {
+        background: rgba(221, 222, 226, 0.08) !important;
+        color: var(--bb-text) !important;
+    }
+
+/* Alerts as framed panels */
+.alert {
+    background: var(--bb-surface-2);
+    color: var(--bb-text);
+    border: 1px solid rgba(221, 222, 226, 0.18);
+    box-shadow: none;
 }
 
-/* Base : caché */
-.afficher {
-    opacity: 0;
-    transition: opacity 1s ease;
+.alert-danger {
+    border-color: rgba(144, 27, 25, 0.85);
 }
 
-/* État : visible */
-.is-visible {
-    opacity: 1;
+.alert-warning {
+    border-color: rgba(251, 163, 29, 0.85);
 }
 
-img {
-    width: 100%;
-    margin: 2rem 0;
+.text-muted {
+    color: var(--bb-muted) !important;
 }
 
-.removed {
-    color: red;
-}
-
-/* Tableau global rendu transparent (sauf calendrier ciblé plus bas) */
+/* =========================================================
+   Tables (Bloomberg-ish: borders + zebra + hover)
+   ========================================================= */
 .table {
+    color: var(--bb-text);
     --bs-table-bg: transparent;
-    --bs-table-striped-bg: transparent;
-    --bs-table-hover-bg: rgba(255,255,255,0.08);
+    --bs-table-striped-bg: rgba(221, 222, 226, 0.03);
+    --bs-table-hover-bg: rgba(71, 202, 230, 0.06);
+    --bs-table-border-color: rgba(221, 222, 226, 0.12);
     background-color: transparent !important;
 }
 
-    /* Les cellules reçoivent un background via Bootstrap : on force transparent */
     .table > :not(caption) > * > * {
         background-color: transparent !important;
+        border-color: rgba(221, 222, 226, 0.12) !important;
     }
 
-/* Exceptions pour le calendrier */
+    /* Make headers pop */
+    .table thead th {
+        color: var(--bb-orange-text);
+        border-bottom-color: rgba(251, 163, 29, 0.55) !important;
+    }
+
+    /* Stronger bordered tables */
+    .table.table-bordered {
+        border-color: rgba(221, 222, 226, 0.12) !important;
+    }
+
+/* Numeric columns helper (optional) */
+.t-num {
+    text-align: right;
+}
+
+/* =========================================================
+   Calendar (keep your semantic colors)
+   ========================================================= */
 .calendar.table > :not(caption) > * > * {
-    background-color: initial !important;
+    background-color: transparent !important;
 }
 
 .calendar td.bg-danger {
@@ -115,189 +354,60 @@ img {
     color: #fff !important;
 }
 
-.calendar td.bg-light {
-    /*    background-color:#f8f9fa !important; */
-    color: #000 !important;
-}
 
-/* En-tête calendrier transparent en thème sombre, visible en thème clair */
-.calendar .d-flex.bg-primary {
-    background: transparent !important;
-}
-
-.theme-light .calendar .d-flex.bg-primary {
-    background: #0d6efd !important;
-}
-
-/* Tbody calendrier transparent (bordures conservées) */
-.calendar table tbody {
-    background: transparent !important;
-}
-
-/* Todo list transparent */
+/* =========================================================
+   Todo
+   ========================================================= */
 #todo-list {
     background: transparent !important;
 }
 
-    /* Items todo: bordure et couleur texte adaptative */
-    #todo-list .list-group-item, .list-group-item.todo-item, .list-group-item.todo-item:hover {
-        background: transparent !important;
-        border-color: rgba(255,255,255,.15);
-        color: inherit;
+    #todo-list .list-group-item,
+    .list-group-item.todo-item,
+    .list-group-item.todo-item:hover {
+        background: var(--bb-surface) !important;
+        border: 1px solid rgba(221, 222, 226, 0.12);
+        color: var(--bb-text);
     }
 
-.theme-light #todo-list .list-group-item, .theme-light .list-group-item.todo-item {
-    color: #222 !important;
-    border-color: #ced4da !important;
-}
-
-/* Inputs style global + bordure comme les cards */
-.form-control,
-.form-control:focus,
-textarea.form-control,
-.form-select,
-.form-select:focus,
-.btn {
-    color: inherit;
-    box-shadow: none;
-    background: rgba(255, 255, 255, .2) !important;
-    border-radius: 12px;
-}
-
-.theme-light .form-control,
-.theme-light .form-control:focus,
-.theme-light textarea.form-control,
-.theme-light .form-select,
-.theme-light .form-select:focus {
-    background: #fff !important;
-    color: #222 !important;
-}
-
-/* Bold visible dans l’éditeur Summernote */
-.note-editor .note-editable b,
-.note-editor .note-editable strong {
-    font-weight: 700 !important;
-}
-
-/* Bold côté rendu article */
-.article-content b,
-.article-content strong {
-    font-weight: 700;
-}
-
-.card {
-    background: rgba(255, 255, 255, 0.10);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-    backdrop-filter: blur(14px) saturate(1.2);
-    -webkit-backdrop-filter: blur(14px) saturate(1.2);
-    border-radius: 12px;
-    color: white;
-    margin-top: 2rem;
-    padding: 30px;
-}
-
-
-
-
-
-.theme-light .card {
-    background: transparent !important;
-    color: #222 !important;
-    border: 1px solid #ced4da !important;
-}
-
-
-/*PARTIE ARTICLE*/
-
-
-/* Styles spécifiques aux pages Articles */
+/* =========================================================
+   Articles
+   ========================================================= */
 .article-page {
-    /* pas de fond, on garde seulement l’espacement */
     background: transparent;
     border-radius: 20px;
 }
 
-/* Thème clair global (fond blanc, texte sombre) */
-.theme-light {
-    background: #fff !important;
-    color: #222 !important;
-    background-image: none !important;
-}
-
-    .theme-light h1, .theme-light .h1,
-    .theme-light h2, .theme-light .h2,
-    .theme-light h3, .theme-light .h3 {
-        color: #000 !important;
-    }
-    /* Navbar noire en thème clair */
-    .theme-light .navbar {
-        background-color: #000 !important;
-    }
-
-
-    /* Thème clair pour les articles: texte noir, pas de background, bordure grise */
-    .theme-light .card {
-        background: transparent !important;
-        color: #222 !important;
-        border: 1px solid #ced4da !important; /* gris Bootstrap */
-        border-radius: 12px;
-    }
-
-    .theme-light .article-card .card-footer {
-        background: transparent !important;
-        /*  border-top: 1px solid #ced4da !important; 
-*/
-    }
-
-    .theme-light .article-content.card {
-        background: transparent !important;
-        color: #222 !important;
-        border: 1px solid #ced4da !important;
-    }
-
-    /* Thème clair : normaliser fond des form controls */
-    .theme-light .form-control,
-    .theme-light .form-select,
-    .theme-light .input-group-text {
-        background: #fff !important;
-        color: #222 !important;
-    }
-
-.article-card .card-title {
+.article-content b,
+.article-content strong,
+.article-card .excerpt b,
+.article-card .excerpt strong {
     font-weight: 700;
 }
 
-.article-card .excerpt b, .article-card .excerpt strong {
-    font-weight: 700;
-}
-
-.article-content b, .article-content strong {
-    font-weight: 700;
-}
-
-
-
-/* En thème clair sur cartes transparentes */
-.theme-light .article-card {
-    color: #222;
-    border-color: #6c757d;
-}
-
-    .theme-light .article-card:hover {
-        background: #6c757d;
-        color: #fff;
-    }
-
-/* Images: taille naturelle (ne pas forcer 100% comme dans site.css) */
+/* Images in article/editor */
 .article-content img,
 .note-editor .note-editable img {
-    width: auto !important;
+    width: auto;
     height: auto;
-    max-width: 100%; /* réduire si trop large */
+    max-width: 100%;
 }
 
-/* Summernote zone dans thème sombre: forcer fond clair pour contraste lors d’édition */
+/* =========================================================
+   Summernote
+   ========================================================= */
+.note-editor.note-frame {
+    border-color: rgba(221, 222, 226, 0.14) !important;
+    border-radius: var(--bb-radius) !important;
+    background: var(--bb-surface) !important;
+}
+
+.note-toolbar {
+    background: #000 !important;
+    border-bottom: 1px solid rgba(221, 222, 226, 0.12) !important;
+}
+
+/* editing area stays readable */
 .note-editor.note-frame .note-editing-area .note-editable {
     background: #fff;
     color: #222;

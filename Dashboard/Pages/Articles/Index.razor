@@ -18,59 +18,67 @@
 
 <div class="mt-5 mb-5 article-page article-list">
 
-    <h1 class="mb-3">Derniers articles</h1>
 
-    <div class="mb-4">
-        <strong>Labels:</strong>
 
-        <div class="d-flex flex-wrap align-items-center gap-2 ms-0">
+    <div class="d-flex flex-column flex-md-row gap-2 mt-2">
+        <div class="bb-box-orange-fill flex-grow-1 d-flex align-items-center">
+            <h2>Derniers articles</h2>
+        </div>
 
-            <div class="d-flex flex-wrap align-items-center gap-2">
-                @if (_labels.Count == 0)
-                {
-                    <span class="text-muted">Aucun label</span>
-                }
-                else
-                {
-                    @foreach (var label in _labels)
-                    {
-                        _labelSelection.TryGetValue(label.Id, out var isChecked);
+        <div class="bb-box-red flex-grow-1 d-flex align-items-center justify-content-end">
+            <div class="d-flex flex-wrap align-items-center gap-2 ms-0">
+                <div class="ms-auto d-flex align-items-center gap-2">
+                    <input type="text"
+                           class="form-control form-control-sm"
+                           placeholder="Rechercher..."
+                           style="max-width:220px"
+                           @bind="_searchText"
+                           @bind:event="oninput"
+                           @bind:after="OnSearchAfterAsync" />
 
-                        <div class="form-check form-check-inline">
-                            <input class="form-check-input"
-                                   type="checkbox"
-                                   id="@($"lbl_{label.Id}")"
-                                   checked="@isChecked"
-                                   @onchange="(e) => OnLabelChanged(label.Id, e)" />
+                    <select class="form-select form-select-sm"
+                            style="width:auto"
+                            @bind="_selectedSort"
+                            @bind:after="OnSortAfter">
+                        <option value="@ArticleSort.DateNewest">Plus récent → plus ancien</option>
+                        <option value="@ArticleSort.DateOldest">Plus ancien → plus récent</option>
+                        <option value="@ArticleSort.TitleAsc">Titre A → Z</option>
+                        <option value="@ArticleSort.TitleDesc">Titre Z → A</option>
+                    </select>
 
-                            <label class="form-check-label" for="@($"lbl_{label.Id}")">@label.Name</label>
-                        </div>
-                    }
-                }
-            </div>
-
-            <div class="ms-auto d-flex align-items-center gap-2">
-                <input type="text"
-                       class="form-control form-control-sm"
-                       placeholder="Rechercher..."
-                       style="max-width:220px"
-                       @bind="_searchText"
-                       @bind:event="oninput"
-                       @bind:after="OnSearchAfterAsync" />
-
-                <select class="form-select form-select-sm"
-                        style="width:auto"
-                        @bind="_selectedSort"
-                        @bind:after="OnSortAfter">
-                    <option value="@ArticleSort.DateNewest">Plus récent → plus ancien</option>
-                    <option value="@ArticleSort.DateOldest">Plus ancien → plus récent</option>
-                    <option value="@ArticleSort.TitleAsc">Titre A → Z</option>
-                    <option value="@ArticleSort.TitleDesc">Titre Z → A</option>
-                </select>
-
-                <button class="btn btn-sm" @onclick="ResetFilters" disabled="@_loading">Réinitialiser</button>
+                    <button class="btn btn-sm" @onclick="ResetFilters" disabled="@_loading">Réinitialiser</button>
+                </div>
             </div>
         </div>
+    </div>
+
+    <div class="mb-4">
+        <div class="bb-text-orange">Labels:</div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2 bb-text-cyan">
+            @if (_labels.Count == 0)
+            {
+                <span class="text-muted">Aucun label</span>
+            }
+            else
+            {
+                @foreach (var label in _labels)
+                {
+                    _labelSelection.TryGetValue(label.Id, out var isChecked);
+
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               id="@($"lbl_{label.Id}")"
+                               checked="@isChecked"
+                               @onchange="(e) => OnLabelChanged(label.Id, e)" />
+
+                        <label class="form-check-label" for="@($"lbl_{label.Id}")">@label.Name</label>
+                    </div>
+                }
+            }
+        </div>
+        
     </div>
 
     <AuthorizeView>
@@ -106,7 +114,7 @@
                             </div>
                         </div>
 
-                        <div class="py-2">
+                        <div class="py-2 p-3 bb-text-cyan">
                             <div class="labels-line text-truncate"
                                  title="@string.Join(", ", (article.Labels?.Select(l => l.Name) ?? Enumerable.Empty<string>()))">
                                 @if (article.Labels?.Any() ?? false)
@@ -116,12 +124,12 @@
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-between align-items-center mt-auto">
+                        <div class="d-flex justify-content-between align-items-center mt-auto p-3">
                             <div class="small text-muted">
                                 @article.DateCreation.ToLocalTime().ToString("dd/MM/yyyy")
                             </div>
                             <div class="ms-2">
-                                <a class="btn btn-sm" href="@($"/articles/{article.Id}")">Lire</a>
+                                <a class="btn btn-sm btn-primary" href="@($"/articles/{article.Id}")">Lire</a>
                             </div>
                         </div>
 
