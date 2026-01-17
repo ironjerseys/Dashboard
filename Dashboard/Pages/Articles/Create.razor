@@ -1,17 +1,18 @@
 ﻿@page "/articles/create"
+
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 
+@using Microsoft.AspNetCore.Components.Web
 @using System.ComponentModel.DataAnnotations
 @using Dashboard.Entities
 @using Dashboard.Services
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.JSInterop
-@using Microsoft.AspNetCore.Components.Web
-
 
 @rendermode RenderMode.InteractiveServer
 
 @inject IArticleService ArticleService
+@inject IMediaLibraryService MediaLibrary
 @inject NavigationManager Navigation
 @inject IJSRuntime JavaScript
 
@@ -43,9 +44,19 @@ else
                 <div class="mb-3">
                     <label class="form-label">Contenu</label>
 
-                    @* Summernote / éditeur JS s’attache à ce textarea *@
-                    <textarea class="form-control" rows="10" @ref="_contentTextArea"></textarea>
+                    <div class="d-flex gap-2 mb-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                @onclick="OpenUploadModal" disabled="@_isBusy">
+                            Uploader une image
+                        </button>
 
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                @onclick="OpenLibraryModalAsync" disabled="@_isBusy">
+                            Insérer une image
+                        </button>
+                    </div>
+
+                    <textarea class="form-control" rows="10" @ref="_contentTextArea"></textarea>
                     <ValidationMessage For="() => _model.Contenu" />
                 </div>
 
@@ -108,6 +119,96 @@ else
     </div>
 }
 
+@* ---------------- MODALE UPLOAD ---------------- *@
+@if (_uploadOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.35);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Uploader une image</h5>
+                    <button type="button" class="btn-close" @onclick="CloseUploadModal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <InputFile OnChange="OnUploadAsync" accept="image/*" />
+
+                    @if (!string.IsNullOrWhiteSpace(_uploadError))
+                    {
+                        <div class="alert alert-danger mt-3 mb-0">@_uploadError</div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_uploadSuccess))
+                    {
+                        <div class="alert alert-success mt-3 mb-0">@_uploadSuccess</div>
+                    }
+
+                    <div class="form-text mt-2">Taille max : 2 Mo.</div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseUploadModal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* ---------------- MODALE LIBRAIRIE / INSERER ---------------- *@
+@if (_libraryOpen)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.35);">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Insérer une image</h5>
+                    <button type="button" class="btn-close" @onclick="CloseLibraryModal"></button>
+                </div>
+
+                <div class="modal-body">
+                    @if (_libraryLoading)
+                    {
+                        <div class="text-muted">Chargement…</div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_libraryError))
+                    {
+                        <div class="alert alert-danger">@_libraryError</div>
+                    }
+                    else if (_media.Count == 0)
+                    {
+                        <div class="text-muted">Aucune image.</div>
+                    }
+                    else
+                    {
+                        <div class="row row-cols-2 row-cols-md-3 g-3">
+                            @foreach (var m in _media)
+                            {
+                                <div class="col">
+                                    <div class="border rounded p-2 h-100 d-flex flex-column gap-2">
+                                        <img src="@m.Url"
+                                             alt="@m.FileName"
+                                             style="width:100%;height:140px;object-fit:cover;border-radius:.5rem;" />
+
+                                        <div class="small text-truncate" title="@m.FileName">@m.FileName</div>
+
+                                        <button type="button" class="btn btn-primary btn-sm"
+                                                @onclick="() => InsertAsync(m.Url)">
+                                            Insérer
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseLibraryModal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private bool _isLoading = true;
     private bool _isBusy;
@@ -121,6 +222,17 @@ else
 
     private ElementReference _contentTextArea;
     private bool _shouldInitEditor;
+
+    // --- Modales images ---
+    private bool _uploadOpen;
+    private bool _libraryOpen;
+
+    private string? _uploadError;
+    private string? _uploadSuccess;
+
+    private bool _libraryLoading;
+    private string? _libraryError;
+    private List<MediaItem> _media = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -156,6 +268,71 @@ else
         }
     }
 
+    private void OpenUploadModal()
+    {
+        _uploadError = null;
+        _uploadSuccess = null;
+        _uploadOpen = true;
+    }
+
+    private void CloseUploadModal() => _uploadOpen = false;
+
+    private async Task OpenLibraryModalAsync()
+    {
+        _libraryOpen = true;
+        await LoadLibraryAsync();
+    }
+
+    private void CloseLibraryModal() => _libraryOpen = false;
+
+    private async Task LoadLibraryAsync()
+    {
+        _libraryLoading = true;
+        _libraryError = null;
+
+        try
+        {
+            _media = await MediaLibrary.GetLatestAsync(take: 36);
+        }
+        catch (Exception ex)
+        {
+            _libraryError = ex.Message;
+            _media = new();
+        }
+        finally
+        {
+            _libraryLoading = false;
+        }
+    }
+
+    private async Task OnUploadAsync(InputFileChangeEventArgs e)
+    {
+        _uploadError = null;
+        _uploadSuccess = null;
+
+        try
+        {
+            var file = e.File;
+            await MediaLibrary.UploadAsync(file, maxBytes: 2 * 1024 * 1024);
+
+            _uploadSuccess = "Upload réussi.";
+
+            // si la bibliothèque est ouverte, on rafraîchit
+            if (_libraryOpen)
+                _media = await MediaLibrary.GetLatestAsync(take: 36);
+        }
+        catch (Exception ex)
+        {
+            _uploadError = ex.Message;
+        }
+    }
+
+    private async Task InsertAsync(string url)
+    {
+        await JavaScript.InvokeVoidAsync("articleEditor.insertImage", _contentTextArea, url);
+        _libraryOpen = false;
+    }
+
     private async Task HandleSubmit(EditContext editContext)
     {
         _isBusy = true;
@@ -163,10 +340,8 @@ else
 
         try
         {
-            // Sync contenu depuis l’éditeur JS (Summernote)
             _model.Contenu = await JavaScript.InvokeAsync<string>("articleEditor.getHtml", _contentTextArea);
 
-            // Valider après synchro
             if (!editContext.Validate())
                 return;
 
@@ -194,24 +369,18 @@ else
         }
     }
 
-    private void Cancel()
-    {
-        Navigation.NavigateTo("/articles");
-    }
+    private void Cancel() => Navigation.NavigateTo("/articles");
 
     private void OnLabelChanged(int labelId, ChangeEventArgs changeEventArgs)
     {
-        // Robuste : bool ou string ("true"/"false"/"on")
         var raw = changeEventArgs.Value;
         var isChecked =
             raw is bool b ? b :
             string.Equals(raw?.ToString(), "true", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(raw?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
 
-        if (isChecked)
-            _model.SelectedLabelIds.Add(labelId);
-        else
-            _model.SelectedLabelIds.Remove(labelId);
+        if (isChecked) _model.SelectedLabelIds.Add(labelId);
+        else _model.SelectedLabelIds.Remove(labelId);
     }
 
     private static string[]? ParseNewLabels(string? csv)
@@ -232,9 +401,7 @@ else
         public string Contenu { get; set; } = string.Empty;
 
         public bool IsPublic { get; set; }
-
         public string NewLabelsCsv { get; set; } = string.Empty;
-
         public HashSet<int> SelectedLabelIds { get; set; } = new();
     }
 }

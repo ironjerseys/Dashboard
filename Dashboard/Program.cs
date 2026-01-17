@@ -1,8 +1,10 @@
 ﻿using Dashboard.Components;
 using Dashboard.Data;
+using Dashboard.DTO;
 using Dashboard.Entities;
 using Dashboard.Models;
 using Dashboard.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -74,6 +76,7 @@ builder.Services.AddScoped<IAIChessLogService, AIChessLogService>();
 builder.Services.AddScoped<IEmailSettingsService, EmailSettingsService>();
 builder.Services.AddScoped<ILeitnerService, LeitnerService>();
 builder.Services.AddScoped<IQuantifierService, QuantifierService>();
+builder.Services.AddScoped<IMediaLibraryService, MediaLibraryService>();
 
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
@@ -171,7 +174,6 @@ account.MapPost("/Logout", async (SignInManager<IdentityUser> signInManager) =>
     .RequireAuthorization()
     .DisableAntiforgery();
 
-
 app.MapControllerRoute(name: "default", pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapControllers();
 
@@ -239,6 +241,61 @@ aiChessLogsApi.MapPost("", async (
     .Produces(StatusCodes.Status500InternalServerError);
 
 app.MapGet("/", () => Results.Redirect("/cv"));
+
+
+
+app.MapGet("/media/{id:guid}", async (Guid id, IDbContextFactory<BlogContext> factory) =>
+{
+    await using var db = await factory.CreateDbContextAsync();
+    var img = await db.MediaAssets.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+    return img is null ? Results.NotFound() : Results.File(img.Data, img.ContentType);
+});
+
+app.MapGet("/api/media", async (int take, IDbContextFactory<BlogContext> factory) =>
+{
+    take = (take <= 0 || take > 60) ? 30 : take;
+
+    await using var db = await factory.CreateDbContextAsync();
+    var items = await db.MediaAssets.AsNoTracking()
+        .OrderByDescending(x => x.CreatedUtc)
+        .Take(take)
+        .Select(x => new MediaListItemDto(x.Id, x.FileName, x.ContentType, x.CreatedUtc, "/media/" + x.Id))
+        .ToListAsync();
+
+    return Results.Ok(items);
+})
+.RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
+
+app.MapPost("/api/media", async (HttpRequest request, IDbContextFactory<BlogContext> factory) =>
+{
+    var form = await request.ReadFormAsync();
+    var file = form.Files.FirstOrDefault();
+    if (file is null) return Results.BadRequest("No file");
+
+    if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        return Results.BadRequest("Not an image");
+
+    const long maxBytes = 2 * 1024 * 1024; // 2MB (à ajuster)
+    if (file.Length > maxBytes) return Results.BadRequest("Image too large");
+
+    await using var ms = new MemoryStream();
+    await file.CopyToAsync(ms);
+
+    var img = new MediaAsset
+    {
+        ContentType = file.ContentType,
+        FileName = file.FileName,
+        Data = ms.ToArray()
+    };
+
+    await using var db = await factory.CreateDbContextAsync();
+    db.MediaAssets.Add(img);
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { id = img.Id, url = "/media/" + img.Id });
+})
+.RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
+
 
 // ======================
 // Migrations + Seed (optionnel)

@@ -31,7 +31,7 @@
                 ["fontsize", ["fontsize"]],
                 ["color", ["color"]],
                 ["para", ["ul", "ol", "paragraph"]],
-                ["insert", ["link"]],
+                ["insert", ["link", "picture"]], // <- important
                 ["view", ["codeview"]],
             ],
             fontNames: ["Arial", "Arial Black", "Courier New", "Roboto", "Times New Roman"],
@@ -54,6 +54,30 @@
             }
         }
 
+        // Fallback : textarea standard
         return textArea.value || "";
+    },
+
+    insertImage: function (textArea, url) {
+        if (!textArea || !url) return;
+
+        const hasJQuery = typeof window.jQuery !== "undefined";
+        const hasSummernote = hasJQuery && window.jQuery.fn && window.jQuery.fn.summernote;
+
+        if (hasSummernote) {
+            const $el = window.jQuery(textArea);
+            if ($el.data("summernote")) {
+                $el.summernote("insertImage", url);
+                return;
+            }
+        }
+
+        // Fallback : insertion HTML dans le textarea (simple)
+        const tag = `<img src="${url}" alt="" />`;
+        const start = textArea.selectionStart ?? textArea.value.length;
+        const end = textArea.selectionEnd ?? textArea.value.length;
+        const before = textArea.value.substring(0, start);
+        const after = textArea.value.substring(end);
+        textArea.value = before + tag + after;
     }
 };
