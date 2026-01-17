@@ -9,4 +9,6 @@ public class Experience
     // Contient du HTML contrôlé → sera rendu avec Html.Raw dans la vue
     public string Description { get; set; }
     public List<string> Technos { get; set; } = new();
+
+    public string? LogoUrl { get; set; }
 }
