@@ -1,17 +1,11 @@
-﻿namespace Dashboard.Services;
-
-using Dashboard.Entities;
-using Data;
+﻿using Dashboard.Entities;
+using Dashboard.Entities.Enums;
+using Dashboard.Data;
 using Ganss.Xss;
 using Microsoft.EntityFrameworkCore;
 
-public enum ArticleSort
-{
-    TitleAsc,
-    TitleDesc,
-    DateNewest,
-    DateOldest
-}
+namespace Dashboard.Services;
+
 
 public interface IArticleService
 {
@@ -37,7 +31,6 @@ public class ArticleService : IArticleService
         _sanitizer.AllowDataAttributes = false;
         foreach (var a in new[] { "style", "src", "alt", "title", "width", "height" })
             _sanitizer.AllowedAttributes.Add(a);
-        _sanitizer.AllowedSchemes.Add("data");
     }
 
     public async Task<IEnumerable<Article>> GetArticlesAsync(IEnumerable<int>? includeLabelIds = null, ArticleSort sort = ArticleSort.DateNewest, string? search = null)

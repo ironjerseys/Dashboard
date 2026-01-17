@@ -59,13 +59,6 @@
 </div>
 
 @code {
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-            await JS.InvokeVoidAsync("cvFadeInit");
-    }
-
     private static readonly List<Website> WebsitesList = new()
     {
         new Website
