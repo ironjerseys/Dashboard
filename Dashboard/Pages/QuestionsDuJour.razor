@@ -1,6 +1,9 @@
 ﻿@page "/review"
 
 @using System.Security.Claims
+@using System.Net
+@using System.Text.RegularExpressions
+
 @using Dashboard.Entities
 @using Dashboard.Services
 @using Microsoft.AspNetCore.Components.Authorization
@@ -71,7 +74,6 @@
                 }
             </InputRadioGroup>
 
-
             @if (_showResult)
             {
                 <div class="mt-3">
@@ -82,7 +84,8 @@
                     else
                     {
                         <div class="alert alert-danger mb-2">
-                            Mauvaise réponse. La bonne réponse était : <b>@GetChoiceText(question, question.CorrectAnswer)</b>
+                            Mauvaise réponse. La bonne réponse était :
+                            <b>@GetChoiceText(question, question.CorrectAnswer)</b>
                         </div>
                     }
 
@@ -90,7 +93,18 @@
                     {
                         <div class="card p-3">
                             <div class="fw-bold mb-1">Explication</div>
-                            <div>@question.Explanation</div>
+
+                            @* Explication : HTML Summernote -> rendu, sinon texte *@
+                            @if (LooksLikeHtml(question.Explanation))
+                            {
+                                <div class="quiz-html">
+                                    @((MarkupString)(question.Explanation ?? string.Empty))
+                                </div>
+                            }
+                            else
+                            {
+                                <div>@question.Explanation</div>
+                            }
                         </div>
                     }
                 </div>
@@ -114,15 +128,27 @@
                     </button>
                 }
 
-       @*          <button class="btn btn-secondary"
-                        disabled="@_busy"
-                        @onclick="ReloadAsync">
+                @* <button class="btn btn-secondary"
+                          disabled="@_busy"
+                          @onclick="ReloadAsync">
                     Recharger
                 </button> *@
             </div>
         </div>
     }
 </div>
+
+<style>
+    .quiz-html p { margin-bottom: .5rem; }
+
+    .quiz-html pre {
+        background: rgba(0,0,0,.06);
+        border: 1px solid rgba(0,0,0,.10);
+        border-radius: 12px;
+        padding: 12px;
+        overflow: auto;
+    }
+</style>
 
 @code
 {
@@ -140,7 +166,6 @@
     private int? _selectedChoice;
     private bool _showResult = false;
     private bool _isCorrect = false;
-
 
     protected override async Task OnInitializedAsync()
     {
@@ -233,7 +258,6 @@
 
     private async Task NextAsync()
     {
-        // Après validation, la card a une NextDueDate future => on la retire de la liste UI
         _dueItems.RemoveAt(_currentIndex);
 
         _selectedChoice = null;
@@ -266,35 +290,82 @@
         };
     }
 
+    private static bool LooksLikeHtml(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return false;
+
+        return s.Contains("<p", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<br", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<div", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<span", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<pre", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<code", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<img", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ToPlainText(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return string.Empty;
+
+        var s = html
+            .Replace("<br>", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("<br/>", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("<br />", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("</p>", "\n", StringComparison.OrdinalIgnoreCase);
+
+        s = Regex.Replace(s, "<.*?>", string.Empty);
+        return WebUtility.HtmlDecode(s);
+    }
+
+    private static bool HasCodeFence(string? text)
+        => !string.IsNullOrEmpty(text) && text.Contains("```", StringComparison.Ordinal);
+
+    private static string ExtractCode(string? text)
+    {
+        text ??= string.Empty;
+
+        int start = text.IndexOf("```", StringComparison.Ordinal);
+        int end = text.LastIndexOf("```", StringComparison.Ordinal);
+
+        if (start >= 0 && end > start)
+            return text.Substring(start + 3, end - start - 3).Trim();
+
+        return text.Trim();
+    }
+
     private RenderFragment RenderQuestionText(string? text) => builder =>
     {
-        string value = text ?? string.Empty;
+        string html = text ?? string.Empty;
+        string plain = ToPlainText(html);
 
-        if (!value.Contains("```", StringComparison.Ordinal))
+        // Code fence => rendu <pre><code> (sur le texte "plain", pas sur le HTML)
+        if (HasCodeFence(plain))
         {
-            builder.OpenElement(0, "p");
-            builder.AddContent(1, value);
+            builder.OpenElement(0, "pre");
+            builder.AddAttribute(1, "class", "mb-3 p-3");
+            builder.AddAttribute(2, "style",
+                "background: rgba(0,0,0,.06); border: 1px solid rgba(0,0,0,.10); border-radius: 12px; overflow:auto;");
+            builder.OpenElement(3, "code");
+            builder.AddContent(4, ExtractCode(plain));
+            builder.CloseElement(); // code
+            builder.CloseElement(); // pre
+            return;
+        }
+
+        // HTML Summernote => MarkupString
+        if (LooksLikeHtml(html))
+        {
+            builder.OpenElement(10, "div");
+            builder.AddAttribute(11, "class", "mb-3 quiz-html");
+            builder.AddMarkupContent(12, html);
             builder.CloseElement();
             return;
         }
 
-        int start = value.IndexOf("```", StringComparison.Ordinal);
-        int end = value.LastIndexOf("```", StringComparison.Ordinal);
-
-        string before = start > 0 ? value[..start] : string.Empty;
-        string code = (start >= 0 && end > start) ? value.Substring(start + 3, end - start - 3) : value;
-
-        if (!string.IsNullOrWhiteSpace(before))
-        {
-            builder.OpenElement(2, "p");
-            builder.AddContent(3, before);
-            builder.CloseElement();
-        }
-
-        builder.OpenElement(4, "pre");
-        builder.OpenElement(5, "code");
-        builder.AddContent(6, code.Trim());
-        builder.CloseElement();
+        // Texte simple
+        builder.OpenElement(20, "p");
+        builder.AddAttribute(21, "class", "mb-3");
+        builder.AddContent(22, html);
         builder.CloseElement();
     };
 }

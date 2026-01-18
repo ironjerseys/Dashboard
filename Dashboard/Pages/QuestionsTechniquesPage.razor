@@ -1,18 +1,19 @@
 ﻿@page "/quiz"
 
-@using Microsoft.AspNetCore.Components.Web 
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Components.Forms
-@using Dashboard.Components.Quiz
+@using System.Net
+@using System.Text.RegularExpressions
 
+@using Dashboard.Components.Quiz
 @using global::Dashboard.Entities
 @using global::Dashboard.Services
 
 @inject IDbQuizService QuizService
 @inject IArticleService ArticleService
 
-
 @rendermode RenderMode.InteractiveServer
-
 
 <div class="container mt-4">
     <div class="card p-3 text-white"
@@ -22,12 +23,10 @@
 
             <div class="d-flex align-items-center gap-2">
                 <div class="text-white-50 small">Score : @_score / @_questions.Count</div>
-@*                 <button type="button" class="btn btn-sm btn-outline-light" @onclick="OpenCreateQuestion">
+                @* <button type="button" class="btn btn-sm btn-outline-light" @onclick="OpenCreateQuestion">
                     <i class="bi bi-plus-lg"></i> Question
                 </button> *@
             </div>
-
-            <div class="text-white-50 small">Score : @_score / @_questions.Count</div>
         </div>
 
         @if (!string.IsNullOrWhiteSpace(_errorMessage))
@@ -58,18 +57,28 @@
             var currentQuestion = _questions[_currentIndex];
             var choices = GetChoices(currentQuestion);
 
+            var qHtml = currentQuestion.QuestionText ?? "";
+            var qPlain = ToPlainText(qHtml);
+
             <h6 class="mb-2">Question @(_currentIndex + 1) sur @_questions.Count</h6>
 
-            @if (HasCodeFence(currentQuestion.QuestionText))
+            @* Affichage question : code fence -> <pre>, sinon HTML Summernote -> MarkupString, sinon texte *@
+            @if (HasCodeFence(qPlain))
             {
                 <pre class="mb-3 p-3"
                      style="background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); border-radius: 12px; overflow:auto;">
-<code>@ExtractCode(currentQuestion.QuestionText)</code>
+<code>@ExtractCode(qPlain)</code>
 </pre>
+            }
+            else if (LooksLikeHtml(qHtml))
+            {
+                <div class="mb-3 quiz-html">
+                    @((MarkupString)qHtml)
+                </div>
             }
             else
             {
-                <p class="mb-3">@currentQuestion.QuestionText</p>
+                <p class="mb-3">@qHtml</p>
             }
 
             @if (!_showResult)
@@ -79,7 +88,7 @@
                     {
                         var inputId = $"q{currentQuestion.Id}_c{i}";
                         <div class="form-check mb-2">
-                            <InputRadio class="form-check-input" id="@inputId" Value="i" />
+                            <InputRadio class="form-check-input" id="@inputId" Value="@i" />
                             <label class="form-check-label" for="@inputId">@choices[i]</label>
                         </div>
                     }
@@ -102,7 +111,22 @@
                     </p>
                 }
 
-                <p><strong>Explication :</strong> @currentQuestion.Explanation</p>
+                var eHtml = currentQuestion.Explanation ?? "";
+
+                <div class="mt-2">
+                    <strong>Explication :</strong>
+
+                    @if (LooksLikeHtml(eHtml))
+                    {
+                        <div class="mt-1 quiz-html">
+                            @((MarkupString)eHtml)
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mt-1">@eHtml</div>
+                    }
+                </div>
 
                 <button type="button" class="btn btn-primary mt-3" @onclick="Next">
                     Suivant
@@ -111,6 +135,10 @@
         }
     </div>
 </div>
+
+<style>
+    .quiz-html p { margin-bottom: .5rem; }
+</style>
 
 @code {
     private bool _isLoading;
@@ -124,14 +152,13 @@
     private bool _isCorrect;
     private int? _selectedChoiceIndex;
 
+    // (garde si tu veux réactiver la création plus tard)
     private bool _createQuestionOpen;
     private bool _createBusy;
     private string? _createError;
 
     private QuestionTechnique _createModel = new();
     private List<Article> _articles = new();
-
-
 
     protected override async Task OnInitializedAsync()
     {
@@ -157,30 +184,23 @@
 
     private async Task ReloadQuestionsAsync()
     {
-        // Recharge depuis la DB (garde ton index/score si tu veux)
         var previousIndex = _currentIndex;
         var previousScore = _score;
 
-        _questions = await QuizService.GetQuestionsAsync();
+        _questions = (await QuizService.GetQuestionsAsync()).ToList();
 
-        // Option : revenir au même index
         _currentIndex = Math.Min(previousIndex, Math.Max(_questions.Count - 1, 0));
         _score = previousScore;
 
         StateHasChanged();
     }
 
-
-
-
     private Task ValidateAnswerAsync()
     {
         _errorMessage = null;
 
         if (_currentIndex >= _questions.Count)
-        {
             return Task.CompletedTask;
-        }
 
         if (!_selectedChoiceIndex.HasValue)
         {
@@ -192,9 +212,7 @@
         _isCorrect = (_selectedChoiceIndex.Value == q.CorrectAnswer);
 
         if (_isCorrect)
-        {
             _score++;
-        }
 
         _showResult = true;
         return Task.CompletedTask;
@@ -219,8 +237,33 @@
     }
 
     private static string[] GetChoices(QuestionTechnique q)
+        => new[] { q.Choice0, q.Choice1, q.Choice2, q.Choice3 };
+
+    private static bool LooksLikeHtml(string? s)
     {
-        return new[] { q.Choice0, q.Choice1, q.Choice2, q.Choice3 };
+        if (string.IsNullOrWhiteSpace(s)) return false;
+
+        return s.Contains("<p", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<br", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<div", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<span", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<pre", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<code", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<img", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ToPlainText(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return string.Empty;
+
+        var s = html
+            .Replace("<br>", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("<br/>", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("<br />", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("</p>", "\n", StringComparison.OrdinalIgnoreCase);
+
+        s = Regex.Replace(s, "<.*?>", string.Empty);
+        return WebUtility.HtmlDecode(s);
     }
 
     private static bool HasCodeFence(string? text)
@@ -234,9 +277,7 @@
         int end = text.LastIndexOf("```", StringComparison.Ordinal);
 
         if (start >= 0 && end > start)
-        {
             return text.Substring(start + 3, end - start - 3).Trim();
-        }
 
         return text.Trim();
     }

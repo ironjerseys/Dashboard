@@ -1,10 +1,12 @@
 ﻿@using Microsoft.AspNetCore.Components.Forms
-
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 @using global::Dashboard.Entities
-@rendermode RenderMode.InteractiveServer
 
+@rendermode RenderMode.InteractiveServer
 @namespace Dashboard.Components.Quiz
+
+@inject IJSRuntime JS
 
 @if (IsOpen)
 {
@@ -23,13 +25,16 @@
                 </div>
 
                 <div class="modal-body">
-                    <EditForm Model="_editModel" OnValidSubmit="SubmitAsync" FormName="quiz-question-editor">
+                    <EditForm EditContext="_editContext" OnSubmit="SubmitAsync" FormName="quiz-question-editor">
                         <DataAnnotationsValidator />
                         <ValidationSummary />
 
                         <div class="mb-3">
                             <label class="form-label">Question</label>
-                            <InputTextArea class="form-control" rows="4" @bind-Value="_editModel.QuestionText" />
+
+                            @* Summernote s’attache à ce textarea *@
+                            <textarea class="form-control" rows="4" @ref="_questionTextArea"></textarea>
+
                             <ValidationMessage For="() => _editModel.QuestionText" />
                         </div>
 
@@ -67,7 +72,11 @@
 
                         <div class="mb-3">
                             <label class="form-label">Explication</label>
-                            <InputTextArea class="form-control" rows="3" @bind-Value="_editModel.Explanation" />
+
+                            @* Summernote s’attache à ce textarea *@
+                            <textarea class="form-control" rows="3" @ref="_explanationTextArea"></textarea>
+
+                            <ValidationMessage For="() => _editModel.Explanation" />
                         </div>
 
                         <div class="mb-3">
@@ -111,6 +120,23 @@
             backdrop-filter: blur(10px);
             box-shadow: 0 20px 60px rgba(0,0,0,.55);
         }
+
+            /* Optionnel : rendre l’éditeur lisible dans un modal sombre */
+            .glass-modal .note-editor.note-frame {
+                background: #fff;
+                color: #000;
+                border-radius: .5rem;
+                border: 1px solid rgba(0,0,0,.15);
+            }
+
+            .glass-modal .note-toolbar {
+                background: #fff;
+            }
+
+            .glass-modal .note-editable {
+                background: #fff;
+                color: #000;
+            }
     </style>
 }
 
@@ -129,25 +155,70 @@
     [Parameter] public EventCallback<QuestionTechnique> OnSubmit { get; set; }
 
     private QuestionTechnique _editModel = new();
+    private EditContext _editContext = default!;
+
+    private ElementReference _questionTextArea;
+    private ElementReference _explanationTextArea;
+
+    private bool _shouldInitEditors;
+    private bool _wasOpen;
+    private int _lastModelId;
 
     protected override void OnParametersSet()
     {
-        _editModel = new QuestionTechnique
+        // Réinitialiser le modèle uniquement à l’ouverture (ou si on change de question)
+        if (IsOpen && (!_wasOpen || Model.Id != _lastModelId))
         {
-            Id = Model.Id,
-            QuestionText = Model.QuestionText,
-            Choice0 = Model.Choice0,
-            Choice1 = Model.Choice1,
-            Choice2 = Model.Choice2,
-            Choice3 = Model.Choice3,
-            CorrectAnswer = Model.CorrectAnswer,
-            Explanation = Model.Explanation,
-            ArticleId = Model.ArticleId
-        };
+            _editModel = new QuestionTechnique
+            {
+                Id = Model.Id,
+                QuestionText = Model.QuestionText,
+                Choice0 = Model.Choice0,
+                Choice1 = Model.Choice1,
+                Choice2 = Model.Choice2,
+                Choice3 = Model.Choice3,
+                CorrectAnswer = Model.CorrectAnswer,
+                Explanation = Model.Explanation,
+                ArticleId = Model.ArticleId
+            };
+
+            _editContext = new EditContext(_editModel);
+            _shouldInitEditors = true;
+
+            _lastModelId = Model.Id;
+        }
+
+        _wasOpen = IsOpen;
+
+        // Au cas où le composant est instancié fermé au départ
+        if (_editContext is null)
+            _editContext = new EditContext(_editModel);
     }
 
-    private async Task SubmitAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!IsOpen || !_shouldInitEditors)
+            return;
+
+        _shouldInitEditors = false;
+
+        // Initialise Summernote (fallback textarea si Summernote non chargé)
+        await JS.InvokeVoidAsync("articleEditor.init", _questionTextArea, _editModel.QuestionText);
+        await JS.InvokeVoidAsync("articleEditor.init", _explanationTextArea, _editModel.Explanation);
+    }
+
+    private async Task SubmitAsync(EditContext editContext)
+    {
+        if (Busy)
+            return;
+
+        // Sync HTML depuis Summernote avant validation
+        _editModel.QuestionText = await JS.InvokeAsync<string>("articleEditor.getHtml", _questionTextArea);
+        _editModel.Explanation = await JS.InvokeAsync<string>("articleEditor.getHtml", _explanationTextArea);
+
+        if (!editContext.Validate())
+            return;
+
         await OnSubmit.InvokeAsync(_editModel);
     }
 
