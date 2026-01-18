@@ -10,61 +10,40 @@
 
 
 <div class="container">
-    @{
-        var index = 0;
-    }
-
     @foreach (var website in WebsitesList)
     {
         var isRemoved = string.IsNullOrWhiteSpace(website.Url);
 
-        <div class="card  mb-3 p-4 afficher @(isRemoved ? "removed" : "")" data-index="@index">
+        <div class="exp-item p-4 afficher @(isRemoved ? "removed" : "")">
 
-            <div class="d-flex flex-column flex-md-row gap-2 mt-2">
-                <div class="bb-box-orange-fill flex-grow-1 d-flex align-items-center">
-                    <h2>@website.Name</h2>
+            <header class="d-flex flex-column flex-md-row justify-content-between gap-2 mt-5 mb-5">
+                <div>
+                    <h2 class="exp-title mb-1">@website.Name</h2>
+
+                    <div class="exp-meta">
+                        @if (!isRemoved)
+                        {
+                            <span class="exp-company">Disponible sur : </span>
+                            <a class="site-link" href="@website.Url" target="_blank" rel="noopener noreferrer">
+                                @website.Platform
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="exp-company">Intégré à ChessMultitool</span>
+                        }
+                    </div>
                 </div>
-
-                <div class="bb-box-red flex-grow-1 d-flex align-items-center justify-content-end">
-
-
-                    @if (!isRemoved)
-                    {
-                        <h2>
-                            Disponible sur : 
-                            <a href="@website.Url" target="_blank" rel="noopener noreferrer">@website.Platform</a>
-                        </h2>
-                    }
-                    else
-                    {
-                        <h2>Intégré à ChessMultitool</h2>
-                    }
-                </div>
-            </div>
+            </header>
 
 
-
-
-
-
-
-            <img src="@($"/images/{website.Image}")" alt="@website.Name" />
-
-            <div>@((MarkupString)website.DescriptionHtml)</div>
-
+            <img src="@($"/images/{website.Image}")" alt="@website.Name" class="site-image" />
+            <div class="mt-5 mb-5">@((MarkupString)website.DescriptionHtml)</div>
         </div>
-
-        index++;
     }
 </div>
 
 @code {
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-            await JS.InvokeVoidAsync("cvFadeInit");
-    }
 
     private static readonly List<Website> WebsitesList = new()
     {
