@@ -1,6 +1,9 @@
 ﻿@page "/quiz/questions"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 
+@using System.Net
+@using System.Text.RegularExpressions
+
 @using Dashboard.Entities
 @using Dashboard.Entities.Enums
 @using Dashboard.Services
@@ -25,12 +28,13 @@
             + Nouvelle question
         </button>
     </div>
+
     @if (!string.IsNullOrWhiteSpace(_pageError))
     {
         <div class="alert alert-danger">@_pageError</div>
     }
-    <div class="table-responsive">
 
+    <div class="table-responsive">
         @foreach (QuestionTechnique question in _questions)
         {
             <div class="card p-3 mb-3">
@@ -38,25 +42,42 @@
                     <div class="flex-grow-1">
 
                         <div class="fw-semibold mb-2">
-                            @question.QuestionText
+                            @RenderQuestionText(question.QuestionText)
                         </div>
 
                         <ol class="mb-2 ps-3">
                             <li class="@(question.CorrectAnswer == 0 ? "text-success fw-semibold" : "")">
-                                @question.Choice0
+                                @RenderInlineHtmlOrText(question.Choice0)
                             </li>
                             <li class="@(question.CorrectAnswer == 1 ? "text-success fw-semibold" : "")">
-                                @question.Choice1
+                                @RenderInlineHtmlOrText(question.Choice1)
                             </li>
                             <li class="@(question.CorrectAnswer == 2 ? "text-success fw-semibold" : "")">
-                                @question.Choice2
+                                @RenderInlineHtmlOrText(question.Choice2)
                             </li>
                             <li class="@(question.CorrectAnswer == 3 ? "text-success fw-semibold" : "")">
-                                @question.Choice3
+                                @RenderInlineHtmlOrText(question.Choice3)
                             </li>
                         </ol>
 
-                        <div class="small text-muted">
+                        @if (!string.IsNullOrWhiteSpace(question.Explanation))
+                        {
+                            <div class="mt-2">
+                                <div class="text-muted small fw-semibold mb-1">Explication</div>
+                                @if (LooksLikeHtml(question.Explanation))
+                                {
+                                    <div class="quiz-html">
+                                        @((MarkupString)(question.Explanation ?? string.Empty))
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="text-muted">@question.Explanation</div>
+                                }
+                            </div>
+                        }
+
+                        <div class="small text-muted mt-2">
                             Bonne réponse : <strong>@(question.CorrectAnswer + 1)</strong>
                             <span class="mx-2">•</span>
                             Article :
@@ -113,6 +134,16 @@
               OnConfirm="DeleteConfirmedAsync" />
 
 <style>
+    .quiz-html p { margin-bottom: .5rem; }
+
+    .quiz-html pre {
+        background: rgba(0,0,0,.06);
+        border: 1px solid rgba(0,0,0,.10);
+        border-radius: 12px;
+        padding: 12px;
+        overflow: auto;
+    }
+
     /* Lisibilité : bordures discrètes + colonnes visibles */
     .quiz-table {
         border-radius: 12px;
@@ -325,18 +356,107 @@
         }
     }
 
+    private static bool LooksLikeHtml(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return false;
+
+        return s.Contains("<p", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<br", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<div", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<span", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<pre", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<code", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<img", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ToPlainText(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return string.Empty;
+
+        var s = html
+            .Replace("<br>", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("<br/>", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("<br />", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("</p>", "\n", StringComparison.OrdinalIgnoreCase);
+
+        s = Regex.Replace(s, "<.*?>", string.Empty);
+        return WebUtility.HtmlDecode(s);
+    }
+
+    private static bool HasCodeFence(string? text)
+        => !string.IsNullOrEmpty(text) && text.Contains("```", StringComparison.Ordinal);
+
+    private static string ExtractCode(string? text)
+    {
+        text ??= string.Empty;
+
+        int start = text.IndexOf("```", StringComparison.Ordinal);
+        int end = text.LastIndexOf("```", StringComparison.Ordinal);
+
+        if (start >= 0 && end > start)
+            return text.Substring(start + 3, end - start - 3).Trim();
+
+        return text.Trim();
+    }
+
+    private RenderFragment RenderQuestionText(string? text) => builder =>
+    {
+        string html = text ?? string.Empty;
+        string plain = ToPlainText(html);
+
+        if (HasCodeFence(plain))
+        {
+            builder.OpenElement(0, "pre");
+            builder.AddAttribute(1, "class", "mb-2 p-3");
+            builder.AddAttribute(2, "style",
+                "background: rgba(0,0,0,.06); border: 1px solid rgba(0,0,0,.10); border-radius: 12px; overflow:auto;");
+            builder.OpenElement(3, "code");
+            builder.AddContent(4, ExtractCode(plain));
+            builder.CloseElement();
+            builder.CloseElement();
+            return;
+        }
+
+        if (LooksLikeHtml(html))
+        {
+            builder.OpenElement(10, "div");
+            builder.AddAttribute(11, "class", "quiz-html");
+            builder.AddMarkupContent(12, html);
+            builder.CloseElement();
+            return;
+        }
+
+        builder.OpenElement(20, "div");
+        builder.AddContent(21, html);
+        builder.CloseElement();
+    };
+
+    private RenderFragment RenderInlineHtmlOrText(string? value) => builder =>
+    {
+        string html = value ?? string.Empty;
+
+        if (LooksLikeHtml(html))
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "quiz-html");
+            builder.AddMarkupContent(2, html);
+            builder.CloseElement();
+        }
+        else
+        {
+            builder.AddContent(10, html);
+        }
+    };
+
     private static string MakePreview(string? text, int maxChars)
     {
         if (string.IsNullOrWhiteSpace(text))
-        {
             return "";
-        }
 
-        string normalized = text.Replace("\r", " ").Replace("\n", " ").Trim();
+        // Preview basé sur le texte "humain" (sans balises)
+        string normalized = ToPlainText(text).Replace("\r", " ").Replace("\n", " ").Trim();
         if (normalized.Length <= maxChars)
-        {
             return normalized;
-        }
 
         return normalized[..maxChars].TrimEnd() + "…";
     }
