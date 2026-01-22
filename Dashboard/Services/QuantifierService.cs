@@ -1,6 +1,6 @@
-﻿using Dashboard.Data;
-using Dashboard.DTO;
-using Dashboard.Entities;
+﻿using Dashboard.DTO;
+using Dashboard.Persistance.DbContext;
+using Dashboard.Persistance.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Dashboard.Services;

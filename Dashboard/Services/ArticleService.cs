@@ -1,8 +1,8 @@
-﻿using Dashboard.Entities;
-using Dashboard.Entities.Enums;
-using Dashboard.Data;
-using Ganss.Xss;
+﻿using Ganss.Xss;
 using Microsoft.EntityFrameworkCore;
+using Dashboard.Persistance.DbContext;
+using Dashboard.Persistance.Entities;
+using Dashboard.Persistance.Entities.Enums;
 
 namespace Dashboard.Services;
 

@@ -3,11 +3,12 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 
 @using System.ComponentModel.DataAnnotations
-@using Dashboard.Entities
+@using Dashboard.Persistance.Entities
+@using Dashboard.Persistance.Entities
 @using Dashboard.Services
 @using Microsoft.AspNetCore.Components.Forms
-@using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 
 @inject IArticleService ArticleService
 @inject NavigationManager Navigation

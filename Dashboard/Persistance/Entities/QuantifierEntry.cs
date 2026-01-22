@@ -1,0 +1,13 @@
+﻿namespace Dashboard.Persistance.Entities;
+
+public class QuantifierEntry
+{
+    public int Id { get; set; }
+
+    public int QuantifierId { get; set; }
+    public Quantifier Quantifier { get; set; } = default!;
+
+    public DateOnly Date { get; set; }
+    public int Value { get; set; }
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
