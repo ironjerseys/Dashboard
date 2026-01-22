@@ -1,5 +1,5 @@
-﻿using Dashboard.Data;
-using Dashboard.Entities;
+﻿using Dashboard.Persistance.Entities;
+using Dashboard.Persistance.DbContext;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.EntityFrameworkCore;
 

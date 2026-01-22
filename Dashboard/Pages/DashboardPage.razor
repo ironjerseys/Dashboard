@@ -1,19 +1,19 @@
 ﻿@page "/dashboard"
 
 @using System.Security.Claims
+@using Dashboard.Persistance.DbContext
+@using Dashboard.Persistance.Entities
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.JSInterop
-@using Microsoft.AspNetCore.Components.Web
-
 @using global::Dashboard.Components
 @using global::Dashboard.Components.Dashboard
-@using global::Dashboard.Data
-@using global::Dashboard.Services
-@using global::Dashboard.Entities
+@using global::Dashboard.Persistance.Entities
 @using global::Dashboard.Models
+@using global::Dashboard.Services
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ITodoService TodoService
@@ -23,11 +23,9 @@
 @inject IJSRuntime JS
 @inject ILeitnerService LeitnerService
 
-
 @attribute [Authorize]
 
-
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@rendermode RenderMode.InteractiveServer
 
 <PageTitle>Dashboard</PageTitle>
 

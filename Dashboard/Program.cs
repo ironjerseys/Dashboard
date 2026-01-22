@@ -1,8 +1,9 @@
 ﻿using Dashboard.Components;
-using Dashboard.Data;
 using Dashboard.DTO;
-using Dashboard.Entities;
+using Dashboard.Persistance.Entities;
 using Dashboard.Models;
+using Dashboard.Persistance.DbContext;
+using Dashboard.Persistance.Entities;
 using Dashboard.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;

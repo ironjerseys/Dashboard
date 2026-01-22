@@ -1,6 +1,6 @@
-﻿using Dashboard.Data;
-using Dashboard.Entities;
+﻿using Dashboard.Persistance.Entities;
 using Dashboard.Models;
+using Dashboard.Persistance.DbContext;
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;

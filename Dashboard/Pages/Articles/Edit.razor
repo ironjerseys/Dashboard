@@ -3,17 +3,16 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
 
 @using System.ComponentModel.DataAnnotations
-@using Dashboard.Entities
+@using Dashboard.Persistance.Entities
 @using Dashboard.Services
 @using Microsoft.AspNetCore.Components.Forms
-@using Microsoft.JSInterop
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 
 @inject IArticleService ArticleService
+@inject IMediaLibraryService MediaLibrary
 @inject NavigationManager Navigation
 @inject IJSRuntime JavaScript
-@inject IMediaLibraryService MediaLibrary
-
 
 @rendermode RenderMode.InteractiveServer
 
@@ -36,7 +35,7 @@ else
     <div class="container mt-4 article-page">
         <div class="card article-card">
 
-            <EditForm EditContext="_editContext" OnValidSubmit="SaveAsync">
+            <EditForm EditContext="_editContext" OnSubmit="HandleSubmit">
                 <DataAnnotationsValidator />
                 <ValidationSummary />
 
@@ -44,6 +43,56 @@ else
                     <label class="form-label">Titre</label>
                     <InputText class="form-control" @bind-Value="_editModel.Titre" />
                     <ValidationMessage For="() => _editModel.Titre" />
+                </div>
+
+                @* ---------------- IMAGE DE COUVERTURE ---------------- *@
+                <div class="mb-3">
+                    <label class="form-label">Image de couverture</label>
+
+                    @if (_editModel.CoverMediaId is Guid coverId)
+                    {
+                        <div class="mb-2">
+                            <img src="@($"/media/{coverId}")"
+                                 alt="Couverture"
+                                 class="img-fluid rounded"
+                                 style="max-height:180px; width:100%; object-fit:cover;" />
+                        </div>
+
+                        <div class="small text-muted mb-2">
+                            Id : @coverId
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-muted small mb-2">Aucune image sélectionnée.</div>
+                    }
+
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                @onclick="OpenUploadModal"
+                                disabled="@_isBusy">
+                            Uploader…
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                @onclick="OpenCoverLibraryModalAsync"
+                                disabled="@_isBusy">
+                            Choisir dans la bibliothèque…
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-outline-danger btn-sm"
+                                @onclick="ClearCover"
+                                disabled="@(_isBusy || _editModel.CoverMediaId is null)">
+                            Retirer
+                        </button>
+                    </div>
+
+                    <div class="form-text">
+                        La couverture sert pour la liste des articles (carte / aperçu). Elle est indépendante des images insérées dans le contenu.
+                    </div>
                 </div>
 
                 <div class="mb-3">
@@ -56,16 +105,14 @@ else
                         </button>
 
                         <button type="button" class="btn btn-outline-secondary btn-sm"
-                                @onclick="OpenLibraryModalAsync" disabled="@_isBusy">
+                                @onclick="OpenInsertLibraryModalAsync" disabled="@_isBusy">
                             Insérer une image
                         </button>
                     </div>
 
                     <textarea class="form-control" rows="10" @ref="_contentTextArea"></textarea>
-
                     <ValidationMessage For="() => _editModel.Contenu" />
                 </div>
-
 
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -122,6 +169,7 @@ else
     </div>
 }
 
+@* ---------------- MODALE UPLOAD ---------------- *@
 @if (_uploadOpen)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.35);">
@@ -142,6 +190,18 @@ else
                     else if (!string.IsNullOrWhiteSpace(_uploadSuccess))
                     {
                         <div class="alert alert-success mt-3 mb-0">@_uploadSuccess</div>
+
+                        <div class="d-flex gap-2 mt-3 flex-wrap">
+                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                    @onclick="OpenInsertLibraryModalAsync" disabled="@_isBusy">
+                                Ouvrir la bibliothèque (insérer)
+                            </button>
+
+                            <button type="button" class="btn btn-outline-secondary btn-sm"
+                                    @onclick="OpenCoverLibraryModalAsync" disabled="@_isBusy">
+                                Ouvrir la bibliothèque (couverture)
+                            </button>
+                        </div>
                     }
 
                     <div class="form-text mt-2">Taille max : 2 Mo.</div>
@@ -155,13 +215,16 @@ else
     </div>
 }
 
+@* ---------------- MODALE LIBRAIRIE (INSERER OU COUVERTURE) ---------------- *@
 @if (_libraryOpen)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.35);">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Insérer une image</h5>
+                    <h5 class="modal-title">
+                        @(_libraryPurpose == LibraryPurpose.InsertIntoContent ? "Insérer une image" : "Choisir une image de couverture")
+                    </h5>
                     <button type="button" class="btn-close" @onclick="CloseLibraryModal"></button>
                 </div>
 
@@ -191,10 +254,20 @@ else
 
                                         <div class="small text-truncate" title="@m.FileName">@m.FileName</div>
 
-                                        <button type="button" class="btn btn-primary btn-sm"
-                                                @onclick="() => InsertAsync(m.Url)">
-                                            Insérer
-                                        </button>
+                                        @if (_libraryPurpose == LibraryPurpose.InsertIntoContent)
+                                        {
+                                            <button type="button" class="btn btn-primary btn-sm"
+                                                    @onclick="() => InsertAsync(m.Url)">
+                                                Insérer
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="btn btn-primary btn-sm"
+                                                    @onclick="() => SelectCover(m.Id)">
+                                                Choisir
+                                            </button>
+                                        }
                                     </div>
                                 </div>
                             }
@@ -209,7 +282,6 @@ else
         </div>
     </div>
 }
-
 
 @code {
     [Parameter] public int Id { get; set; }
@@ -238,6 +310,13 @@ else
     private string? _libraryError;
     private List<MediaItem> _media = new();
 
+    private LibraryPurpose _libraryPurpose = LibraryPurpose.InsertIntoContent;
+
+    private enum LibraryPurpose
+    {
+        InsertIntoContent = 0,
+        SelectCover = 1
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -247,8 +326,6 @@ else
 
         try
         {
-            // IMPORTANT : adapte le nom si ton service n’a pas exactement cette méthode.
-            // Objectif: récupérer l’article + ses labels.
             var article = await ArticleService.GetArticleAsync(Id);
             if (article is null)
             {
@@ -266,13 +343,14 @@ else
                 Titre = article.Titre ?? string.Empty,
                 Contenu = article.Contenu ?? string.Empty,
                 IsPublic = article.IsPublic,
+                CoverMediaId = article.CoverMediaId,
                 NewLabelsCsv = string.Empty,
                 SelectedLabelIds = new HashSet<int>(article.Labels?.Select(l => l.Id) ?? Enumerable.Empty<int>())
             };
 
             _editContext = new EditContext(_editModel);
 
-            // On initialise (ou met à jour) Summernote après le rendu
+            // Initialise (ou met à jour) Summernote après le rendu
             _shouldInitEditor = true;
         }
         catch (Exception exception)
@@ -285,6 +363,17 @@ else
         }
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_editModel is null) return;
+
+        if (_shouldInitEditor)
+        {
+            _shouldInitEditor = false;
+            await JavaScript.InvokeVoidAsync("articleEditor.init", _contentTextArea, _editModel.Contenu);
+        }
+    }
+
     private void OpenUploadModal()
     {
         _uploadError = null;
@@ -294,13 +383,34 @@ else
 
     private void CloseUploadModal() => _uploadOpen = false;
 
-    private async Task OpenLibraryModalAsync()
+    private async Task OpenInsertLibraryModalAsync()
     {
+        _libraryPurpose = LibraryPurpose.InsertIntoContent;
+        _libraryOpen = true;
+        await LoadLibraryAsync();
+    }
+
+    private async Task OpenCoverLibraryModalAsync()
+    {
+        _libraryPurpose = LibraryPurpose.SelectCover;
         _libraryOpen = true;
         await LoadLibraryAsync();
     }
 
     private void CloseLibraryModal() => _libraryOpen = false;
+
+    private void SelectCover(Guid id)
+    {
+        if (_editModel is null) return;
+        _editModel.CoverMediaId = id;
+        _libraryOpen = false;
+    }
+
+    private void ClearCover()
+    {
+        if (_editModel is null) return;
+        _editModel.CoverMediaId = null;
+    }
 
     private async Task LoadLibraryAsync()
     {
@@ -330,7 +440,7 @@ else
         try
         {
             await MediaLibrary.UploadAsync(e.File, maxBytes: 2 * 1024 * 1024);
-            _uploadSuccess = "Upload réussi.";
+            _uploadSuccess = "Upload réussi. Vous pouvez maintenant sélectionner l’image depuis la bibliothèque.";
 
             if (_libraryOpen)
                 _media = await MediaLibrary.GetLatestAsync(take: 36);
@@ -347,20 +457,6 @@ else
         _libraryOpen = false;
     }
 
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (_editModel is null) return;
-
-        if (_shouldInitEditor)
-        {
-            _shouldInitEditor = false;
-
-            // Si Summernote n’est pas chargé, la fonction JS mettra juste la valeur dans le textarea.
-            await JavaScript.InvokeVoidAsync("articleEditor.init", _contentTextArea, _editModel.Contenu);
-        }
-    }
-
     private void OnLabelChanged(int labelId, ChangeEventArgs changeEventArgs)
     {
         if (_editModel is null) return;
@@ -375,8 +471,7 @@ else
         else _editModel.SelectedLabelIds.Remove(labelId);
     }
 
-
-    private async Task SaveAsync()
+    private async Task HandleSubmit(EditContext editContext)
     {
         if (_editModel is null) return;
 
@@ -385,14 +480,12 @@ else
 
         try
         {
-            // Récupère le HTML depuis Summernote (ou le textarea si Summernote absent)
+            // Sync contenu depuis Summernote (ou fallback textarea)
             _editModel.Contenu = await JavaScript.InvokeAsync<string>("articleEditor.getHtml", _contentTextArea);
 
-            // Revalide après sync (sinon Contenu peut rester vide côté model)
-            if (!_editContext.Validate())
-            {
+            // Valider après synchro
+            if (!editContext.Validate())
                 return;
-            }
 
             string[]? newLabels = ParseNewLabels(_editModel.NewLabelsCsv);
             int[] selectedLabelIds = _editModel.SelectedLabelIds.ToArray();
@@ -402,7 +495,8 @@ else
                 Id = _editModel.Id,
                 Titre = _editModel.Titre,
                 Contenu = _editModel.Contenu,
-                IsPublic = _editModel.IsPublic
+                IsPublic = _editModel.IsPublic,
+                CoverMediaId = _editModel.CoverMediaId
             };
 
             await ArticleService.UpdateArticleAsync(updatedArticle, newLabels, selectedLabelIds);
@@ -419,10 +513,7 @@ else
         }
     }
 
-    private void Cancel()
-    {
-        Navigation.NavigateTo("/articles");
-    }
+    private void Cancel() => Navigation.NavigateTo("/articles");
 
     private static string[]? ParseNewLabels(string? csv)
     {
@@ -443,6 +534,9 @@ else
         public string Contenu { get; set; } = string.Empty;
 
         public bool IsPublic { get; set; }
+
+        // Image de couverture (MediaAsset.Id)
+        public Guid? CoverMediaId { get; set; }
 
         public string NewLabelsCsv { get; set; } = string.Empty;
 

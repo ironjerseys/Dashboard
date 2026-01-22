@@ -1,5 +1,5 @@
-﻿using Dashboard.Data;
-using Dashboard.Entities;
+﻿using Dashboard.Persistance.DbContext;
+using Dashboard.Persistance.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Dashboard.Services;
