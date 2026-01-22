@@ -24,4 +24,7 @@ public class Article
     public IdentityUser? Author { get; set; }
 
     public ICollection<Label> Labels { get; set; } = new List<Label>();
+
+    public Guid? CoverMediaId { get; set; }
+    public MediaAsset? CoverMedia { get; set; }
 }

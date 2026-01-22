@@ -1,12 +1,10 @@
 ﻿@page "/articles"
 
+@using Dashboard.Persistance.Entities.Enums
+@using Microsoft.AspNetCore.Components.Web
 @using System.Text.RegularExpressions
-@using Dashboard.Persistance.Entities.Enums
-@using Dashboard.Persistance.Entities
-@using Dashboard.Persistance.Entities.Enums
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.AspNetCore.Components.Web
 @using global::Dashboard.Persistance.Entities
 @using global::Dashboard.Services
 
@@ -16,12 +14,9 @@
 
 @rendermode RenderMode.InteractiveServer
 
-
 <PageTitle>Articles</PageTitle>
 
 <div class="mt-5 mb-5 article-page article-list">
-
-
 
     <div class="d-flex flex-column flex-md-row gap-2 mt-2">
         <div class="bb-box-orange-fill flex-grow-1 d-flex align-items-center">
@@ -81,7 +76,6 @@
                 }
             }
         </div>
-        
     </div>
 
     <AuthorizeView>
@@ -104,34 +98,51 @@
     }
     else
     {
-        <div class="row row-cols-1 row-cols-md-3 g-4 mt-2">
+        <div class="mt-3 d-flex flex-column gap-3">
             @foreach (var article in _articles)
             {
-                <div class="col">
-                    <div class="card mb-3 h-100 d-flex flex-column">
+                var coverUrl = GetCoverUrl(article);
 
-                        <div class="card-body">
-                            <h5 class="card-title">@article.Titre</h5>
-                            <div class="card-text small excerpt">
-                                @PlainExcerpt(article.Contenu ?? "", 160)
-                            </div>
+                <div class="card article-row">
+                    <div class="d-flex flex-column flex-md-row">
+
+                        <div class="article-thumb">
+                            @if (!string.IsNullOrWhiteSpace(coverUrl))
+                            {
+                                <img src="@coverUrl"
+                                     alt=""
+                                     loading="lazy"
+                                     class="article-thumb-img" />
+                            }
+                            else
+                            {
+                                <div class="article-thumb-placeholder">
+                                    <div class="small text-muted">Aucune image</div>
+                                </div>
+                            }
                         </div>
 
-                        <div class="py-2 p-3 bb-text-cyan">
-                            <div class="labels-line text-truncate"
+                        <div class="p-3 flex-grow-1 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                                <h5 class="mb-1">@article.Titre</h5>
+                                <div class="text-muted small">
+                                    @article.DateCreation.ToLocalTime().ToString("dd/MM/yyyy")
+                                </div>
+                            </div>
+
+                            <div class="small text-muted mb-2 text-truncate"
                                  title="@string.Join(", ", (article.Labels?.Select(l => l.Name) ?? Enumerable.Empty<string>()))">
                                 @if (article.Labels?.Any() ?? false)
                                 {
                                     @string.Join(", ", article.Labels.Select(l => l.Name))
                                 }
                             </div>
-                        </div>
 
-                        <div class="d-flex justify-content-between align-items-center mt-auto p-3">
-                            <div class="small text-muted">
-                                @article.DateCreation.ToLocalTime().ToString("dd/MM/yyyy")
+                            <div class="article-excerpt text-muted">
+                                @PlainExcerpt(article.Contenu ?? "", 240)
                             </div>
-                            <div class="ms-2">
+
+                            <div class="mt-3">
                                 <a class="btn btn-sm btn-primary" href="@($"/articles/{article.Id}")">Lire</a>
                             </div>
                         </div>
@@ -142,6 +153,56 @@
         </div>
     }
 </div>
+
+<style>
+    .article-row {
+        border-radius: 16px;
+        border: 1px solid rgba(0,0,0,.08);
+        overflow: hidden;
+    }
+
+    .article-thumb {
+        width: 100%;
+        max-width: 320px;
+        background: rgba(0,0,0,.03);
+    }
+
+    .article-thumb-img {
+        width: 100%;
+        height: 100%;
+        min-height: 170px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .article-thumb-placeholder {
+        width: 100%;
+        min-height: 170px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, rgba(0,0,0,.04), rgba(0,0,0,.02));
+    }
+
+    .article-excerpt {
+        line-height: 1.35rem;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+    }
+
+    @@media (max-width: 767.98px) {
+        .article-thumb {
+            max-width: none;
+        }
+
+        .article-thumb-img,
+        .article-thumb-placeholder {
+            min-height: 200px;
+        }
+    }
+</style>
 
 @code {
     // Query-string
@@ -309,7 +370,6 @@
                 return parsed;
             }
 
-            // HTML checkbox common value
             if (string.Equals(s, "on", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
@@ -335,5 +395,43 @@
         }
 
         return text.Substring(0, maxChars).Trim() + "…";
+    }
+
+    private static string? GetCoverUrl(Article article)
+    {
+        // 1) Couverture explicite si tu ajoutes CoverMediaId
+        // (si ta propriété n’existe pas encore, commente cette partie le temps de migrer)
+        if (article.CoverMediaId.HasValue)
+        {
+            return "/media/" + article.CoverMediaId.Value;
+        }
+
+        // 2) Fallback: 1ère image trouvée dans le HTML (permet de garder un rendu même avant migration)
+        var first = ExtractFirstImageSrc(article.Contenu);
+        if (string.IsNullOrWhiteSpace(first))
+            return null;
+
+        // petite barrière : autoriser uniquement URLs relatives /media ou http(s)
+        if (first.StartsWith("/media/", StringComparison.OrdinalIgnoreCase) ||
+            first.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            first.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return first;
+        }
+
+        return null;
+    }
+
+    private static string? ExtractFirstImageSrc(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return null;
+
+        var m = Regex.Match(
+            html,
+            @"<img[^>]*\ssrc\s*=\s*[""'](?<src>[^""']+)[""']",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        return m.Success ? m.Groups["src"].Value : null;
     }
 }

@@ -23,11 +23,9 @@
 @inject IJSRuntime JS
 @inject ILeitnerService LeitnerService
 
-
 @attribute [Authorize]
 
-
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@rendermode RenderMode.InteractiveServer
 
 <PageTitle>Dashboard</PageTitle>
 

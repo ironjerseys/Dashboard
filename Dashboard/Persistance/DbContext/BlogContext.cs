@@ -61,8 +61,15 @@ public class BlogContext : IdentityDbContext<IdentityUser>
         });
 
         builder.Entity<Article>()
-               .HasMany(a => a.Labels)
-               .WithMany();
+            .HasMany(a => a.Labels)
+            .WithMany();
+
+        builder.Entity<Article>()
+            .HasOne(a => a.CoverMedia)
+            .WithMany()
+            .HasForeignKey(a => a.CoverMediaId)
+            .OnDelete(DeleteBehavior.SetNull);
+
 
         builder.Entity<EmailSettings>(e =>
         {
