@@ -8,8 +8,8 @@ services:
       context: .
       dockerfile: Dashboard/Dockerfile
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sql,1433;Database=DashboardDb;User Id=sa;Password=UnMotDePasse!Solide123;Encrypt=False;TrustServerCertificate=True
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ConnectionStrings__DefaultConnection=${DB_CONNECTION}
     depends_on:
       - sql
     ports:
@@ -20,7 +20,7 @@ services:
     container_name: sql
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=UnMotDePasse!Solide123   # ← change-le !
+      - MSSQL_SA_PASSWORD=${SA_PASSWORD}
       - MSSQL_PID=Developer
       -  MSSQL_AGENT_ENABLED=true
     ports:
