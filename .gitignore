@@ -11,3 +11,4 @@ riderModule.iml
 /Dashboard/App_Data/blog.db-shm
 /Dashboard/App_Data/blog.db-wal
 /Dashboard/appsettings.Development.json
+/.env
