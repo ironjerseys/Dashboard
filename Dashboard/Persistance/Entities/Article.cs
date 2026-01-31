@@ -14,6 +14,8 @@ public class Article
     [Required, DataType(DataType.MultilineText)]
     public string Contenu { get; set; } = default!;
 
+    public string Slug { get; set; } = string.Empty;
+
     public DateTime DateCreation { get; set; } = DateTime.UtcNow;
 
     public string? AuthorId { get; set; }

@@ -1,19 +1,21 @@
-﻿using Ganss.Xss;
-using Microsoft.EntityFrameworkCore;
-using Dashboard.Persistance.DbContext;
+﻿using Dashboard.Persistance.DbContext;
 using Dashboard.Persistance.Entities;
 using Dashboard.Persistance.Entities.Enums;
+using Dashboard.Services.Helpers;
+using Ganss.Xss;
+using Microsoft.EntityFrameworkCore;
 
 namespace Dashboard.Services;
 
 public interface IArticleService
 {
     Task<IEnumerable<Article>> GetArticlesAsync(IEnumerable<int>? includeLabelIds = null, ArticleSort sort = ArticleSort.DateNewest, string? search = null);
-    Task<Article> GetArticleAsync(int id);
+    Task<Article> GetArticleByIdAsync(int id);
     Task CreateArticleAsync(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null);
     Task UpdateArticleAsync(Article article, string[]? newLabels = null, int[]? selectedLabelIds = null);
     Task DeleteAsync(int id);
     Task<List<Label>> GetLabelsAsync();
+    Task<Article?> GetArticleBySlugAsync(string slug);
 }
 
 public class ArticleService : IArticleService
@@ -70,7 +72,7 @@ public class ArticleService : IArticleService
         return await q.ToListAsync();
     }
 
-    public async Task<Article> GetArticleAsync(int id)
+    public async Task<Article> GetArticleByIdAsync(int id)
     {
         await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
 
@@ -117,6 +119,25 @@ public class ArticleService : IArticleService
         return result;
     }
 
+    private async Task<string> EnsureUniqueSlugAsync(BlogContext ctx, string title, int? currentArticleId = null)
+    {
+        var baseSlug = SlugHelper.Slugify(title);
+        var slug = baseSlug;
+        var i = 2;
+
+        while (true)
+        {
+            var exists = await ctx.Articles.AnyAsync(a => a.Slug == slug && a.Id != currentArticleId);
+
+            if (!exists)
+                return slug;
+
+            slug = $"{baseSlug}-{i}";
+            i++;
+        }
+    }
+
+
     public async Task<List<Label>> GetLabelsAsync()
     {
         await using BlogContext _context = await _dbContextFactory.CreateDbContextAsync();
@@ -159,6 +180,8 @@ public class ArticleService : IArticleService
 
         article.Contenu = SanitizeHtml(_sanitizer, article.Contenu);
 
+        article.Slug = await EnsureUniqueSlugAsync(context, article.Titre);
+
         // (optionnel) valide CoverMediaId si tu as ajouté cette colonne
         await EnsureCoverExistsOrNullAsync(context, article);
 
@@ -197,6 +220,8 @@ public class ArticleService : IArticleService
         existing.Titre = article.Titre;
         existing.Contenu = sanitized;
         existing.IsPublic = article.IsPublic;
+
+        existing.Slug = await EnsureUniqueSlugAsync(context, existing.Titre ?? "article", existing.Id);
 
         // IMPORTANT: image de couverture
         existing.CoverMediaId = article.CoverMediaId;
@@ -250,4 +275,29 @@ public class ArticleService : IArticleService
         _context.Articles.Remove(article);
         await _context.SaveChangesAsync();
     }
+
+    public async Task<Article?> GetArticleBySlugAsync(string slug)
+    {
+        await using var ctx = await _dbContextFactory.CreateDbContextAsync();
+        return await ctx.Articles
+            .Include(a => a.Labels)
+            .FirstOrDefaultAsync(a => a.Slug == slug);
+    }
+
+    public async Task RegenerateSlugsFromTitlesAsync()
+    {
+        await using var ctx = await _dbContextFactory.CreateDbContextAsync();
+
+        var articles = await ctx.Articles
+            .OrderBy(a => a.Id)
+            .ToListAsync();
+
+        foreach (var a in articles)
+        {
+            a.Slug = await EnsureUniqueSlugAsync(ctx, a.Titre ?? "article", a.Id);
+        }
+
+        await ctx.SaveChangesAsync();
+    }
+
 }

@@ -65,6 +65,10 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             .WithMany();
 
         builder.Entity<Article>()
+            .HasIndex(a => a.Slug)
+            .IsUnique();
+
+        builder.Entity<Article>()
             .HasOne(a => a.CoverMedia)
             .WithMany()
             .HasForeignKey(a => a.CoverMediaId)
