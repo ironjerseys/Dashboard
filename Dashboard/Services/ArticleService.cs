@@ -283,21 +283,4 @@ public class ArticleService : IArticleService
             .Include(a => a.Labels)
             .FirstOrDefaultAsync(a => a.Slug == slug);
     }
-
-    public async Task RegenerateSlugsFromTitlesAsync()
-    {
-        await using var ctx = await _dbContextFactory.CreateDbContextAsync();
-
-        var articles = await ctx.Articles
-            .OrderBy(a => a.Id)
-            .ToListAsync();
-
-        foreach (var a in articles)
-        {
-            a.Slug = await EnsureUniqueSlugAsync(ctx, a.Titre ?? "article", a.Id);
-        }
-
-        await ctx.SaveChangesAsync();
-    }
-
 }

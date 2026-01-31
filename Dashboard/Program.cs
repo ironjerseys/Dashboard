@@ -312,16 +312,6 @@ using (var scope = app.Services.CreateScope())
         var db = sp.GetRequiredService<BlogContext>();
         await db.Database.MigrateAsync();
 
-
-
-
-        var articleService = sp.GetRequiredService<IArticleService>();
-        await ((ArticleService)articleService).RegenerateSlugsFromTitlesAsync();
-
-
-
-
-
         // Seed rôles
         var roleMgr = sp.GetRequiredService<RoleManager<IdentityRole>>();
         var userMgr = sp.GetRequiredService<UserManager<IdentityUser>>();
