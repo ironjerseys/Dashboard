@@ -1,0 +1,74 @@
+﻿@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+
+@using global::Dashboard.Models
+
+@rendermode RenderMode.InteractiveServer
+
+
+@if (IsOpen)
+{
+    <div class="modal fade show d-block"
+         tabindex="-1"
+         aria-modal="true"
+         role="dialog"
+         style="background: rgba(0,0,0,.35);"
+         @onclick="CloseFromBackdrop">
+
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"
+             role="document"
+             @onclick:stopPropagation="true">
+
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@Title</h5>
+                    <button type="button" class="btn-close" aria-label="Close" @onclick="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-lg-5">
+                            <CalendarGrid MonthTitle="@MonthTitle"
+                                          Rows="@CalendarRows"
+                                          OnPrevMonth="@OnPrevMonth"
+                                          OnNextMonth="@OnNextMonth" />
+                        </div>
+
+                        <div class="col-12 col-lg-7">
+                            @ChildContent
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="Close">Fermer</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    [Parameter] public string Title { get; set; } = "Objectifs";
+
+    // Calendrier
+    [Parameter] public string MonthTitle { get; set; } = string.Empty;
+
+    // Ton type existant : Dashboard.Models.CalendarCell
+    [Parameter]
+    public IReadOnlyList<IReadOnlyList<CalendarCell>> CalendarRows { get; set; }
+        = Array.Empty<IReadOnlyList<CalendarCell>>();
+
+    [Parameter] public EventCallback OnPrevMonth { get; set; }
+    [Parameter] public EventCallback OnNextMonth { get; set; }
+
+    // Contenu à droite
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private Task Close() => IsOpenChanged.InvokeAsync(false);
+    private Task CloseFromBackdrop() => Close();
+}

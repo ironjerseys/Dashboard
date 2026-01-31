@@ -1,0 +1,68 @@
+﻿@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+
+@using global::Dashboard.Models
+
+@rendermode RenderMode.InteractiveServer
+
+
+<div class="calendar card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-2 px-2 py-1 rounded">
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-sm fw-bold fs-5" @onclick="OnPrevMonth">«</button>
+            <strong class="fs-5">@MonthTitle</strong>
+            <button class="btn btn-sm fw-bold fs-5" @onclick="OnNextMonth">»</button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered calendar text-center align-middle mb-0" style="table-layout: fixed;">
+            <thead class="bg-transparent">
+                <tr>
+                    <th>Lun</th>
+                    <th>Mar</th>
+                    <th>Mer</th>
+                    <th>Jeu</th>
+                    <th>Ven</th>
+                    <th>Sam</th>
+                    <th>Dim</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Rows is not null)
+                {
+                    @foreach (var row in Rows)
+                    {
+                        <tr>
+                            @foreach (var cell in row)
+                            {
+                                if (cell.Date is null)
+                                {
+                                    <td class="bg-light"></td>
+                                }
+                                else
+                                {
+                                    <td class="p-1 @cell.CssClass" style="@cell.Style">
+                                        <div>@cell.DayNumber</div>
+                                    </td>
+                                }
+                            }
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string MonthTitle { get; set; } = string.Empty;
+
+    // Ton type existant : Dashboard.Models.CalendarCell
+    [Parameter]
+    public IReadOnlyList<IReadOnlyList<CalendarCell>> Rows { get; set; }
+        = Array.Empty<IReadOnlyList<CalendarCell>>();
+
+    [Parameter] public EventCallback OnPrevMonth { get; set; }
+    [Parameter] public EventCallback OnNextMonth { get; set; }
+}
