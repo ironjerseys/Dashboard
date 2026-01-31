@@ -1,10 +1,11 @@
 ﻿using Dashboard.Components;
 using Dashboard.DTO;
-using Dashboard.Persistance.Entities;
 using Dashboard.Models;
 using Dashboard.Persistance.DbContext;
 using Dashboard.Persistance.Entities;
+using Dashboard.Persistance.Entities;
 using Dashboard.Services;
+using Dashboard.Services.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -64,7 +65,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddHubOptions(o =>
     {
-        o.MaximumReceiveMessageSize = 10 * 1024 * 1024; 
+        o.MaximumReceiveMessageSize = 10 * 1024 * 1024;
     });
 
 builder.Services.AddCascadingAuthenticationState();
@@ -310,6 +311,16 @@ using (var scope = app.Services.CreateScope())
     {
         var db = sp.GetRequiredService<BlogContext>();
         await db.Database.MigrateAsync();
+
+
+
+
+        var articleService = sp.GetRequiredService<IArticleService>();
+        await ((ArticleService)articleService).RegenerateSlugsFromTitlesAsync();
+
+
+
+
 
         // Seed rôles
         var roleMgr = sp.GetRequiredService<RoleManager<IdentityRole>>();

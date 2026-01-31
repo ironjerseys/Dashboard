@@ -326,7 +326,7 @@ else
 
         try
         {
-            var article = await ArticleService.GetArticleAsync(Id);
+            var article = await ArticleService.GetArticleByIdAsync(Id);
             if (article is null)
             {
                 _editModel = null;
