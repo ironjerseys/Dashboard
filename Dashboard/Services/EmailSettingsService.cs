@@ -44,7 +44,6 @@ public sealed class EmailSettingsService : IEmailSettingsService
             DayOfWeek = null,
             DayOfMonth = null,
             IncludeTodos = true,
-            IncludeGoals = true,
             IncludeArticles = true
         };
     }
@@ -75,7 +74,6 @@ public sealed class EmailSettingsService : IEmailSettingsService
             existing.DayOfMonth = model.DayOfMonth;
             existing.RecipientEmail = model.RecipientEmail;
             existing.IncludeTodos = model.IncludeTodos;
-            existing.IncludeGoals = model.IncludeGoals;
             existing.IncludeArticles = model.IncludeArticles;
         }
 

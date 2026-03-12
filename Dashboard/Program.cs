@@ -72,17 +72,15 @@ builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddScoped<IArticleService, ArticleService>();
 builder.Services.AddScoped<IDbQuizService, QuestionTechniqueService>();
-builder.Services.AddScoped<IGoalService, GoalService>();
 builder.Services.AddScoped<ITodoService, TodoService>();
 builder.Services.AddScoped<IAIChessLogService, AIChessLogService>();
 builder.Services.AddScoped<IEmailSettingsService, EmailSettingsService>();
 builder.Services.AddScoped<ILeitnerService, LeitnerService>();
-builder.Services.AddScoped<IQuantifierService, QuantifierService>();
 builder.Services.AddScoped<IMediaLibraryService, MediaLibraryService>();
 
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
-builder.Services.AddHostedService<GoalReminderService>();
+builder.Services.AddHostedService<ReminderService>();
 
 var app = builder.Build();
 

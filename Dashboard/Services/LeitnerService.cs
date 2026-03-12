@@ -48,7 +48,7 @@ public class LeitnerService : ILeitnerService
 
     // Intervalles (en jours) par boîte.
     // Box=1 => 1 jour, Box=2 => 2 jours, Box=3 => 4 jours...
-    private static readonly int[] BoxIntervalsDays = new[] { 1, 2, 4, 8, 16, 32 };
+    private static readonly int[] BoxIntervalsDays = new[] { 2, 4, 8, 16, 32, 64 };
     private const int MaxBox = 6;
 
     public LeitnerService(IDbContextFactory<BlogContext> dbContextFactory)

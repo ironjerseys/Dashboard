@@ -16,7 +16,6 @@
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject ITodoService TodoService
-@inject IGoalService GoalService
 @inject IArticleService ArticleService
 @inject IDbContextFactory<BlogContext> DbFactory
 @inject IJSRuntime JS
@@ -72,47 +71,6 @@
 
             </div>
 
-      
-
-
-            <ObjectifsModal IsOpen="_objectifsOpen"
-                            IsOpenChanged="v => _objectifsOpen = v"
-                            Title="Objectifs"
-                            MonthTitle="@_monthTitle"
-                            CalendarRows="_calendarRows"
-                            OnPrevMonth="PrevMonth"
-                            OnNextMonth="NextMonth">
-
-                <GoalsPanel Goals="_goals"
-                            SelectedGoalId="_selectedGoal?.Id"
-                            Busy="_busy"
-                            OnCreateClicked="OpenNewGoalModal"
-                            OnRowClicked="OpenEditGoalModal"
-                            OnToggleDone="ToggleGoalDone"
-                            OnDelete="RequestDeleteGoal" />
-
-                <GoalEditorModal @bind-IsOpen="_goalModalOpen"
-                                 Model="_goalForm"
-                                 Articles="_articles"
-                                 Title="@(_selectedGoal is null ? "Nouvel objectif" : "Modifier objectif")"
-                                 SubmitLabel="@(_selectedGoal is null ? "Créer" : "Enregistrer")"
-                                 ShowIsDone="@(_selectedGoal is not null)"
-                                 Busy="_busy"
-                                 Error="@_goalFormError"
-                                 OnSubmit="HandleGoalSubmit" />
-
-            </ObjectifsModal>
-
-
-
-            <QuantifiersPanel UserId="_userId" />
-
-        </div>
-
-        <!-- Colonne droite: Todos -->
-        <div class="col-lg-4">
-            <TodoPanel />
-
             <div class="card p-3">
                 <h3 class="mb-3">Autre</h3>
                 <div class="d-flex flex-wrap gap-2">
@@ -128,11 +86,16 @@
                         Paramètres emails
                     </button>
 
-                    <button class="btn btn-primary" @onclick="() => _objectifsOpen = true">
-                        Objectifs
-                    </button>
                 </div>
             </div>
+
+        </div>
+
+        <!-- Colonne droite: Todos -->
+        <div class="col-lg-4">
+            <TodoPanel />
+
+            
 
         </div>
 
@@ -141,12 +104,6 @@
 
 <EmailSettingsModal @bind-IsOpen="_emailSettingsOpen" />
 
-<ConfirmModal @bind-IsOpen="_deleteGoalModalOpen"
-              Title="Supprimer l’objectif ?"
-              Message=@($"Voulez-vous supprimer : \"{_goalTitleToDelete}\" ?")
-              ConfirmLabel="Supprimer"
-              Busy="_busy"
-              OnConfirm="ConfirmDeleteGoalAsync" />
 
 
 @code {
@@ -154,45 +111,21 @@
 
     private bool _busy;
     private string? _error;
-
     private string _userId = "";
-
     private int _year;
     private int _month;
     private string _monthTitle = "";
-
     private Dictionary<DateOnly, bool> _coverageMap = new();
-    private List<List<CalendarCell>> _calendarRows = new();
-
-    private List<Goal> _goals = new();
-    private Goal? _selectedGoal;
-
     private List<Article> _articles = new();
-
-    private GoalFormModel _goalForm = new();
-    private string? _goalFormError;
-
-    private EditContext _goalEditContext = default!;
-
-    private bool _deleteGoalModalOpen;
-    private int _goalIdToDelete;
-    private string _goalTitleToDelete = "";
-
     private bool _emailSettingsOpen;
-
     private bool _dueLoading = true;
     private string? _dueError;
     private int _dueCount = 0;
-
     private bool _objectifsOpen;
-
-
-
 
 
     protected override async Task OnInitializedAsync()
     {
-        _goalEditContext = new EditContext(_goalForm);
 
         await EnsureUserIdAsync();
 
@@ -200,34 +133,10 @@
         _year = now.Year;
         _month = now.Month;
 
-        ResetGoalFormForCreate();
         await LoadAsync();
         await LoadDueCountAsync();
     }
 
-    private bool _goalModalOpen;
-
-    private void OpenNewGoalModal()
-    {
-        _selectedGoal = null;
-        ResetGoalFormForCreate();
-        _goalFormError = null;
-        _goalModalOpen = true;
-    }
-
-    private void OpenEditGoalModal(int id)
-    {
-        SelectGoal(id);
-        _goalFormError = null;
-        _goalModalOpen = true;
-    }
-
-
-    private async Task HandleGoalSubmit()
-    {
-        await SaveGoal();
-        _goalModalOpen = false;
-    }
 
 
     private async Task EnsureUserIdAsync()
@@ -250,19 +159,8 @@
         {
             _monthTitle = new DateTime(_year, _month, 1).ToString("MMMM yyyy");
 
-            _coverageMap = await GoalService.GetMonthlyCoverageMapAsync(_userId, _year, _month);
-
-            var first = new DateOnly(_year, _month, 1);
-            var last = new DateOnly(_year, _month, DateTime.DaysInMonth(_year, _month));
-
-            var allGoals = await GoalService.GetMyGoalsAsync(_userId);
-            _goals = allGoals.Where(g => g.Debut <= last && g.Fin >= first).ToList();
-
-            _calendarRows = BuildCalendarRows(_year, _month, _coverageMap);
-
             // Articles (pour le select)
             _articles = (await ArticleService.GetArticlesAsync()).ToList();
-
 
         }
         catch (Exception ex)
@@ -275,222 +173,7 @@
         }
     }
 
-    private void PrevMonth()
-    {
-        if (_month == 1) { _month = 12; _year--; }
-        else _month--;
 
-        _selectedGoal = null;
-        ResetGoalFormForCreate();
-        _ = LoadAsync();
-    }
-
-    private void NextMonth()
-    {
-        if (_month == 12) { _month = 1; _year++; }
-        else _month++;
-
-        _selectedGoal = null;
-        ResetGoalFormForCreate();
-        _ = LoadAsync();
-    }
-
-    private void SelectGoal(int id)
-    {
-        _selectedGoal = _goals.FirstOrDefault(g => g.Id == id);
-        if (_selectedGoal is null) return;
-
-        _goalForm = new GoalFormModel
-        {
-            Id = _selectedGoal.Id,
-            Titre = _selectedGoal.Titre,
-            Description = _selectedGoal.Description,
-            Debut = _selectedGoal.Debut,
-            Fin = _selectedGoal.Fin,
-            ArticleId = _selectedGoal.ArticleId,
-            IsDone = _selectedGoal.IsDone
-        };
-        _goalFormError = null;
-    }
-
-    private async Task ToggleGoalDone(int id)
-    {
-        await GoalService.ToggleDoneAsync(id, _userId);
-        await LoadAsync();
-    }
-
-    private async Task DeleteGoalInternalAsync(int goalId)
-    {
-        await EnsureUserIdAsync();
-
-        if (string.IsNullOrWhiteSpace(_userId))
-        {
-            _goalFormError = "Utilisateur non identifié.";
-            return;
-        }
-
-        await GoalService.DeleteAsync(goalId, _userId);
-        await LoadAsync();
-    }
-
-
-    private void RequestDeleteGoal(int goalId)
-    {
-        _goalIdToDelete = goalId;
-
-        var goal = _goals.FirstOrDefault(g => g.Id == goalId);
-        _goalTitleToDelete = goal?.Titre ?? "(objectif)";
-
-        _deleteGoalModalOpen = true;
-    }
-
-    private async Task ConfirmDeleteGoalAsync()
-    {
-        _busy = true;
-        _goalFormError = null;
-
-        try
-        {
-            // Ici, appelle ta suppression réelle (sans confirmation JS)
-            await DeleteGoalInternalAsync(_goalIdToDelete);
-
-            _deleteGoalModalOpen = false;
-            _goalIdToDelete = 0;
-            _goalTitleToDelete = "";
-        }
-        catch (Exception ex)
-        {
-            _goalFormError = ex.Message;
-        }
-        finally
-        {
-            _busy = false;
-        }
-    }
-
-
-    private async Task SaveGoal()
-    {
-        _goalFormError = null;
-
-        if (_goalForm.Fin < _goalForm.Debut)
-        {
-            _goalFormError = "Fin doit être >= Début";
-            return;
-        }
-
-        _busy = true;
-
-        try
-        {
-            await using var db = await DbFactory.CreateDbContextAsync();
-
-            if (_goalForm.Id.HasValue)
-            {
-                var g = await db.Goals.FirstOrDefaultAsync(x => x.Id == _goalForm.Id.Value && x.OwnerId == _userId);
-                if (g is null) { _goalFormError = "Objectif introuvable."; return; }
-
-                g.Titre = _goalForm.Titre;
-                g.Description = _goalForm.Description;
-                g.Debut = _goalForm.Debut;
-                g.Fin = _goalForm.Fin;
-                g.ArticleId = _goalForm.ArticleId;
-                g.IsDone = _goalForm.IsDone;
-            }
-            else
-            {
-                db.Goals.Add(new Goal
-                {
-                    Titre = _goalForm.Titre,
-                    Description = _goalForm.Description,
-                    Debut = _goalForm.Debut,
-                    Fin = _goalForm.Fin,
-                    ArticleId = _goalForm.ArticleId,
-                    OwnerId = _userId,
-                    IsDone = false
-                });
-            }
-
-            await db.SaveChangesAsync();
-
-            _selectedGoal = null;
-            ResetGoalFormForCreate();
-
-            await LoadAsync();
-        }
-        finally
-        {
-            _busy = false;
-        }
-    }
-
-    private void CancelEdit()
-    {
-        _selectedGoal = null;
-        ResetGoalFormForCreate();
-        _goalFormError = null;
-    }
-
-    private void ResetGoalFormForCreate()
-    {
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        _goalForm = new GoalFormModel
-        {
-            Id = null,
-            Titre = "",
-            Description = null,
-            Debut = today,
-            Fin = today.AddDays(7),
-            ArticleId = null,
-            IsDone = false
-        };
-    }
-
-
-    // --- Calendrier (identique à votre logique MVC) ---
-    private static List<List<CalendarCell>> BuildCalendarRows(int year, int month, Dictionary<DateOnly, bool> coverageMap)
-    {
-        var rows = new List<List<CalendarCell>>();
-        var firstDay = new DateTime(year, month, 1);
-        int startCol = ((int)firstDay.DayOfWeek + 6) % 7; // Monday=0
-        int daysInMonth = DateTime.DaysInMonth(year, month);
-        int day = 1;
-
-        for (int r = 0; r < 6 && day <= daysInMonth; r++)
-        {
-            var row = new List<CalendarCell>(7);
-            for (int c = 0; c < 7; c++)
-            {
-                if (r == 0 && c < startCol || day > daysInMonth)
-                {
-                    row.Add(new CalendarCell { Date = null, CssClass = "bg-light" });
-                }
-                else
-                {
-                    var date = new DateOnly(year, month, day);
-                    string css;
-                    string style;
-
-                    if (coverageMap.TryGetValue(date, out var allDone))
-                    {
-                        css = allDone ? "bg-success text-white" : "bg-danger text-white";
-                        style = allDone ? "background-color:#198754;color:#fff;" : "background-color:#dc3545;color:#fff;";
-                    }
-                    else
-                    {
-                        css = "bg-light";
-                        style = "background-color:#f8f9fa;";
-                    }
-
-                    row.Add(new CalendarCell { Date = date, CssClass = css, Style = style });
-                    day++;
-                }
-            }
-            rows.Add(row);
-        }
-
-        return rows;
-    }
 
     private async Task LoadDueCountAsync()
     {
@@ -520,5 +203,4 @@
             _dueLoading = false;
         }
     }
-
 }

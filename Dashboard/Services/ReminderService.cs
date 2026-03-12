@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Dashboard.Services;
 
-public class GoalReminderService : BackgroundService
+public class ReminderService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
 
-    public GoalReminderService(IServiceProvider serviceProvider)
+    public ReminderService(IServiceProvider serviceProvider)
     {
         _serviceProvider = serviceProvider;
     }
@@ -64,12 +64,6 @@ public class GoalReminderService : BackgroundService
 
             var (periodStart, periodEnd) = ComputePeriodWindow(emailSettings, now);
 
-            var openGoals = emailSettings.IncludeGoals
-                ? await db.Goals
-                    .Where(goal => goal.Debut <= today && goal.Fin >= today && !goal.IsDone && goal.OwnerId == emailSettings.UserId)
-                    .OrderBy(goal => goal.Debut)
-                    .ToListAsync(ct)
-                : new List<Goal>();
 
             var newArticles = emailSettings.IncludeArticles
                 ? await db.Articles
@@ -90,7 +84,6 @@ public class GoalReminderService : BackgroundService
                 today,
                 periodStart,
                 periodEnd,
-                openGoals,
                 newArticles,
                 openTodos,
                 doneTodos,
@@ -169,7 +162,6 @@ public class GoalReminderService : BackgroundService
        DateOnly today,
        DateTime periodStart,
        DateTime periodEnd,
-       List<Goal> openGoals,
        List<ArticleInfo> newArticles,
        List<Todo> openTodos,
        List<Todo> doneTodos,
@@ -190,16 +182,6 @@ public class GoalReminderService : BackgroundService
         else
         {
             sb.Append("<p>Aucune question à revoir aujourd’hui.</p>");
-        }
-
-        if (openGoals.Count > 0)
-        {
-            sb.Append("<h3>Objectifs ouverts</h3><ul>");
-            foreach (var goal in openGoals)
-            {
-                sb.Append($"<li>{System.Net.WebUtility.HtmlEncode(goal.Titre)} ({goal.Debut:yyyy-MM-dd} → {goal.Fin:yyyy-MM-dd})</li>");
-            }
-            sb.Append("</ul>");
         }
 
         if (newArticles.Count > 0)
@@ -244,7 +226,7 @@ public class GoalReminderService : BackgroundService
             db.Logs.Add(new Log
             {
                 Level = level,
-                Source = nameof(GoalReminderService),
+                Source = nameof(ReminderService),
                 Event = evt,
                 Message = message,
                 TimestampUtc = DateTime.UtcNow

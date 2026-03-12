@@ -12,7 +12,6 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public BlogContext(DbContextOptions<BlogContext> opts) : base(opts) { }
 
     public DbSet<Article> Articles => Set<Article>();
-    public DbSet<Goal> Goals => Set<Goal>();
     public DbSet<Todo> Todos => Set<Todo>();
     public DbSet<Log> Logs => Set<Log>();
     public DbSet<AIChessLogs> AIChessLogs => Set<AIChessLogs>();
@@ -21,24 +20,12 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<QuestionTechnique> QuizQuestions => Set<QuestionTechnique>();
     public DbSet<LeitnerCard> LeitnerCards => Set<LeitnerCard>();
     public DbSet<LeitnerReview> LeitnerReviews => Set<LeitnerReview>();
-    public DbSet<Quantifier> Quantifiers => Set<Quantifier>();
-    public DbSet<QuantifierEntry> QuantifierEntries => Set<QuantifierEntry>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
 
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-
-        builder.Entity<Goal>(e =>
-        {
-            e.Property(g => g.OwnerId).HasMaxLength(450);
-            e.HasOne(g => g.Article)
-             .WithMany()
-             .HasForeignKey(g => g.ArticleId)
-             .OnDelete(DeleteBehavior.SetNull);
-            e.HasIndex(g => new { g.OwnerId, g.Debut, g.Fin });
-        });
 
         builder.Entity<Log>(e =>
         {
@@ -99,18 +86,6 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             .WithMany()
             .HasForeignKey(card => card.QuizQuestionId)
             .OnDelete(DeleteBehavior.Cascade);
-
-        builder.Entity<Quantifier>(e =>
-        {
-            e.Property(x => x.Name).HasMaxLength(100).IsRequired();
-            e.HasIndex(x => new { x.UserId, x.Name }).IsUnique(); // optionnel mais utile
-        });
-
-        builder.Entity<QuantifierEntry>(e =>
-        {
-            e.Property(x => x.Date).HasColumnType("date");
-            e.HasIndex(x => new { x.QuantifierId, x.Date }).IsUnique(); // 1 valeur par jour
-        });
 
         builder.Entity<MediaAsset>().HasIndex(x => x.CreatedUtc);
     }
