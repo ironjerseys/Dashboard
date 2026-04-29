@@ -20,13 +20,22 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Build & Push
+      - name: Build & Push dashboard
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dashboard/Dockerfile        
+          file: Dashboard/Dockerfile
           push: true
           tags: |
             joris81/dashboard:latest
-            joris81/dashboard:main
             joris81/dashboard:${{ github.sha }}
+
+      - name: Build & Push jobspy
+        uses: docker/build-push-action@v6
+        with:
+          context: ./jobspy-scraper
+          file: ./jobspy-scraper/Dockerfile
+          push: true
+          tags: |
+            joris81/jobspy:latest
+            joris81/jobspy:${{ github.sha }}
