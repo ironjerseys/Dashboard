@@ -31,5 +31,19 @@ services:
       - mssql-data:/var/opt/mssql
     restart: unless-stopped
 
+  jobspy:
+    build:
+      context: ./jobspy-scraper
+      dockerfile: Dockerfile
+    environment:
+      - MSSQL_SERVER=sql
+      - MSSQL_PORT=1433
+      - MSSQL_USER=sa
+      - MSSQL_PASSWORD=${SA_PASSWORD}
+      - MSSQL_DATABASE=DashboardDb
+    depends_on:
+      - sql
+    restart: unless-stopped
+
 volumes:
   mssql-data:
