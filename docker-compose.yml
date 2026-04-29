@@ -15,7 +15,7 @@ services:
     depends_on:
       - sql
     ports:
-      - "8080:8080"   # http://localhost:8080
+      - "8080:8080"
 
   sql:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -26,7 +26,7 @@ services:
       - MSSQL_PID=Developer
       -  MSSQL_AGENT_ENABLED=true
     ports:
-      - "1433:1433"   # pour SSMS (tu peux l’enlever en prod)
+      - "1433:1433"
     volumes:
       - mssql-data:/var/opt/mssql
     restart: unless-stopped

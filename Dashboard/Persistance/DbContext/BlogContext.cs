@@ -21,6 +21,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<LeitnerCard> LeitnerCards => Set<LeitnerCard>();
     public DbSet<LeitnerReview> LeitnerReviews => Set<LeitnerReview>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
+    public DbSet<JobPosting> JobPostings => Set<JobPosting>();
 
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -88,5 +89,27 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<MediaAsset>().HasIndex(x => x.CreatedUtc);
+
+        builder.Entity<JobPosting>(e =>
+        {
+            e.HasIndex(j => j.JobUrl).IsUnique();
+            e.HasIndex(j => j.ScrapedAt);
+            e.HasIndex(j => j.SearchRole);
+            e.HasIndex(j => j.SearchCity);
+            e.Property(j => j.Site).HasMaxLength(64);
+            e.Property(j => j.JobUrl).HasMaxLength(2048);
+            e.Property(j => j.JobUrlDirect).HasMaxLength(2048);
+            e.Property(j => j.Title).HasMaxLength(512);
+            e.Property(j => j.Company).HasMaxLength(256);
+            e.Property(j => j.Location).HasMaxLength(256);
+            e.Property(j => j.JobType).HasMaxLength(64);
+            e.Property(j => j.Interval).HasMaxLength(32);
+            e.Property(j => j.Currency).HasMaxLength(16);
+            e.Property(j => j.JobLevel).HasMaxLength(128);
+            e.Property(j => j.SearchRole).HasMaxLength(128);
+            e.Property(j => j.SearchCity).HasMaxLength(128);
+            e.Property(j => j.MinAmount).HasColumnType("decimal(18,2)");
+            e.Property(j => j.MaxAmount).HasColumnType("decimal(18,2)");
+        });
     }
 }

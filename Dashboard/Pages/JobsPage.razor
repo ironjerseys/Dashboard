@@ -1,0 +1,192 @@
+@page "/jobs"
+
+@attribute [Authorize(Roles = "Admin")]
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@using Dashboard.Services
+
+@inject IJobPostingService JobService
+@inject IJSRuntime JS
+
+@rendermode RenderMode.InteractiveServer
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Offres d'emploi</h1>
+        <button class="btn btn-outline-secondary btn-sm" @onclick="ReloadAsync" disabled="@_busy">
+            <i class="bi bi-arrow-clockwise"></i> Rafraîchir
+        </button>
+    </div>
+
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
+    else if (_busy)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Chargement des stats…</p>
+        </div>
+    }
+    else if (_stats is null || _stats.TotalCount == 0)
+    {
+        <div class="alert alert-info">
+            Aucune offre en base. Le scraper tourne tous les dimanches à 3h UTC.<br />
+            Pour lancer manuellement&nbsp;: <code>docker compose exec jobspy python /app/scrape_jobs.py</code>
+        </div>
+    }
+    else
+    {
+        <!-- KPI cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-2 fw-bold text-primary">@_stats.TotalCount.ToString("N0")</div>
+                        <div class="text-muted small">Offres totales</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-2 fw-bold text-success">@RemotePct%</div>
+                        <div class="text-muted small">Remote</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-2 fw-bold">@_stats.ByRole.Count</div>
+                        <div class="text-muted small">Rôles suivis</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="fs-5 fw-bold">@(_stats.LastScrapeAt?.ToString("dd/MM/yyyy") ?? "—")</div>
+                        <div class="text-muted small">Dernier scraping</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts row 1 -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header">Offres par rôle</div>
+                    <div class="card-body">
+                        <canvas id="roleChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header">Offres par ville</div>
+                    <div class="card-body">
+                        <canvas id="cityChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts row 2 -->
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-header">Répartition par site</div>
+                    <div class="card-body d-flex align-items-center justify-content-center">
+                        <canvas id="siteChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <div class="card h-100">
+                    <div class="card-header">Évolution (par run de scraping)</div>
+                    <div class="card-body">
+                        <canvas id="weekChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private bool _busy;
+    private string? _error;
+    private JobStats? _stats;
+    private bool _chartsDrawn;
+
+    private int RemotePct => _stats is { TotalCount: > 0 }
+        ? (int)Math.Round(_stats.RemoteCount * 100.0 / _stats.TotalCount)
+        : 0;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_stats is { TotalCount: > 0 } && !_chartsDrawn)
+        {
+            _chartsDrawn = true;
+            await DrawChartsAsync();
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        _busy = true;
+        _error = null;
+        _chartsDrawn = false;
+        StateHasChanged();
+
+        try
+        {
+            _stats = await JobService.GetStatsAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DrawChartsAsync()
+    {
+        if (_stats is null) return;
+
+        await JS.InvokeVoidAsync("JobCharts.bar",
+            "roleChart",
+            _stats.ByRole.Select(x => x.Label).ToArray(),
+            _stats.ByRole.Select(x => x.Count).ToArray(),
+            "Offres");
+
+        await JS.InvokeVoidAsync("JobCharts.bar",
+            "cityChart",
+            _stats.ByCity.Select(x => x.Label).ToArray(),
+            _stats.ByCity.Select(x => x.Count).ToArray(),
+            "Offres");
+
+        await JS.InvokeVoidAsync("JobCharts.doughnut",
+            "siteChart",
+            _stats.BySite.Select(x => x.Label).ToArray(),
+            _stats.BySite.Select(x => x.Count).ToArray());
+
+        await JS.InvokeVoidAsync("JobCharts.line",
+            "weekChart",
+            _stats.ByWeek.Select(x => x.Label).ToArray(),
+            _stats.ByWeek.Select(x => x.Count).ToArray(),
+            "Nouvelles offres");
+    }
+}
