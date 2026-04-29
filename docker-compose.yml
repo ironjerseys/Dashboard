@@ -15,7 +15,7 @@ services:
     depends_on:
       - sql
     ports:
-      - "8080:8080"   # http://localhost:8080
+      - "8080:8080"
 
   sql:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -26,9 +26,23 @@ services:
       - MSSQL_PID=Developer
       -  MSSQL_AGENT_ENABLED=true
     ports:
-      - "1433:1433"   # pour SSMS (tu peux l’enlever en prod)
+      - "1433:1433"
     volumes:
       - mssql-data:/var/opt/mssql
+    restart: unless-stopped
+
+  jobspy:
+    build:
+      context: ../JobSpy
+      dockerfile: Dockerfile
+    environment:
+      - MSSQL_SERVER=sql
+      - MSSQL_PORT=1433
+      - MSSQL_USER=sa
+      - MSSQL_PASSWORD=${SA_PASSWORD}
+      - MSSQL_DATABASE=DashboardDb
+    depends_on:
+      - sql
     restart: unless-stopped
 
 volumes:
