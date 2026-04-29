@@ -33,7 +33,7 @@ services:
 
   jobspy:
     build:
-      context: ../JobSpy
+      context: ./jobspy-scraper
       dockerfile: Dockerfile
     environment:
       - MSSQL_SERVER=sql

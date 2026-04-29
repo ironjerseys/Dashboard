@@ -1,0 +1,2 @@
+# Tous les dimanches à 3h UTC
+0 3 * * 0 python /app/scrape_jobs.py >> /proc/1/fd/1 2>&1
