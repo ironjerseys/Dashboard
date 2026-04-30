@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs -I {} basename {})",
+      "Bash(grep -E \"\\\\.razor$\")",
+      "Bash(dotnet ef *)",
+      "Bash(dotnet build *)"
+    ]
+  }
+}

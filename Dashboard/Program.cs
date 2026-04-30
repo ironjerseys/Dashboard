@@ -3,9 +3,7 @@ using Dashboard.DTO;
 using Dashboard.Models;
 using Dashboard.Persistance.DbContext;
 using Dashboard.Persistance.Entities;
-using Dashboard.Persistance.Entities;
 using Dashboard.Services;
-using Dashboard.Services.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -72,9 +70,6 @@ builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddScoped<IArticleService, ArticleService>();
 builder.Services.AddScoped<IDbQuizService, QuestionTechniqueService>();
-builder.Services.AddScoped<ITodoService, TodoService>();
-builder.Services.AddScoped<IAIChessLogService, AIChessLogService>();
-builder.Services.AddScoped<IEmailSettingsService, EmailSettingsService>();
 builder.Services.AddScoped<ILeitnerService, LeitnerService>();
 builder.Services.AddScoped<IMediaLibraryService, MediaLibraryService>();
 builder.Services.AddScoped<IJobPostingService, JobPostingService>();
@@ -180,66 +175,6 @@ app.MapControllers();
 
 app.MapRazorComponents<App>()
    .AddInteractiveServerRenderMode();
-
-// ======================
-// API: AIChessLogs ingest
-// ======================
-var aiChessLogsApi = app.MapGroup("/api/aichesslogs").AllowAnonymous();
-
-aiChessLogsApi.MapPost("", async (
-        AIChessLogCreateRequest request,
-        IAIChessLogService logService,
-        ILoggerFactory loggerFactory,
-        CancellationToken cancellationToken) =>
-{
-    var logger = loggerFactory.CreateLogger("AIChessLogsApi");
-
-    if (request is null)
-    {
-        return Results.BadRequest();
-    }
-
-    var entity = new AIChessLogs
-    {
-        TimestampUtc = DateTime.UtcNow,
-        Type = string.IsNullOrWhiteSpace(request.Type) ? "information" : request.Type.Trim(),
-
-        SearchDepth = request.SearchDepth,
-        DurationMs = request.DurationMs,
-        LegalMovesCount = request.LegalMovesCount,
-        EvaluatedMovesCount = request.EvaluatedMovesCount,
-
-        BestMoveUci = request.BestMoveUci,
-        BestScoreCp = request.BestScoreCp,
-
-        GeneratedMovesTotal = request.GeneratedMovesTotal,
-        NodesVisited = request.NodesVisited,
-        LeafEvaluations = request.LeafEvaluations,
-
-        EvaluatedMovesJson = request.EvaluatedMovesJson
-    };
-
-    try
-    {
-        int id = await logService.AddAsync(entity, cancellationToken);
-
-        logger.LogInformation(
-            "Stored AIChessLog Id={Id} Depth={Depth} DurMs={DurMs} Legal={Legal} Eval={Eval} Nodes={Nodes} Leaf={Leaf} Best={Best} Score={Score}",
-            id, entity.SearchDepth, entity.DurationMs, entity.LegalMovesCount, entity.EvaluatedMovesCount,
-            entity.NodesVisited, entity.LeafEvaluations, entity.BestMoveUci, entity.BestScoreCp);
-
-        return Results.Created($"/api/aichesslogs/{id}", new { id });
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "StoreFailed");
-        return Results.Problem("Erreur interne", statusCode: 500);
-    }
-})
-    .Accepts<AIChessLogCreateRequest>("application/json")
-    .Produces(StatusCodes.Status201Created)
-    .Produces(StatusCodes.Status400BadRequest)
-    .Produces(StatusCodes.Status500InternalServerError);
 
 app.MapGet("/", () => Results.Redirect("/cv"));
 

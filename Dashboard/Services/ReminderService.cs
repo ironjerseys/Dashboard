@@ -1,5 +1,6 @@
-﻿using Dashboard.Persistance.DbContext;
+using Dashboard.Persistance.DbContext;
 using Dashboard.Persistance.Entities;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Dashboard.Services;
@@ -7,6 +8,8 @@ namespace Dashboard.Services;
 public class ReminderService : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
+    private DateOnly _lastRunDate = DateOnly.MinValue;
+    private readonly HashSet<string> _sentToday = new();
 
     public ReminderService(IServiceProvider serviceProvider)
     {
@@ -15,98 +18,68 @@ public class ReminderService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await LogAsync("Info", "ServiceStart", "GoalReminderService démarré");
+        await LogAsync("Info", "ServiceStart", "ReminderService démarré");
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                // Wake up every minute to check schedules
                 await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
-                await ProcessSchedules(stoppingToken);
+
+                var now = DateTime.Now;
+                var today = DateOnly.FromDateTime(now);
+
+                if (today != _lastRunDate)
+                {
+                    _lastRunDate = today;
+                    _sentToday.Clear();
+                }
+
+                if (now.Hour == 18 && now.Minute == 0)
+                {
+                    await ProcessRemindersAsync(stoppingToken);
+                }
             }
             catch (TaskCanceledException) when (stoppingToken.IsCancellationRequested)
             {
-                await LogAsync("Info", "ServiceStopping", "GoalReminderService arrêt demandé");
+                await LogAsync("Info", "ServiceStopping", "ReminderService arrêt demandé");
             }
             catch (Exception ex)
             {
                 await LogAsync("Error", "LoopError", ex.ToString());
             }
         }
-        await LogAsync("Info", "ServiceStopped", "GoalReminderService arrêté");
+        await LogAsync("Info", "ServiceStopped", "ReminderService arrêté");
     }
 
-
-    private async Task ProcessSchedules(CancellationToken ct)
+    private async Task ProcessRemindersAsync(CancellationToken ct)
     {
         using var scope = _serviceProvider.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<BlogContext>();
-        var mail = scope.ServiceProvider.GetRequiredService<IEmailSender>();
-        var todoService = scope.ServiceProvider.GetRequiredService<ITodoService>();
-
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
         var leitnerService = scope.ServiceProvider.GetRequiredService<ILeitnerService>();
+        var mail = scope.ServiceProvider.GetRequiredService<IEmailSender>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-
-        var now = DateTime.Now;
-        var today = DateOnly.FromDateTime(now);
 
         var baseUrl = configuration["App:BaseUrl"];
         var reviewUrl = BuildAbsoluteUrl(baseUrl, "/review");
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var settings = await db.EmailSettings.Where(s => s.Enabled).ToListAsync(ct);
-
-        foreach (var emailSettings in settings)
+        var users = userManager.Users.ToList();
+        foreach (var user in users)
         {
-            if (!ShouldRun(emailSettings, now))
-            {
-                continue;
-            }
+            if (_sentToday.Contains(user.Id)) continue;
+            if (string.IsNullOrWhiteSpace(user.Email)) continue;
 
-            var (periodStart, periodEnd) = ComputePeriodWindow(emailSettings, now);
+            var dueCount = await leitnerService.GetDueCountAsync(user.Id, today, ct);
+            if (dueCount == 0) continue;
 
-
-            var newArticles = emailSettings.IncludeArticles
-                ? await db.Articles
-                    .Where(article => article.DateCreation >= periodStart && article.DateCreation <= periodEnd)
-                    .OrderByDescending(article => article.DateCreation)
-                    .Select(article => new ArticleInfo { Id = article.Id, Titre = article.Titre, DateCreation = article.DateCreation })
-                    .ToListAsync(ct)
-                : new List<ArticleInfo>();
-
-            var openTodos = emailSettings.IncludeTodos ? await todoService.GetOpenAsync() : new List<Todo>();
-            var doneTodos = emailSettings.IncludeTodos ? await todoService.GetDoneInPeriodAsync(periodStart, periodEnd) : new List<Todo>();
-
-            // --- Leitner : on ne met PAS les questions dans l'email, juste un lien + compteur ---
-            var utcNow = DateOnly.FromDateTime(DateTime.UtcNow);
-            var dueCount = await leitnerService.GetDueCountAsync(emailSettings.UserId, utcNow, ct);
-
-            var body = BuildEmailBody(
-                today,
-                periodStart,
-                periodEnd,
-                newArticles,
-                openTodos,
-                doneTodos,
-                dueCount,
-                reviewUrl
-            );
-
-            var subject = emailSettings.Frequency switch
-            {
-                EmailFrequency.Daily => $"Rappel quotidien - {today:yyyy-MM-dd}",
-                EmailFrequency.Weekly => $"Rappel hebdomadaire - Semaine du {periodStart:yyyy-MM-dd}",
-                EmailFrequency.Monthly => $"Rappel mensuel - {periodStart:yyyy-MM}",
-                _ => $"Rappel - {today:yyyy-MM-dd}"
-            };
+            var subject = $"Questions techniques du jour — {today:yyyy-MM-dd}";
+            var body = BuildEmailBody(dueCount, reviewUrl);
 
             try
             {
-                await mail.SendAsync(emailSettings.RecipientEmail, subject, body);
-                emailSettings.LastSentUtc = DateTime.UtcNow;
-                await db.SaveChangesAsync(ct);
-
-                await LogAsync("Info", "EmailSent",
-                    $"To={emailSettings.RecipientEmail}; DueQuestions={dueCount}; Window={periodStart:o}-{periodEnd:o}");
+                await mail.SendAsync(user.Email, subject, body);
+                _sentToday.Add(user.Id);
+                await LogAsync("Info", "EmailSent", $"To={user.Email}; DueQuestions={dueCount}");
             }
             catch (Exception ex)
             {
@@ -115,105 +88,17 @@ public class ReminderService : BackgroundService
         }
     }
 
-    private static bool ShouldRun(EmailSettings s, DateTime now)
-    {
-        // Run at specified hour/minute. Prevent duplicates: if LastSentUtc within last 55 minutes, skip.
-        if (now.Hour != s.Hour || now.Minute != s.Minute) return false;
-        if (s.LastSentUtc.HasValue && (DateTime.UtcNow - s.LastSentUtc.Value) < TimeSpan.FromMinutes(55)) return false;
-        return s.Frequency switch
-        {
-            EmailFrequency.Daily => true,
-            EmailFrequency.Weekly => s.DayOfWeek.HasValue && now.DayOfWeek == s.DayOfWeek.Value,
-            EmailFrequency.Monthly => s.DayOfMonth.HasValue && now.Day == s.DayOfMonth.Value,
-            _ => false
-        };
-    }
-
-    private static (DateTime start, DateTime end) ComputePeriodWindow(EmailSettings s, DateTime now)
-    {
-        return s.Frequency switch
-        {
-            EmailFrequency.Daily => (new DateTime(now.Year, now.Month, now.Day, 0, 0, 0), new DateTime(now.Year, now.Month, now.Day, 23, 59, 59)),
-            EmailFrequency.Weekly =>
-                (
-                    now.Date.AddDays(-(int)now.DayOfWeek).Date,
-                    now.Date.AddDays(6 - (int)now.DayOfWeek).Date.AddHours(23).AddMinutes(59).AddSeconds(59)
-                ),
-            EmailFrequency.Monthly =>
-                (
-                    new DateTime(now.Year, now.Month, 1),
-                    new DateTime(now.Year, now.Month, DateTime.DaysInMonth(now.Year, now.Month), 23, 59, 59)
-                ),
-            _ => (now, now)
-        };
-    }
-
     private static string BuildAbsoluteUrl(string? baseUrl, string path)
     {
-        if (string.IsNullOrWhiteSpace(baseUrl))
-        {
-            return path;
-        }
-
+        if (string.IsNullOrWhiteSpace(baseUrl)) return path;
         return baseUrl.TrimEnd('/') + "/" + path.TrimStart('/');
     }
 
-    private static string BuildEmailBody(
-       DateOnly today,
-       DateTime periodStart,
-       DateTime periodEnd,
-       List<ArticleInfo> newArticles,
-       List<Todo> openTodos,
-       List<Todo> doneTodos,
-       int leitnerDueCount,
-       string leitnerReviewUrl)
+    private static string BuildEmailBody(int dueCount, string reviewUrl)
     {
         var sb = new System.Text.StringBuilder();
-
-        sb.Append($"<p>Date: {today:yyyy-MM-dd}</p>");
-        sb.Append($"<p>Période: {periodStart:yyyy-MM-dd} → {periodEnd:yyyy-MM-dd}</p>");
-
-        sb.Append("<h3>Révision du jour</h3>");
-        if (leitnerDueCount > 0)
-        {
-            sb.Append($"<p><strong>{leitnerDueCount}</strong> question(s) à revoir. ");
-            sb.Append($"<a href=\"{System.Net.WebUtility.HtmlEncode(leitnerReviewUrl)}\">Ouvrir la session</a></p>");
-        }
-        else
-        {
-            sb.Append("<p>Aucune question à revoir aujourd’hui.</p>");
-        }
-
-        if (newArticles.Count > 0)
-        {
-            sb.Append("<h3>Articles créés durant la période</h3><ul>");
-            foreach (var article in newArticles)
-            {
-                sb.Append($"<li>{System.Net.WebUtility.HtmlEncode(article.Titre)} ({article.DateCreation:yyyy-MM-dd})</li>");
-            }
-            sb.Append("</ul>");
-        }
-
-        if (openTodos.Count > 0)
-        {
-            sb.Append("<h3>Todos ouvertes</h3><ul>");
-            foreach (var todo in openTodos)
-            {
-                sb.Append($"<li>{System.Net.WebUtility.HtmlEncode(todo.Description)}</li>");
-            }
-            sb.Append("</ul>");
-        }
-
-        if (doneTodos.Count > 0)
-        {
-            sb.Append("<h3>Todos terminées dans la période</h3><ul>");
-            foreach (var todo in doneTodos)
-            {
-                sb.Append($"<li>{System.Net.WebUtility.HtmlEncode(todo.Description)} (fait le {(todo.DoneAt ?? DateTime.UtcNow):yyyy-MM-dd})</li>");
-            }
-            sb.Append("</ul>");
-        }
-
+        sb.Append($"<p>Vous avez <strong>{dueCount}</strong> question(s) technique(s) à réviser aujourd'hui.</p>");
+        sb.Append($"<p><a href=\"{System.Net.WebUtility.HtmlEncode(reviewUrl)}\">Cliquez ici pour répondre aux questions</a></p>");
         return sb.ToString();
     }
 
@@ -235,11 +120,4 @@ public class ReminderService : BackgroundService
         }
         catch { }
     }
-}
-
-public class ArticleInfo
-{
-    public int Id { get; set; }
-    public string Titre { get; set; } = string.Empty;
-    public DateTime DateCreation { get; set; }
 }

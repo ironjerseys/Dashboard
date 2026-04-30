@@ -20,7 +20,8 @@ body {
 }
 
 .container {
-    max-width: 1100px
+    max-width: 1100px;
+    padding-inline: 1rem
 }
 
 a {
@@ -40,6 +41,13 @@ a {
         .navbar .nav-link:hover {
             color: var(--bs-primary) !important
         }
+
+/* Mobile : on réduit le padding du layout */
+@@media (max-width: 575.98px) {
+    .container { padding-inline: .75rem }
+    h1 { font-size: 1.6rem }
+    h2 { font-size: 1.3rem }
+}
 
 .btn {
     border-radius: 999px;

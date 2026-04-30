@@ -1,0 +1,766 @@
+@page "/quiz"
+@page "/review"
+@page "/quiz/questions"
+@page "/dashboard"
+
+@using System.Net
+@using System.Security.Claims
+@using System.Text.RegularExpressions
+@using Dashboard.Components.Quiz
+@using Dashboard.Components.Dashboard
+@using Dashboard.Persistance.Entities
+@using Dashboard.Persistance.Entities.Enums
+@using Dashboard.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+
+@inject IDbQuizService QuizService
+@inject IArticleService ArticleService
+@inject ILeitnerService LeitnerService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Questions Techniques</PageTitle>
+
+<div class="mt-2">
+
+    <h1 class="mb-4">Questions Techniques</h1>
+
+    <!-- Onglets -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <button class="btn @TabBtn("today")" @onclick='() => ActivateTabAsync("today")'>
+            Questions du jour@(_dueCount > 0 ? $" ({_dueCount})" : "")
+        </button>
+        <button class="btn @TabBtn("all")" @onclick='() => ActivateTabAsync("all")'>
+            Toutes les questions
+        </button>
+        @if (_isAdmin)
+        {
+            <button class="btn @TabBtn("manage")" @onclick='() => ActivateTabAsync("manage")'>
+                Gestion
+            </button>
+        }
+    </div>
+
+    <!-- ── Questions du jour ── -->
+    @if (_activeTab == "today")
+    {
+        if (!_isAuthenticated)
+        {
+            <div class="card p-4">
+                <p class="mb-3">Vous devez être connecté pour accéder aux révisions du jour.</p>
+                <a class="btn" href="/Account/Login?returnUrl=/quiz">Se connecter</a>
+            </div>
+        }
+        else if (_reviewLoading)
+        {
+            <div class="text-muted">Chargement…</div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_reviewError))
+        {
+            <div class="alert alert-danger">@_reviewError</div>
+        }
+        else if (_dueItems.Count == 0)
+        {
+            <div class="card p-4">
+                <h4 class="mb-1">Rien à réviser</h4>
+                <p class="text-muted mb-0">Aucune question n'est due aujourd'hui.</p>
+            </div>
+        }
+        else
+        {
+            var current = _dueItems[_reviewIndex];
+            var question = current.Question;
+
+            <div class="card p-4">
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                    <span class="text-muted small">
+                        Question @(_reviewIndex + 1) / @_dueItems.Count &mdash; Boîte @current.Box
+                    </span>
+                    <span class="text-muted small">
+                        Due : @current.NextDueDate.ToString("yyyy-MM-dd")
+                    </span>
+                </div>
+
+                <hr />
+
+                @RenderQuestionText(question.QuestionText)
+
+                <InputRadioGroup TValue="int?" @bind-Value="_reviewSelectedChoice" Name="review-choice">
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        var choiceText = GetChoiceText(question, i);
+                        <div class="form-check mb-2">
+                            <InputRadio TValue="int?"
+                                        class="form-check-input"
+                                        Value="@i"
+                                        disabled="@(_reviewBusy || _reviewShowResult)" />
+                            <label class="form-check-label">@choiceText</label>
+                        </div>
+                    }
+                </InputRadioGroup>
+
+                @if (_reviewShowResult)
+                {
+                    <div class="mt-3">
+                        @if (_reviewIsCorrect)
+                        {
+                            <div class="alert alert-success mb-2">Bonne réponse.</div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-danger mb-2">
+                                Mauvaise réponse. La bonne réponse était :
+                                <strong>@GetChoiceText(question, question.CorrectAnswer)</strong>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(question.Explanation))
+                        {
+                            <div class="card p-3 mt-2">
+                                <div class="fw-bold mb-1">Explication</div>
+                                @if (LooksLikeHtml(question.Explanation))
+                                {
+                                    <div class="quiz-html">@((MarkupString)(question.Explanation ?? string.Empty))</div>
+                                }
+                                else
+                                {
+                                    <div>@question.Explanation</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                <div class="d-flex gap-2 mt-4">
+                    @if (!_reviewShowResult)
+                    {
+                        <button class="btn" disabled="@_reviewBusy" @onclick="SubmitReviewAnswerAsync">
+                            Valider
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn" disabled="@_reviewBusy" @onclick="NextReviewAsync">
+                            Suivant
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    }
+
+    <!-- ── Toutes les questions ── -->
+    @if (_activeTab == "all")
+    {
+        <div class="card p-3">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <h4 class="m-0">Quiz</h4>
+                <span class="text-muted small">Score : @_quizScore / @_allQuestions.Count</span>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(_quizError))
+            {
+                <div class="alert alert-danger">@_quizError</div>
+            }
+
+            @if (_quizLoading)
+            {
+                <div class="text-muted">Chargement…</div>
+            }
+            else if (_allQuestions.Count == 0)
+            {
+                <div class="alert alert-warning mb-0">Aucune question.</div>
+            }
+            else if (_quizIndex >= _allQuestions.Count)
+            {
+                <h5>Quiz terminé</h5>
+                <p>Votre score : <strong>@_quizScore</strong> / <strong>@_allQuestions.Count</strong></p>
+                <button type="button" class="btn" @onclick="RestartQuiz">Recommencer</button>
+            }
+            else
+            {
+                var q = _allQuestions[_quizIndex];
+                var qHtml = q.QuestionText ?? "";
+                var qPlain = ToPlainText(qHtml);
+
+                <h6 class="mb-2">Question @(_quizIndex + 1) sur @_allQuestions.Count</h6>
+
+                @if (HasCodeFence(qPlain))
+                {
+                    <pre class="mb-3 p-3" style="background:rgba(0,0,0,.06);border:1px solid rgba(0,0,0,.10);border-radius:12px;overflow:auto;"><code>@ExtractCode(qPlain)</code></pre>
+                }
+                else if (LooksLikeHtml(qHtml))
+                {
+                    <div class="mb-3 quiz-html">@((MarkupString)qHtml)</div>
+                }
+                else
+                {
+                    <p class="mb-3">@qHtml</p>
+                }
+
+                @if (!_quizShowResult)
+                {
+                    <InputRadioGroup @bind-Value="_quizSelectedChoice">
+                        @for (int i = 0; i < 4; i++)
+                        {
+                            var idx = i;
+                            <div class="form-check mb-2">
+                                <InputRadio class="form-check-input" id="@($"q{q.Id}_c{idx}")" Value="@idx" />
+                                <label class="form-check-label" for="@($"q{q.Id}_c{idx}")">
+                                    @GetChoiceText(q, idx)
+                                </label>
+                            </div>
+                        }
+                    </InputRadioGroup>
+
+                    <button type="button" class="btn mt-3" @onclick="ValidateQuizAnswer">
+                        Valider
+                    </button>
+                }
+                else
+                {
+                    @if (_quizIsCorrect)
+                    {
+                        <p class="text-success fw-semibold">Bonne réponse !</p>
+                    }
+                    else
+                    {
+                        <p class="text-danger fw-semibold">
+                            Mauvaise réponse. La bonne réponse était : @GetChoiceText(q, q.CorrectAnswer)
+                        </p>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(q.Explanation))
+                    {
+                        <div class="mt-2">
+                            <strong>Explication :</strong>
+                            @if (LooksLikeHtml(q.Explanation))
+                            {
+                                <div class="mt-1 quiz-html">@((MarkupString)q.Explanation)</div>
+                            }
+                            else
+                            {
+                                <div class="mt-1">@q.Explanation</div>
+                            }
+                        </div>
+                    }
+
+                    <button type="button" class="btn mt-3" @onclick="NextQuizQuestion">
+                        Suivant
+                    </button>
+                }
+            }
+        </div>
+    }
+
+    <!-- ── Gestion (Admin) ── -->
+    @if (_activeTab == "manage")
+    {
+        if (!_isAdmin)
+        {
+            <div class="alert alert-warning">Accès réservé aux administrateurs.</div>
+        }
+        else
+        {
+            <div>
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <span class="text-muted">@_manageQuestions.Count question(s)</span>
+                    <button class="btn" @onclick="OpenCreateModal" disabled="@_manageBusy">
+                        + Nouvelle question
+                    </button>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(_manageError))
+                {
+                    <div class="alert alert-danger">@_manageError</div>
+                }
+
+                @if (_manageBusy && _manageQuestions.Count == 0)
+                {
+                    <div class="text-muted">Chargement…</div>
+                }
+
+                @foreach (var question in _manageQuestions)
+                {
+                    <div class="card p-3 mb-3">
+                        <div class="d-flex justify-content-between gap-3 flex-wrap">
+                            <div class="flex-grow-1 min-w-0">
+                                <div class="fw-semibold mb-2">
+                                    @RenderQuestionText(question.QuestionText)
+                                </div>
+
+                                <ol class="mb-2 ps-3">
+                                    @for (int ci = 0; ci < 4; ci++)
+                                    {
+                                        var isCorrect = question.CorrectAnswer == ci;
+                                        <li class="@(isCorrect ? "text-success fw-semibold" : "")">
+                                            @RenderInlineHtmlOrText(GetChoiceText(question, ci))
+                                        </li>
+                                    }
+                                </ol>
+
+                                @if (!string.IsNullOrWhiteSpace(question.Explanation))
+                                {
+                                    <div class="mt-2">
+                                        <div class="text-muted small fw-semibold mb-1">Explication</div>
+                                        @if (LooksLikeHtml(question.Explanation))
+                                        {
+                                            <div class="quiz-html">@((MarkupString)(question.Explanation ?? string.Empty))</div>
+                                        }
+                                        else
+                                        {
+                                            <div class="text-muted">@question.Explanation</div>
+                                        }
+                                    </div>
+                                }
+
+                                <div class="small text-muted mt-2">
+                                    Bonne réponse : <strong>@(question.CorrectAnswer + 1)</strong>
+                                    @if (question.ArticleId.HasValue)
+                                    {
+                                        <span class="mx-2">&bull;</span>
+                                        <span>@(question.Article?.Titre ?? $"Article #{question.ArticleId}")</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="d-flex gap-2 align-items-start flex-shrink-0">
+                                <button class="btn" title="Modifier"
+                                        @onclick="() => OpenEditModal(question)"
+                                        disabled="@_manageBusy">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn" title="Supprimer"
+                                        @onclick="() => AskDelete(question)"
+                                        disabled="@_manageBusy">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <QuizQuestionEditorModal IsOpen="_editorOpen"
+                                     IsOpenChanged="OnEditorOpenChanged"
+                                     Title="@_editorTitle"
+                                     SubmitLabel="@_editorSubmitLabel"
+                                     Busy="_manageBusy"
+                                     Error="_editorError"
+                                     Model="_editorModel"
+                                     Articles="_articles"
+                                     OnSubmit="SaveQuestionAsync" />
+
+            <ConfirmModal IsOpen="_deleteConfirmOpen"
+                          IsOpenChanged="OnDeleteConfirmOpenChanged"
+                          Title="Supprimer la question"
+                          Message="@_deleteMessage"
+                          ConfirmLabel="Supprimer"
+                          Busy="_manageBusy"
+                          OnConfirm="DeleteConfirmedAsync" />
+        }
+    }
+</div>
+
+<style>
+    .quiz-html p { margin-bottom: .5rem; }
+    .quiz-html pre {
+        background: rgba(0,0,0,.06);
+        border: 1px solid rgba(0,0,0,.10);
+        border-radius: 12px;
+        padding: 12px;
+        overflow: auto;
+    }
+    .btn-tab-inactive {
+        background: transparent !important;
+        color: var(--bs-body-color) !important;
+        border: 1.5px solid var(--bs-border-color) !important;
+    }
+    .btn-tab-inactive:hover {
+        background: rgba(0,0,0,.04) !important;
+    }
+    .min-w-0 { min-width: 0; }
+</style>
+
+@code {
+    // ── Auth ──
+    private bool _isAuthenticated;
+    private bool _isAdmin;
+    private string _userId = string.Empty;
+
+    // ── Tab ──
+    private string _activeTab = "today";
+
+    // ── "today" (Leitner) ──
+    private bool _reviewLoading;
+    private string? _reviewError;
+    private List<LeitnerDueItem> _dueItems = new();
+    private int _reviewIndex;
+    private int? _reviewSelectedChoice;
+    private bool _reviewShowResult;
+    private bool _reviewIsCorrect;
+    private bool _reviewBusy;
+    private int _dueCount;
+    private bool _reviewTabLoaded;
+
+    // ── "all" (Quiz) ──
+    private bool _quizLoading;
+    private string? _quizError;
+    private List<QuestionTechnique> _allQuestions = new();
+    private int _quizIndex;
+    private int _quizScore;
+    private bool _quizShowResult;
+    private bool _quizIsCorrect;
+    private int? _quizSelectedChoice;
+    private bool _quizTabLoaded;
+
+    // ── "manage" ──
+    private bool _manageBusy;
+    private string? _manageError;
+    private List<QuestionTechnique> _manageQuestions = new();
+    private List<Article> _articles = new();
+    private bool _editorOpen;
+    private string _editorTitle = "Nouvelle question";
+    private string _editorSubmitLabel = "Créer";
+    private string? _editorError;
+    private QuestionTechnique _editorModel = new();
+    private bool _isEditMode;
+    private bool _deleteConfirmOpen;
+    private int _deleteQuestionId;
+    private string _deleteMessage = "";
+    private bool _manageTabLoaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAuthenticated = user.Identity?.IsAuthenticated ?? false;
+        _isAdmin = user.IsInRole("Admin");
+        _userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        var uri = NavigationManager.Uri;
+        if (uri.Contains("/quiz/questions", StringComparison.OrdinalIgnoreCase))
+            _activeTab = _isAdmin ? "manage" : "today";
+        else
+            _activeTab = "today";
+
+        await LoadDueCountAsync();
+        await LoadTabDataAsync(_activeTab);
+    }
+
+    private async Task ActivateTabAsync(string tab)
+    {
+        _activeTab = tab;
+        await LoadTabDataAsync(tab);
+    }
+
+    private async Task LoadTabDataAsync(string tab)
+    {
+        if (tab == "today" && !_reviewTabLoaded)
+            await LoadReviewAsync();
+        else if (tab == "all" && !_quizTabLoaded)
+            await LoadQuizAsync();
+        else if (tab == "manage" && !_manageTabLoaded && _isAdmin)
+            await LoadManageAsync();
+    }
+
+    private async Task LoadDueCountAsync()
+    {
+        if (!_isAuthenticated || string.IsNullOrWhiteSpace(_userId)) return;
+        try
+        {
+            _dueCount = await LeitnerService.GetDueCountAsync(_userId, DateOnly.FromDateTime(DateTime.UtcNow));
+        }
+        catch { _dueCount = 0; }
+    }
+
+    // ── "today" ──
+    private async Task LoadReviewAsync()
+    {
+        if (!_isAuthenticated) return;
+        _reviewLoading = true;
+        _reviewError = null;
+        try
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            await LeitnerService.SyncMissingCardsAsync(_userId);
+            var due = await LeitnerService.GetDueAsync(_userId, today, take: 50);
+            _dueItems = due.ToList();
+            _reviewIndex = 0;
+            _reviewSelectedChoice = null;
+            _reviewShowResult = false;
+            _reviewIsCorrect = false;
+            _dueCount = _dueItems.Count;
+            _reviewTabLoaded = true;
+        }
+        catch (Exception ex) { _reviewError = ex.Message; }
+        finally { _reviewLoading = false; }
+    }
+
+    private async Task SubmitReviewAnswerAsync()
+    {
+        if (_reviewSelectedChoice is null) { _reviewError = "Sélectionne une réponse."; return; }
+        try
+        {
+            _reviewError = null;
+            _reviewBusy = true;
+            var current = _dueItems[_reviewIndex];
+            _reviewIsCorrect = (_reviewSelectedChoice.Value == current.Question.CorrectAnswer);
+            _reviewShowResult = true;
+            await LeitnerService.RecordReviewAsync(_userId, current.CardId, _reviewIsCorrect, DateOnly.FromDateTime(DateTime.UtcNow));
+        }
+        catch (Exception ex) { _reviewError = ex.Message; }
+        finally { _reviewBusy = false; }
+    }
+
+    private async Task NextReviewAsync()
+    {
+        _dueItems.RemoveAt(_reviewIndex);
+        _reviewSelectedChoice = null;
+        _reviewShowResult = false;
+        _reviewIsCorrect = false;
+        if (_dueItems.Count == 0) { await LoadReviewAsync(); return; }
+        if (_reviewIndex >= _dueItems.Count) _reviewIndex = 0;
+        _dueCount = _dueItems.Count;
+    }
+
+    // ── "all" ──
+    private async Task LoadQuizAsync()
+    {
+        _quizLoading = true;
+        _quizError = null;
+        try
+        {
+            _allQuestions = await QuizService.GetQuestionsAsync();
+            RestartQuiz();
+            _quizTabLoaded = true;
+        }
+        catch (Exception ex) { _quizError = ex.Message; }
+        finally { _quizLoading = false; }
+    }
+
+    private void ValidateQuizAnswer()
+    {
+        if (!_quizSelectedChoice.HasValue) { _quizError = "Choisissez une réponse."; return; }
+        var q = _allQuestions[_quizIndex];
+        _quizIsCorrect = (_quizSelectedChoice.Value == q.CorrectAnswer);
+        if (_quizIsCorrect) _quizScore++;
+        _quizShowResult = true;
+        _quizError = null;
+    }
+
+    private void NextQuizQuestion()
+    {
+        _quizIndex++;
+        _quizShowResult = false;
+        _quizIsCorrect = false;
+        _quizSelectedChoice = null;
+    }
+
+    private void RestartQuiz()
+    {
+        _quizIndex = 0;
+        _quizScore = 0;
+        _quizShowResult = false;
+        _quizIsCorrect = false;
+        _quizSelectedChoice = null;
+    }
+
+    // ── "manage" ──
+    private async Task LoadManageAsync()
+    {
+        _manageBusy = true;
+        _manageError = null;
+        try
+        {
+            _manageQuestions = await QuizService.GetQuestionsAsync();
+            _articles = (await ArticleService.GetArticlesAsync(sort: ArticleSort.DateNewest)).ToList();
+            _manageTabLoaded = true;
+        }
+        catch (Exception ex) { _manageError = ex.Message; }
+        finally { _manageBusy = false; }
+    }
+
+    private void OpenCreateModal()
+    {
+        _isEditMode = false;
+        _editorTitle = "Nouvelle question";
+        _editorSubmitLabel = "Créer";
+        _editorError = null;
+        _editorModel = new QuestionTechnique { CorrectAnswer = 0 };
+        _editorOpen = true;
+    }
+
+    private void OpenEditModal(QuestionTechnique question)
+    {
+        _isEditMode = true;
+        _editorTitle = "Modifier la question";
+        _editorSubmitLabel = "Enregistrer";
+        _editorError = null;
+        _editorModel = new QuestionTechnique
+        {
+            Id = question.Id,
+            QuestionText = question.QuestionText,
+            Choice0 = question.Choice0,
+            Choice1 = question.Choice1,
+            Choice2 = question.Choice2,
+            Choice3 = question.Choice3,
+            CorrectAnswer = question.CorrectAnswer,
+            Explanation = question.Explanation,
+            ArticleId = question.ArticleId
+        };
+        _editorOpen = true;
+    }
+
+    private Task OnEditorOpenChanged(bool open) { _editorOpen = open; return Task.CompletedTask; }
+
+    private async Task SaveQuestionAsync(QuestionTechnique model)
+    {
+        _editorError = null;
+        try
+        {
+            _manageBusy = true;
+            if (_isEditMode)
+            {
+                bool ok = await QuizService.UpdateAsync(model);
+                if (!ok) { _editorError = "Question introuvable."; return; }
+            }
+            else
+            {
+                await QuizService.CreateAsync(model);
+            }
+            _editorOpen = false;
+            _manageTabLoaded = false;
+            await LoadManageAsync();
+        }
+        catch (Exception ex) { _editorError = ex.Message; }
+        finally { _manageBusy = false; }
+    }
+
+    private void AskDelete(QuestionTechnique question)
+    {
+        _deleteQuestionId = question.Id;
+        _deleteMessage = $"Supprimer cette question ?\n\n\"{MakePreview(question.QuestionText, 90)}\"\n\nCette action est définitive.";
+        _deleteConfirmOpen = true;
+    }
+
+    private Task OnDeleteConfirmOpenChanged(bool open) { _deleteConfirmOpen = open; return Task.CompletedTask; }
+
+    private async Task DeleteConfirmedAsync()
+    {
+        try
+        {
+            _manageBusy = true;
+            await QuizService.DeleteAsync(_deleteQuestionId);
+            _deleteConfirmOpen = false;
+            _manageTabLoaded = false;
+            await LoadManageAsync();
+        }
+        catch (Exception ex) { _manageError = ex.Message; }
+        finally { _manageBusy = false; }
+    }
+
+    // ── Helpers partagés ──
+    private string TabBtn(string tab) => _activeTab == tab ? "" : "btn-tab-inactive";
+
+    private static string GetChoiceText(QuestionTechnique q, int i) => i switch
+    {
+        0 => q.Choice0,
+        1 => q.Choice1,
+        2 => q.Choice2,
+        3 => q.Choice3,
+        _ => string.Empty
+    };
+
+    private static bool LooksLikeHtml(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return false;
+        return s.Contains("<p", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<br", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<div", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<span", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<pre", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<code", StringComparison.OrdinalIgnoreCase)
+            || s.Contains("<img", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ToPlainText(string? html)
+    {
+        if (string.IsNullOrWhiteSpace(html)) return string.Empty;
+        var s = html
+            .Replace("<br>", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("<br/>", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("<br />", "\n", StringComparison.OrdinalIgnoreCase)
+            .Replace("</p>", "\n", StringComparison.OrdinalIgnoreCase);
+        return Regex.Replace(s, "<.*?>", string.Empty);
+    }
+
+    private static bool HasCodeFence(string? text)
+        => !string.IsNullOrEmpty(text) && text.Contains("```", StringComparison.Ordinal);
+
+    private static string ExtractCode(string? text)
+    {
+        text ??= string.Empty;
+        int start = text.IndexOf("```", StringComparison.Ordinal);
+        int end = text.LastIndexOf("```", StringComparison.Ordinal);
+        return start >= 0 && end > start
+            ? text.Substring(start + 3, end - start - 3).Trim()
+            : text.Trim();
+    }
+
+    private RenderFragment RenderQuestionText(string? text) => builder =>
+    {
+        string html = text ?? string.Empty;
+        string plain = ToPlainText(html);
+        if (HasCodeFence(plain))
+        {
+            builder.OpenElement(0, "pre");
+            builder.AddAttribute(1, "class", "mb-3 p-3");
+            builder.AddAttribute(2, "style", "background:rgba(0,0,0,.06);border:1px solid rgba(0,0,0,.10);border-radius:12px;overflow:auto;");
+            builder.OpenElement(3, "code");
+            builder.AddContent(4, ExtractCode(plain));
+            builder.CloseElement();
+            builder.CloseElement();
+            return;
+        }
+        if (LooksLikeHtml(html))
+        {
+            builder.OpenElement(10, "div");
+            builder.AddAttribute(11, "class", "mb-3 quiz-html");
+            builder.AddMarkupContent(12, html);
+            builder.CloseElement();
+            return;
+        }
+        builder.OpenElement(20, "p");
+        builder.AddAttribute(21, "class", "mb-3");
+        builder.AddContent(22, html);
+        builder.CloseElement();
+    };
+
+    private RenderFragment RenderInlineHtmlOrText(string? value) => builder =>
+    {
+        string html = value ?? string.Empty;
+        if (LooksLikeHtml(html))
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "quiz-html");
+            builder.AddMarkupContent(2, html);
+            builder.CloseElement();
+        }
+        else
+        {
+            builder.AddContent(10, html);
+        }
+    };
+
+    private static string MakePreview(string? text, int maxChars)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return "";
+        string n = ToPlainText(text).Replace("\r", " ").Replace("\n", " ").Trim();
+        return n.Length <= maxChars ? n : n[..maxChars].TrimEnd() + "…";
+    }
+}

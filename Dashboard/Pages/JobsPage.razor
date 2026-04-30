@@ -1,8 +1,5 @@
-@page "/jobs"
+@page "/job-data"
 
-@attribute [Authorize(Roles = "Admin")]
-
-@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 @using Dashboard.Services
@@ -15,7 +12,7 @@
 <div class="container mt-4">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="mb-0">Offres d'emploi</h1>
+        <h1 class="mb-0">Job Data</h1>
         <button class="btn btn-outline-secondary btn-sm" @onclick="ReloadAsync" disabled="@_busy">
             <i class="bi bi-arrow-clockwise"></i> Rafraîchir
         </button>
