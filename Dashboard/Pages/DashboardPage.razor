@@ -1,24 +1,13 @@
-﻿@page "/dashboard"
+@page "/dashboard"
 
 @using System.Security.Claims
-@using Dashboard.Persistance.DbContext
 @using Dashboard.Persistance.Entities
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
-@using Microsoft.EntityFrameworkCore
-@using Microsoft.JSInterop
-@using global::Dashboard.Components
-@using global::Dashboard.Components.Dashboard
-@using global::Dashboard.Models
 @using global::Dashboard.Services
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
-@inject ITodoService TodoService
-@inject IArticleService ArticleService
-@inject IDbContextFactory<BlogContext> DbFactory
-@inject IJSRuntime JS
 @inject ILeitnerService LeitnerService
 
 @attribute [Authorize]
@@ -35,7 +24,6 @@
     }
 
     <div class="row g-4">
-        <!-- Colonne gauche -->
         <div class="col-lg-8 d-flex flex-column gap-4">
 
             <div class="card p-3 mt-0">
@@ -44,7 +32,6 @@
                         <h3 class="mb-1">Questions techniques du jour</h3>
                     </div>
                     <div class="text-md-end">
-
                         @if (_dueLoading)
                         {
                             <div class="text-muted">Chargement…</div>
@@ -55,11 +42,11 @@
                         }
                         else if (_dueCount == 0)
                         {
-                            <div class="text-muted">Aucune question à réviser aujourd’hui.</div>
+                            <div class="text-muted">Aucune question à réviser aujourd'hui.</div>
                         }
                         else
                         {
-                            <div class="fw-semibold">@_dueCount question(s) à réviser aujourd’hui.</div>
+                            <div class="fw-semibold">@_dueCount question(s) à réviser aujourd'hui.</div>
                         }
                     </div>
                 </div>
@@ -68,76 +55,35 @@
                         Questions techniques
                     </a>
                 </div>
-
             </div>
 
             <div class="card p-3">
                 <h3 class="mb-3">Autre</h3>
                 <div class="d-flex flex-wrap gap-2">
-
                     <a class="btn btn-primary" href="/quiz/questions">
                         Admin questions
                     </a>
-
-                    <a class="btn btn-primary" href="/aichesslogs">
-                        Logs ChessMultitool
-                    </a>
-                    <button class="btn btn-primary" @onclick="() => _emailSettingsOpen = true">
-                        Paramètres emails
-                    </button>
-
                 </div>
             </div>
 
         </div>
-
-        <!-- Colonne droite: Todos -->
-        <div class="col-lg-4">
-            <TodoPanel />
-
-            
-
-        </div>
-
     </div>
 </div>
-
-<EmailSettingsModal @bind-IsOpen="_emailSettingsOpen" />
-
-
 
 @code {
     [CascadingParameter] private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
 
-    private bool _busy;
     private string? _error;
     private string _userId = "";
-    private int _year;
-    private int _month;
-    private string _monthTitle = "";
-    private Dictionary<DateOnly, bool> _coverageMap = new();
-    private List<Article> _articles = new();
-    private bool _emailSettingsOpen;
     private bool _dueLoading = true;
     private string? _dueError;
     private int _dueCount = 0;
-    private bool _objectifsOpen;
-
 
     protected override async Task OnInitializedAsync()
     {
-
         await EnsureUserIdAsync();
-
-        var now = DateTime.Now;
-        _year = now.Year;
-        _month = now.Month;
-
-        await LoadAsync();
         await LoadDueCountAsync();
     }
-
-
 
     private async Task EnsureUserIdAsync()
     {
@@ -146,34 +92,6 @@
         if (string.IsNullOrWhiteSpace(_userId))
             _error = "Utilisateur non identifié.";
     }
-
-    private async Task LoadAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_userId))
-            return;
-
-        _busy = true;
-        _error = null;
-
-        try
-        {
-            _monthTitle = new DateTime(_year, _month, 1).ToString("MMMM yyyy");
-
-            // Articles (pour le select)
-            _articles = (await ArticleService.GetArticlesAsync()).ToList();
-
-        }
-        catch (Exception ex)
-        {
-            _error = ex.Message;
-        }
-        finally
-        {
-            _busy = false;
-        }
-    }
-
-
 
     private async Task LoadDueCountAsync()
     {
@@ -185,12 +103,9 @@
             _dueError = null;
             _dueLoading = true;
 
-            // Même logique que /review
             DateOnly todayUtc = DateOnly.FromDateTime(DateTime.UtcNow);
-
             await LeitnerService.SyncMissingCardsAsync(_userId);
             IReadOnlyList<LeitnerDueItem> due = await LeitnerService.GetDueAsync(_userId, todayUtc, take: 50);
-
             _dueCount = due.Count;
         }
         catch (Exception ex)
