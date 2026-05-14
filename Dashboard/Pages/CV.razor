@@ -4,14 +4,12 @@
 @using Microsoft.AspNetCore.Components.Web
 @using global::Dashboard.Models
 
+@inherits LocalizedComponentBase
 @inject IJSRuntime JS
+
 @rendermode RenderMode.InteractiveServer
 
-<style>
-
-</style>
-
-<div class="container my-5">
+<div class="container my-3 my-md-5">
     @{
         var index = 0;
     }
@@ -21,7 +19,6 @@
         <article class="exp-item afficher py-4" data-index="@index">
             <div class="d-flex gap-3 align-items-start">
 
-                @* Logo à gauche (optionnel) *@
                 @if (!string.IsNullOrWhiteSpace(exp.LogoUrl))
                 {
                     <img class="exp-logo"
@@ -37,7 +34,7 @@
                             <div class="exp-meta">
                                 <span class="exp-company">@exp.Entreprise</span>
                                 <span class="exp-sep">•</span>
-                                <span class="exp-period">Période : @exp.Periode</span>
+                                <span class="exp-period">@Language.Translate("Période :", "Period:") @exp.Periode</span>
                             </div>
                         </div>
                     </header>
@@ -63,92 +60,91 @@
     }
 </div>
 
-
-
 @code {
-    // Mets ici ta liste (copie-colle depuis ton HomeController.CV() si elle est en dur)
-    private static readonly List<Experience> Experiences = new()
+    private IReadOnlyList<Experience> Experiences => new List<Experience>
     {
-         new Experience
-                {
-                    Titre = "Développeur .NET",
-                    LogoEntreprise = string.Empty,
-                    Entreprise = "Adentis / Crédit Agricole",
-                    Periode = "Mars 2024 - Maintenant",
-                    Description = "<p>J'ai travaillé comme développeur .NET pour le Crédit Agricole dans le cadre d'une refonte d'un grand nombre d'applications à réécrire en C# .NET 8.0</p>",
-                    Technos = new List<string>{ "C#", ".NET Core", "ASP.NET", "GitLab", "CI/CD", "SQL Server" },
-                    LogoUrl = "/images/logos/Crédit_Agricole.svg"
-                },
-                new Experience
-                {
-                    Titre = "Développeur .NET",
-                    LogoEntreprise = string.Empty,
-                    Entreprise = "Alten / Doxallia Groupe Crédit Agricole",
-                    Periode = "Octobre 2024 - Février 2024",
-                    Description = "<p>J'ai travaillé comme développeur .NET à la Direction des Systèmes d'Information pour Doxallia, filiale du Crédit Agricole, principalement sur une API C# .NET 8.0 avec une importante partie DevOps.</p><p>Pour la mise en production de l'API j'ai installé et configuré les serveurs IIS et créé la pipeline CI/CD Azure Devops Server. J'ai aussi participé à la sécurisation du SI, notamment dans le développement et la gestion des flux entre les serveurs de la plateforme sur laquelle je travaillais. Mon travail consistait aussi à maintenir les serveurs applicatifs et serveurs de bases de données de ma plateforme</p>",
-                    Technos = new List<string>{ "C#", ".NET Core", "Azure DevOps", "CI/CD", "SQL Server" },
-                    LogoUrl = "/images/logos/doxallia.jpg"
-                },
-                new Experience
-                {
-                    Titre = "Développeur .NET",
-                    LogoEntreprise = string.Empty,
-                    Entreprise = "BPCE-IT",
-                    Periode = "Septembre 2022 - Aout 2024",
-                    Description = "<p>J'ai travaillé en alternance chez BPCE-IT sur la refonte d’un logiciel pour le helpdesk, de .NET Framework 4.8 vers .NET Core 6.0 et la création d'une nouvelle architecture.</p><p>Le helpdesk BPCE-IT utilise ce logiciel pour effectuer des diagnostics, modifier les parametres de la machine distante, ouvrir un ticket avec des informations préremplies ou prendre la main à distance, et a besoin d'un logiciel à la fois fiable et rapide.</p><p>La codebase était ancienne avec beaucoup de code legacy, le logiciel était en .NET Framework 4.8 et était très buggé. J'ai développé la nouvelle version en .NET Core 6.0. J'ai aussi développé une API RESTful pour s'interfacer avec les bases de données suite à la fermeture des flux, liée à la sécurisation du SI.</p>",
-                    Technos = new List<string>{ "C#", ".NET Core", "SQL Server" },
-                    LogoUrl = "/images/logos/bpce.png"
-                },
-                new Experience
-                {
-                    Titre = "Master Développement Logiciel",
-                    LogoEntreprise = string.Empty,
-                    Entreprise = "IPI Groupe IGS",
-                    Periode = "Septembre 2022 - Aout 2024",
-                    Description = string.Empty,
-                    Technos = new List<string>{ "C#", ".NET Core", "Python", "Angular", "CI/CD", "SQL Server" },
-                    LogoUrl = "/images/logos/Logo_IPI.png"
-                },
-                new Experience
-                {
-                    Titre = "Développeur Fullstack",
-                    LogoEntreprise = string.Empty,
-                    Entreprise = "CREA2F",
-                    Periode = "Juin 2021 - Décembre 2021",
-                    Description = "<p>J'ai travaillé en CDD chez CREA2F, une agence de communication spécialisée dans les solutions web, en tant que développeur Fullstack Javascript PHP pour créer des sites vitrines et des CMS.</p><p>J'ai eu l'opportunité de travailler sur plusieurs projets pour différents clients. Je gérais à la fois le développement frontend et backend, mais aussi la mise en production. J'ai travaillé avec du Javascript et du PHP.</p><p>Cette expérience a confirmé mon choix de devenir développeur et j'ai finalement décidé de développer mes compétences avec un Master Ingénieur Logiciel.</p>",
-                    Technos = new List<string>{ "Angular", "PHP", "MySQL" },
-                    LogoUrl = "/images/logos/crea2f.jpg"
-                },
-                new Experience
-                {
-                    Titre = "Bac +3 Développement Backend",
-                    LogoEntreprise = string.Empty,
-                    Entreprise = "Openclassrooms",
-                    Periode = "Janvier 2020 - Aout 2022",
-                    Description = string.Empty,
-                    Technos = new List<string>{ "PHP", "MySQL", "JavaScript" },
-                    LogoUrl = "/images/logos/OpenClassrooms.png"
-                },
-                new Experience
-                {
-                    Titre = "Analyste Restrictions d'Investissement",
-                    LogoEntreprise = string.Empty,
-                    Entreprise = "Caceis Luxembourg",
-                    Periode = "Janvier 2019 - Décembre 2020",
-                    Description = "<p>J'ai travaillé en tant qu'analyste en restrictions d'investissement chez CACEIS, une filiale du Crédit Agricole spécialisée dans les services aux investisseurs.</p><p>Mon rôle d'analyste en restrictions d'investissement consistait à monitorer des portefeuilles financiers grâce à un logiciel spécialisé. Quand des données étaient manquantes il fallait exporter les résultats sur Excel et refaire les calculs avec les nouvelles données. J'ai créé des macros VBA et des scripts Python pour automatiser ces calculs pour gagner du temps mais aussi de la fiabilité.</p><p>Ces automatisations m'ont permis de gagner du temps, ce qui m'a permis de passer plus de temps à programmer, et j'ai finalement décidé d'en faire un travail à temps plein et de devenir développeur.</p>",
-                    Technos = new List<string>{ "Python", "VBA" },
-                    LogoUrl = "/images/logos/CACEIS.svg"
-                },
-                new Experience
-                {
-                    Titre = "Master Finance de marché - Trading",
-                    LogoEntreprise = string.Empty,
-                    Entreprise = "ESG Finance Paris",
-                    Periode = "Septembre 2016 - Aout 2018",
-                    Description = string.Empty,
-                    Technos = new List<string>{ "Python", "VBA" },
-                    LogoUrl = "/images/logos/esg.png"
-                }
+        new Experience
+        {
+            Titre = Language.Translate("Développeur .NET", ".NET Developer"),
+            Entreprise = "Adentis / Crédit Agricole",
+            Periode = Language.Translate("Mars 2024 - Maintenant", "March 2024 - Present"),
+            Description = Language.Translate(
+                "<p>J'ai travaillé comme développeur .NET pour le Crédit Agricole dans le cadre d'une refonte d'un grand nombre d'applications à réécrire en C# .NET 8.0</p>",
+                "<p>I worked as a .NET developer for Crédit Agricole on a large-scale migration of multiple applications to C# .NET 8.0.</p>"),
+            Technos = new List<string> { "C#", ".NET Core", "ASP.NET", "GitLab", "CI/CD", "SQL Server" },
+            LogoUrl = "/images/logos/Crédit_Agricole.svg"
+        },
+        new Experience
+        {
+            Titre = Language.Translate("Développeur .NET", ".NET Developer"),
+            Entreprise = "Alten / Doxallia Groupe Crédit Agricole",
+            Periode = Language.Translate("Octobre 2023 - Février 2024", "October 2023 - February 2024"),
+            Description = Language.Translate(
+                "<p>J'ai travaillé comme développeur .NET à la Direction des Systèmes d'Information pour Doxallia, filiale du Crédit Agricole, principalement sur une API C# .NET 8.0 avec une importante partie DevOps.</p><p>Pour la mise en production de l'API j'ai installé et configuré les serveurs IIS et créé la pipeline CI/CD Azure Devops Server. J'ai aussi participé à la sécurisation du SI, notamment dans le développement et la gestion des flux entre les serveurs de la plateforme sur laquelle je travaillais. Mon travail consistait aussi à maintenir les serveurs applicatifs et serveurs de bases de données de ma plateforme</p>",
+                "<p>I worked as a .NET developer in the IT Department for Doxallia, a subsidiary of Crédit Agricole, primarily on a C# .NET 8.0 API with significant DevOps responsibilities.</p><p>For the API deployment I installed and configured IIS servers and built the CI/CD pipeline on Azure DevOps Server. I also contributed to IT security, including network flow management between platform servers, and was responsible for maintaining application and database servers on my platform.</p>"),
+            Technos = new List<string> { "C#", ".NET Core", "Azure DevOps", "CI/CD", "SQL Server" },
+            LogoUrl = "/images/logos/doxallia.jpg"
+        },
+        new Experience
+        {
+            Titre = Language.Translate("Développeur .NET", ".NET Developer"),
+            Entreprise = "BPCE-IT",
+            Periode = Language.Translate("Septembre 2022 - Aout 2024", "September 2022 - August 2024"),
+            Description = Language.Translate(
+                "<p>J'ai travaillé en alternance chez BPCE-IT sur la refonte d'un logiciel pour le helpdesk, de .NET Framework 4.8 vers .NET Core 6.0 et la création d'une nouvelle architecture.</p><p>Le helpdesk BPCE-IT utilise ce logiciel pour effectuer des diagnostics, modifier les parametres de la machine distante, ouvrir un ticket avec des informations préremplies ou prendre la main à distance, et a besoin d'un logiciel à la fois fiable et rapide.</p><p>La codebase était ancienne avec beaucoup de code legacy, le logiciel était en .NET Framework 4.8 et était très buggé. J'ai développé la nouvelle version en .NET Core 6.0. J'ai aussi développé une API RESTful pour s'interfacer avec les bases de données suite à la fermeture des flux, liée à la sécurisation du SI.</p>",
+                "<p>I worked as an apprentice at BPCE-IT on the migration of a helpdesk tool from .NET Framework 4.8 to .NET Core 6.0, designing a new architecture in the process.</p><p>The BPCE-IT helpdesk uses this tool to run diagnostics, modify remote machine settings, create pre-filled support tickets, or take remote control — it needs to be both reliable and fast.</p><p>The codebase was old with a lot of legacy code and many bugs. I built the new version in .NET Core 6.0 and also developed a RESTful API to interface with databases after direct data flows were closed as part of an IT security initiative.</p>"),
+            Technos = new List<string> { "C#", ".NET Core", "SQL Server" },
+            LogoUrl = "/images/logos/bpce.png"
+        },
+        new Experience
+        {
+            Titre = Language.Translate("Master Développement Logiciel", "Master's in Software Engineering"),
+            Entreprise = "IPI Groupe IGS",
+            Periode = Language.Translate("Septembre 2022 - Aout 2024", "September 2022 - August 2024"),
+            Description = string.Empty,
+            Technos = new List<string> { "C#", ".NET Core", "Python", "Angular", "CI/CD", "SQL Server" },
+            LogoUrl = "/images/logos/Logo_IPI.png"
+        },
+        new Experience
+        {
+            Titre = Language.Translate("Développeur Fullstack", "Fullstack Developer"),
+            Entreprise = "CREA2F",
+            Periode = Language.Translate("Juin 2021 - Décembre 2021", "June 2021 - December 2021"),
+            Description = Language.Translate(
+                "<p>J'ai travaillé en CDD chez CREA2F, une agence de communication spécialisée dans les solutions web, en tant que développeur Fullstack Javascript PHP pour créer des sites vitrines et des CMS.</p><p>J'ai eu l'opportunité de travailler sur plusieurs projets pour différents clients. Je gérais à la fois le développement frontend et backend, mais aussi la mise en production. J'ai travaillé avec du Javascript et du PHP.</p><p>Cette expérience a confirmé mon choix de devenir développeur et j'ai finalement décidé de développer mes compétences avec un Master Ingénieur Logiciel.</p>",
+                "<p>I worked on a fixed-term contract at CREA2F, a web-focused communication agency, as a Fullstack JavaScript/PHP developer building showcase websites and CMS solutions.</p><p>I had the opportunity to work on multiple projects for different clients, handling both frontend and backend development as well as deployment.</p><p>This experience confirmed my decision to become a full-time developer, and I ultimately chose to deepen my skills through a Software Engineering Master's degree.</p>"),
+            Technos = new List<string> { "Angular", "PHP", "MySQL" },
+            LogoUrl = "/images/logos/crea2f.jpg"
+        },
+        new Experience
+        {
+            Titre = Language.Translate("Bac +3 Développement Backend", "Bachelor's in Backend Development"),
+            Entreprise = "Openclassrooms",
+            Periode = Language.Translate("Janvier 2020 - Aout 2022", "January 2020 - August 2022"),
+            Description = string.Empty,
+            Technos = new List<string> { "PHP", "MySQL", "JavaScript" },
+            LogoUrl = "/images/logos/OpenClassrooms.png"
+        },
+        new Experience
+        {
+            Titre = Language.Translate("Analyste Restrictions d'Investissement", "Investment Restrictions Analyst"),
+            Entreprise = "Caceis Luxembourg",
+            Periode = Language.Translate("Janvier 2019 - Décembre 2020", "January 2019 - December 2020"),
+            Description = Language.Translate(
+                "<p>J'ai travaillé en tant qu'analyste en restrictions d'investissement chez CACEIS, une filiale du Crédit Agricole spécialisée dans les services aux investisseurs.</p><p>Mon rôle d'analyste en restrictions d'investissement consistait à monitorer des portefeuilles financiers grâce à un logiciel spécialisé. Quand des données étaient manquantes il fallait exporter les résultats sur Excel et refaire les calculs avec les nouvelles données. J'ai créé des macros VBA et des scripts Python pour automatiser ces calculs pour gagner du temps mais aussi de la fiabilité.</p><p>Ces automatisations m'ont permis de gagner du temps, ce qui m'a permis de passer plus de temps à programmer, et j'ai finalement décidé d'en faire un travail à temps plein et de devenir développeur.</p>",
+                "<p>I worked as an Investment Restrictions Analyst at CACEIS, a Crédit Agricole subsidiary specializing in investor services.</p><p>My role involved monitoring financial portfolios using specialized software. When data was missing, results had to be exported to Excel and recalculated with updated figures. I wrote VBA macros and Python scripts to automate these calculations, saving time and improving reliability.</p><p>Those automations freed up time that I spent programming, and I ultimately decided to make software development my full-time career.</p>"),
+            Technos = new List<string> { "Python", "VBA" },
+            LogoUrl = "/images/logos/CACEIS.svg"
+        },
+        new Experience
+        {
+            Titre = Language.Translate("Master Finance de marché - Trading", "Master's in Market Finance – Trading"),
+            Entreprise = "ESG Finance Paris",
+            Periode = Language.Translate("Septembre 2016 - Aout 2018", "September 2016 - August 2018"),
+            Description = string.Empty,
+            Technos = new List<string> { "Python", "VBA" },
+            LogoUrl = "/images/logos/esg.png"
+        }
     };
 
     private static string GetTechClass(string techno)

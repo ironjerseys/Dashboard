@@ -24,6 +24,30 @@ body {
     padding-inline: 1rem
 }
 
+.page-body {
+    padding: 0 8px;
+}
+
+@media (min-width: 576px) {
+    .page-body { padding: 0 12px; }
+}
+
+@media (min-width: 992px) {
+    .page-body { padding: 0 20px; }
+}
+
+.page-body {
+    padding: 0 8px;
+}
+
+@media (min-width: 576px) {
+    .page-body { padding: 0 12px; }
+}
+
+@media (min-width: 992px) {
+    .page-body { padding: 0 20px; }
+}
+
 a {
     text-decoration: none
 }
@@ -32,6 +56,23 @@ a {
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--bs-border-color)
 }
+
+.lang-btn {
+    font-size: 1rem;
+    background: none !important;
+    line-height: 1;
+    cursor: pointer
+}
+
+.lang-btn .fi {
+    width: 1.4em;
+    height: 1.05em;
+    border-radius: 2px;
+    display: inline-block;
+}
+
+.lang-active { opacity: 1 }
+.lang-inactive { opacity: .4 }
 
     .navbar .navbar-brand, .navbar .nav-link {
         color: var(--bs-body-color) !important;
@@ -329,3 +370,43 @@ code {
 .is-removed {
     opacity: .78
 }
+
+/* Remplace l'animation height de Bootstrap par un glissement depuis la droite */
+.nav-slide-active {
+    height: auto !important;
+    overflow: visible !important;
+    transition: transform .25s ease !important;
+}
+
+/* Styles des liens dans le panneau mobile */
+.nav-slide-active .nav-link,
+.nav-slide-active .dropdown-toggle {
+    font-size: 1rem;
+    font-weight: 600;
+    padding: .65rem 1.5rem;
+    color: #fff !important;
+}
+
+.nav-slide-active .nav-link:hover,
+.nav-slide-active .dropdown-toggle:hover {
+    background: rgba(0,0,0,.15);
+}
+
+.nav-slide-active .dropdown-menu {
+    position: static !important;
+    border: none;
+    background: rgba(0,0,0,.1);
+    box-shadow: none;
+    padding: 0;
+}
+
+.nav-slide-active .dropdown-item {
+    font-weight: 600;
+    color: var(--bs-body-color);
+    padding: .45rem 2rem;
+}
+
+.nav-slide-active .dropdown-item:hover {
+    background: rgba(0,0,0,.1);
+}
+

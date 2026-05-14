@@ -1,4 +1,4 @@
-@page "/quiz"
+﻿@page "/quiz"
 @page "/review"
 @page "/quiz/questions"
 @page "/dashboard"
@@ -15,6 +15,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
 
+@inherits LocalizedComponentBase
 @inject IDbQuizService QuizService
 @inject IArticleService ArticleService
 @inject ILeitnerService LeitnerService
@@ -23,24 +24,24 @@
 
 @rendermode RenderMode.InteractiveServer
 
-<PageTitle>Questions Techniques</PageTitle>
+<PageTitle>@Language.Translate("Questions Techniques", "Technical Questions")</PageTitle>
 
 <div class="mt-2">
 
-    <h1 class="mb-4">Questions Techniques</h1>
+    <h1 class="mb-4">@Language.Translate("Questions Techniques", "Technical Questions")</h1>
 
     <!-- Onglets -->
     <div class="d-flex flex-wrap gap-2 mb-4">
         <button class="btn @TabBtn("today")" @onclick='() => ActivateTabAsync("today")'>
-            Questions du jour@(_dueCount > 0 ? $" ({_dueCount})" : "")
+            @Language.Translate("Questions du jour", "Today's questions")@(_dueCount > 0 ? $" ({_dueCount})" : "")
         </button>
         <button class="btn @TabBtn("all")" @onclick='() => ActivateTabAsync("all")'>
-            Toutes les questions
+            @Language.Translate("Toutes les questions", "All questions")
         </button>
         @if (_isAdmin)
         {
             <button class="btn @TabBtn("manage")" @onclick='() => ActivateTabAsync("manage")'>
-                Gestion
+                @Language.Translate("Gestion", "Manage")
             </button>
         }
     </div>
@@ -51,13 +52,13 @@
         if (!_isAuthenticated)
         {
             <div class="card p-4">
-                <p class="mb-3">Vous devez être connecté pour accéder aux révisions du jour.</p>
-                <a class="btn" href="/Account/Login?returnUrl=/quiz">Se connecter</a>
+                <p class="mb-3">@Language.Translate("Vous devez être connecté pour accéder aux révisions du jour.", "You must be logged in to access today's review.")</p>
+                <a class="btn" href="/Account/Login?returnUrl=/quiz">@Language.Translate("Se connecter", "Sign in")</a>
             </div>
         }
         else if (_reviewLoading)
         {
-            <div class="text-muted">Chargement…</div>
+            <div class="text-muted">@Language.Translate("Chargement…", "Loading…")</div>
         }
         else if (!string.IsNullOrWhiteSpace(_reviewError))
         {
@@ -66,8 +67,8 @@
         else if (_dueItems.Count == 0)
         {
             <div class="card p-4">
-                <h4 class="mb-1">Rien à réviser</h4>
-                <p class="text-muted mb-0">Aucune question n'est due aujourd'hui.</p>
+                <h4 class="mb-1">@Language.Translate("Rien à réviser", "Nothing to review")</h4>
+                <p class="text-muted mb-0">@Language.Translate("Aucune question n'est due aujourd'hui.", "No questions are due today.")</p>
             </div>
         }
         else
@@ -78,10 +79,10 @@
             <div class="card p-4">
                 <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
                     <span class="text-muted small">
-                        Question @(_reviewIndex + 1) / @_dueItems.Count &mdash; Boîte @current.Box
+                        @Language.Translate("Question", "Question") @(_reviewIndex + 1) / @_dueItems.Count &mdash; @Language.Translate("Boîte", "Box") @current.Box
                     </span>
                     <span class="text-muted small">
-                        Due : @current.NextDueDate.ToString("yyyy-MM-dd")
+                        @Language.Translate("Due :", "Due:") @current.NextDueDate.ToString("yyyy-MM-dd")
                     </span>
                 </div>
 
@@ -108,12 +109,12 @@
                     <div class="mt-3">
                         @if (_reviewIsCorrect)
                         {
-                            <div class="alert alert-success mb-2">Bonne réponse.</div>
+                            <div class="alert alert-success mb-2">@Language.Translate("Bonne réponse.", "Correct.")</div>
                         }
                         else
                         {
                             <div class="alert alert-danger mb-2">
-                                Mauvaise réponse. La bonne réponse était :
+                                @Language.Translate("Mauvaise réponse. La bonne réponse était :", "Wrong answer. The correct answer was:")
                                 <strong>@GetChoiceText(question, question.CorrectAnswer)</strong>
                             </div>
                         }
@@ -121,7 +122,7 @@
                         @if (!string.IsNullOrWhiteSpace(question.Explanation))
                         {
                             <div class="card p-3 mt-2">
-                                <div class="fw-bold mb-1">Explication</div>
+                                <div class="fw-bold mb-1">@Language.Translate("Explication", "Explanation")</div>
                                 @if (LooksLikeHtml(question.Explanation))
                                 {
                                     <div class="quiz-html">@((MarkupString)(question.Explanation ?? string.Empty))</div>
@@ -139,13 +140,13 @@
                     @if (!_reviewShowResult)
                     {
                         <button class="btn" disabled="@_reviewBusy" @onclick="SubmitReviewAnswerAsync">
-                            Valider
+                            @Language.Translate("Valider", "Submit")
                         </button>
                     }
                     else
                     {
                         <button class="btn" disabled="@_reviewBusy" @onclick="NextReviewAsync">
-                            Suivant
+                            @Language.Translate("Suivant", "Next")
                         </button>
                     }
                 </div>
@@ -159,7 +160,7 @@
         <div class="card p-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
                 <h4 class="m-0">Quiz</h4>
-                <span class="text-muted small">Score : @_quizScore / @_allQuestions.Count</span>
+                <span class="text-muted small">@Language.Translate("Score :", "Score:") @_quizScore / @_allQuestions.Count</span>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(_quizError))
@@ -169,17 +170,17 @@
 
             @if (_quizLoading)
             {
-                <div class="text-muted">Chargement…</div>
+                <div class="text-muted">@Language.Translate("Chargement…", "Loading…")</div>
             }
             else if (_allQuestions.Count == 0)
             {
-                <div class="alert alert-warning mb-0">Aucune question.</div>
+                <div class="alert alert-warning mb-0">@Language.Translate("Aucune question.", "No questions.")</div>
             }
             else if (_quizIndex >= _allQuestions.Count)
             {
-                <h5>Quiz terminé</h5>
-                <p>Votre score : <strong>@_quizScore</strong> / <strong>@_allQuestions.Count</strong></p>
-                <button type="button" class="btn" @onclick="RestartQuiz">Recommencer</button>
+                <h5>@Language.Translate("Quiz terminé", "Quiz complete")</h5>
+                <p>@Language.Translate("Votre score :", "Your score:") <strong>@_quizScore</strong> / <strong>@_allQuestions.Count</strong></p>
+                <button type="button" class="btn" @onclick="RestartQuiz">@Language.Translate("Recommencer", "Restart")</button>
             }
             else
             {
@@ -187,7 +188,7 @@
                 var qHtml = q.QuestionText ?? "";
                 var qPlain = ToPlainText(qHtml);
 
-                <h6 class="mb-2">Question @(_quizIndex + 1) sur @_allQuestions.Count</h6>
+                <h6 class="mb-2">@Language.Translate("Question", "Question") @(_quizIndex + 1) @Language.Translate("sur", "of") @_allQuestions.Count</h6>
 
                 @if (HasCodeFence(qPlain))
                 {
@@ -218,26 +219,26 @@
                     </InputRadioGroup>
 
                     <button type="button" class="btn mt-3" @onclick="ValidateQuizAnswer">
-                        Valider
+                        @Language.Translate("Valider", "Submit")
                     </button>
                 }
                 else
                 {
                     @if (_quizIsCorrect)
                     {
-                        <p class="text-success fw-semibold">Bonne réponse !</p>
+                        <p class="text-success fw-semibold">@Language.Translate("Bonne réponse !", "Correct!")</p>
                     }
                     else
                     {
                         <p class="text-danger fw-semibold">
-                            Mauvaise réponse. La bonne réponse était : @GetChoiceText(q, q.CorrectAnswer)
+                            @Language.Translate("Mauvaise réponse. La bonne réponse était :", "Wrong answer. The correct answer was:") @GetChoiceText(q, q.CorrectAnswer)
                         </p>
                     }
 
                     @if (!string.IsNullOrWhiteSpace(q.Explanation))
                     {
                         <div class="mt-2">
-                            <strong>Explication :</strong>
+                            <strong>@Language.Translate("Explication :", "Explanation:")</strong>
                             @if (LooksLikeHtml(q.Explanation))
                             {
                                 <div class="mt-1 quiz-html">@((MarkupString)q.Explanation)</div>
@@ -250,7 +251,7 @@
                     }
 
                     <button type="button" class="btn mt-3" @onclick="NextQuizQuestion">
-                        Suivant
+                        @Language.Translate("Suivant", "Next")
                     </button>
                 }
             }
@@ -262,15 +263,15 @@
     {
         if (!_isAdmin)
         {
-            <div class="alert alert-warning">Accès réservé aux administrateurs.</div>
+            <div class="alert alert-warning">@Language.Translate("Accès réservé aux administrateurs.", "Access restricted to administrators.")</div>
         }
         else
         {
             <div>
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                    <span class="text-muted">@_manageQuestions.Count question(s)</span>
+                    <span class="text-muted">@_manageQuestions.Count @Language.Translate("question(s)", "question(s)")</span>
                     <button class="btn" @onclick="OpenCreateModal" disabled="@_manageBusy">
-                        + Nouvelle question
+                        @Language.Translate("+ Nouvelle question", "+ New question")
                     </button>
                 </div>
 
@@ -281,7 +282,7 @@
 
                 @if (_manageBusy && _manageQuestions.Count == 0)
                 {
-                    <div class="text-muted">Chargement…</div>
+                    <div class="text-muted">@Language.Translate("Chargement…", "Loading…")</div>
                 }
 
                 @foreach (var question in _manageQuestions)
@@ -306,7 +307,7 @@
                                 @if (!string.IsNullOrWhiteSpace(question.Explanation))
                                 {
                                     <div class="mt-2">
-                                        <div class="text-muted small fw-semibold mb-1">Explication</div>
+                                        <div class="text-muted small fw-semibold mb-1">@Language.Translate("Explication", "Explanation")</div>
                                         @if (LooksLikeHtml(question.Explanation))
                                         {
                                             <div class="quiz-html">@((MarkupString)(question.Explanation ?? string.Empty))</div>
@@ -319,7 +320,7 @@
                                 }
 
                                 <div class="small text-muted mt-2">
-                                    Bonne réponse : <strong>@(question.CorrectAnswer + 1)</strong>
+                                    @Language.Translate("Bonne réponse :", "Correct answer:") <strong>@(question.CorrectAnswer + 1)</strong>
                                     @if (question.ArticleId.HasValue)
                                     {
                                         <span class="mx-2">&bull;</span>
@@ -329,12 +330,12 @@
                             </div>
 
                             <div class="d-flex gap-2 align-items-start flex-shrink-0">
-                                <button class="btn" title="Modifier"
+                                <button class="btn" title="@Language.Translate("Modifier", "Edit")"
                                         @onclick="() => OpenEditModal(question)"
                                         disabled="@_manageBusy">
                                     <i class="bi bi-pencil"></i>
                                 </button>
-                                <button class="btn" title="Supprimer"
+                                <button class="btn" title="@Language.Translate("Supprimer", "Delete")"
                                         @onclick="() => AskDelete(question)"
                                         disabled="@_manageBusy">
                                     <i class="bi bi-trash"></i>
@@ -357,9 +358,9 @@
 
             <ConfirmModal IsOpen="_deleteConfirmOpen"
                           IsOpenChanged="OnDeleteConfirmOpenChanged"
-                          Title="Supprimer la question"
+                          Title="@Language.Translate("Supprimer la question", "Delete question")"
                           Message="@_deleteMessage"
-                          ConfirmLabel="Supprimer"
+                          ConfirmLabel="@Language.Translate("Supprimer", "Delete")"
                           Busy="_manageBusy"
                           OnConfirm="DeleteConfirmedAsync" />
         }
@@ -424,8 +425,8 @@
     private List<QuestionTechnique> _manageQuestions = new();
     private List<Article> _articles = new();
     private bool _editorOpen;
-    private string _editorTitle = "Nouvelle question";
-    private string _editorSubmitLabel = "Créer";
+    private string _editorTitle = "";
+    private string _editorSubmitLabel = "";
     private string? _editorError;
     private QuestionTechnique _editorModel = new();
     private bool _isEditMode;
@@ -503,7 +504,11 @@
 
     private async Task SubmitReviewAnswerAsync()
     {
-        if (_reviewSelectedChoice is null) { _reviewError = "Sélectionne une réponse."; return; }
+        if (_reviewSelectedChoice is null)
+        {
+            _reviewError = Language.Translate("Sélectionne une réponse.", "Select an answer.");
+            return;
+        }
         try
         {
             _reviewError = null;
@@ -545,7 +550,11 @@
 
     private void ValidateQuizAnswer()
     {
-        if (!_quizSelectedChoice.HasValue) { _quizError = "Choisissez une réponse."; return; }
+        if (!_quizSelectedChoice.HasValue)
+        {
+            _quizError = Language.Translate("Choisissez une réponse.", "Choose an answer.");
+            return;
+        }
         var q = _allQuestions[_quizIndex];
         _quizIsCorrect = (_quizSelectedChoice.Value == q.CorrectAnswer);
         if (_quizIsCorrect) _quizScore++;
@@ -588,8 +597,8 @@
     private void OpenCreateModal()
     {
         _isEditMode = false;
-        _editorTitle = "Nouvelle question";
-        _editorSubmitLabel = "Créer";
+        _editorTitle = Language.Translate("Nouvelle question", "New question");
+        _editorSubmitLabel = Language.Translate("Créer", "Create");
         _editorError = null;
         _editorModel = new QuestionTechnique { CorrectAnswer = 0 };
         _editorOpen = true;
@@ -598,8 +607,8 @@
     private void OpenEditModal(QuestionTechnique question)
     {
         _isEditMode = true;
-        _editorTitle = "Modifier la question";
-        _editorSubmitLabel = "Enregistrer";
+        _editorTitle = Language.Translate("Modifier la question", "Edit question");
+        _editorSubmitLabel = Language.Translate("Enregistrer", "Save");
         _editorError = null;
         _editorModel = new QuestionTechnique
         {
@@ -627,7 +636,7 @@
             if (_isEditMode)
             {
                 bool ok = await QuizService.UpdateAsync(model);
-                if (!ok) { _editorError = "Question introuvable."; return; }
+                if (!ok) { _editorError = Language.Translate("Question introuvable.", "Question not found."); return; }
             }
             else
             {
@@ -644,7 +653,9 @@
     private void AskDelete(QuestionTechnique question)
     {
         _deleteQuestionId = question.Id;
-        _deleteMessage = $"Supprimer cette question ?\n\n\"{MakePreview(question.QuestionText, 90)}\"\n\nCette action est définitive.";
+        _deleteMessage = Language.Translate(
+            $"Supprimer cette question ?\n\n\"{MakePreview(question.QuestionText, 90)}\"\n\nCette action est définitive.",
+            $"Delete this question?\n\n\"{MakePreview(question.QuestionText, 90)}\"\n\nThis action is permanent.");
         _deleteConfirmOpen = true;
     }
 
@@ -664,7 +675,7 @@
         finally { _manageBusy = false; }
     }
 
-    // ── Helpers partagés ──
+    // ── Helpers ──
     private string TabBtn(string tab) => _activeTab == tab ? "" : "btn-tab-inactive";
 
     private static string GetChoiceText(QuestionTechnique q, int i) => i switch

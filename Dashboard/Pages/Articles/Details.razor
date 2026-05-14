@@ -1,6 +1,5 @@
 ﻿@page "/articles/{Slug}"
 
-
 @rendermode RenderMode.InteractiveServer
 
 @using Dashboard.Components.Quiz
@@ -10,6 +9,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 
+@inherits LocalizedComponentBase
 @inject IArticleService ArticleService
 @inject IDbQuizService QuizService
 @inject AuthenticationStateProvider AuthStateProvider
@@ -17,7 +17,7 @@
 
 @if (_isLoading)
 {
-    <p class="mt-4">Chargement…</p>
+    <p class="mt-4">@Language.Translate("Chargement…", "Loading…")</p>
 }
 else if (!string.IsNullOrWhiteSpace(_error))
 {
@@ -25,33 +25,33 @@ else if (!string.IsNullOrWhiteSpace(_error))
 }
 else if (_article is null || _notFound)
 {
-    <div class="container mt-5 article-page">
-        <div class="alert alert-warning">Article introuvable.</div>
-        <a class="btn btn-secondary" href="/articles-v2">Retour à la liste</a>
+    <div class="container mt-3 mt-md-5 article-page">
+        <div class="alert alert-warning">@Language.Translate("Article introuvable.", "Article not found.")</div>
+        <a class="btn btn-secondary" href="/articles">@Language.Translate("Retour à la liste", "Back to list")</a>
     </div>
 }
 else
 {
-    <div class="container mt-5 mb-5 article-page">
-        <div class="mb-5 article-content card p-3">
+    <div class="container mt-3 mb-3 mt-md-5 mb-md-5 article-page">
+        <div class="mb-3 mb-md-5 article-content card p-3">
 
             <div class="d-flex align-items-center gap-2 flex-nowrap overflow-auto pb-2 mb-2">
                 @if (_isAdmin)
                 {
-                    <a class="btn btn-secondary" href="@($"/articles/edit/{_article.Id}")" title="Modifier">
+                    <a class="btn btn-secondary" href="@($"/articles/edit/{_article.Id}")" title="@Language.Translate("Modifier", "Edit")">
                         <i class="bi bi-pencil"></i>
                     </a>
 
-                    <button class="btn btn-secondary" type="button" @onclick="OpenDeleteConfirm" title="Supprimer">
+                    <button class="btn btn-secondary" type="button" @onclick="OpenDeleteConfirm" title="@Language.Translate("Supprimer", "Delete")">
                         <i class="bi bi-trash"></i>
                     </button>
 
                     <button type="button" class="btn btn-outline-light" @onclick="OpenCreateQuestion">
-                        Ajouter une question liée
+                        @Language.Translate("Ajouter une question liée", "Add related question")
                     </button>
                 }
 
-                <a class="btn btn-secondary ms-auto" href="/articles">Retour à la liste</a>
+                <a class="btn btn-secondary ms-auto" href="/articles">@Language.Translate("Retour à la liste", "Back to list")</a>
             </div>
 
             <div class="d-flex flex-column flex-md-row gap-2 mt-2">
@@ -60,7 +60,6 @@ else
                 </div>
             </div>
 
-            @* ---- IMAGE DE COUVERTURE ---- *@
             @if (_article.CoverMediaId is not null)
             {
                 var coverUrl = $"/media/{_article.CoverMediaId}";
@@ -84,7 +83,7 @@ else
             }
 
             <div class="small text-muted mt-2 mb-5">
-                Publié le @_article.DateCreation.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                @Language.Translate("Publié le", "Published on") @_article.DateCreation.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
             </div>
 
             @((MarkupString)(_article.Contenu ?? string.Empty))
@@ -92,7 +91,7 @@ else
             @if (_questions.Count > 0)
             {
                 <div class="card p-3 mb-3">
-                    <h5>Questions liées</h5>
+                    <h5>@Language.Translate("Questions liées", "Related questions")</h5>
                     <ul class="mb-0">
                         @foreach (var question in _questions)
                         {
@@ -117,16 +116,16 @@ else
 
 <Dashboard.Components.Dashboard.ConfirmModal IsOpen="_showDeleteConfirm"
                                              IsOpenChanged="OnDeleteModalChanged"
-                                             Title="Supprimer l’article"
-                                             Message="Cette action est définitive. Voulez-vous vraiment supprimer cet article ?"
-                                             ConfirmLabel="Supprimer"
+                                             Title="@Language.Translate("Supprimer l'article", "Delete article")"
+                                             Message="@Language.Translate("Cette action est définitive. Voulez-vous vraiment supprimer cet article ?", "This action is permanent. Are you sure you want to delete this article?")"
+                                             ConfirmLabel="@Language.Translate("Supprimer", "Delete")"
                                              Busy="_isDeleting"
                                              OnConfirm="DeleteConfirmedAsync" />
 
 <Dashboard.Components.Quiz.QuizQuestionEditorModal IsOpen="_createQuestionOpen"
                                                    IsOpenChanged="OnCreateQuestionOpenChanged"
-                                                   Title="Créer une question"
-                                                   SubmitLabel="Créer"
+                                                   Title="@Language.Translate("Créer une question", "Create question")"
+                                                   SubmitLabel="@Language.Translate("Créer", "Create")"
                                                    Busy="_createBusy"
                                                    Error="_createError"
                                                    Model="_createModel"
@@ -152,7 +151,6 @@ else
     private string? _deleteError;
 
     private bool _createQuestionOpen;
-
     private bool _createBusy;
     private string? _createError;
     private QuestionTechnique _createModel = new() { CorrectAnswer = 0 };
@@ -173,18 +171,9 @@ else
 
             _article = await ArticleService.GetArticleBySlugAsync(Slug);
 
-            if (_article is null)
-            {
-                _notFound = true;
-                return;
-            }
+            if (_article is null) { _notFound = true; return; }
 
-            if (!_isAdmin && !_article.IsPublic)
-            {
-                _notFound = true;
-                _article = null;
-                return;
-            }
+            if (!_isAdmin && !_article.IsPublic) { _notFound = true; _article = null; return; }
 
             if (_allArticles.Count == 0)
             {
@@ -204,76 +193,44 @@ else
         }
     }
 
-    private void OpenDeleteConfirm()
-    {
-        _deleteError = null;
-        _showDeleteConfirm = true;
-    }
-
-    private Task OnDeleteModalChanged(bool isOpen)
-    {
-        _showDeleteConfirm = isOpen;
-        return Task.CompletedTask;
-    }
+    private void OpenDeleteConfirm() { _deleteError = null; _showDeleteConfirm = true; }
+    private Task OnDeleteModalChanged(bool isOpen) { _showDeleteConfirm = isOpen; return Task.CompletedTask; }
 
     private async Task DeleteConfirmedAsync()
     {
         if (_article is null) return;
-
         _isDeleting = true;
         _deleteError = null;
 
         try
         {
             await ArticleService.DeleteAsync(_article.Id);
-
             _showDeleteConfirm = false;
             Navigation.NavigateTo("/articles");
         }
-        catch (Exception ex)
-        {
-            _deleteError = ex.Message;
-        }
-        finally
-        {
-            _isDeleting = false;
-        }
+        catch (Exception ex) { _deleteError = ex.Message; }
+        finally { _isDeleting = false; }
     }
 
     private void OpenCreateQuestion()
     {
         _createError = null;
-        _createModel = new QuestionTechnique
-        {
-            ArticleId = Id,
-            CorrectAnswer = 0
-        };
+        _createModel = new QuestionTechnique { ArticleId = Id, CorrectAnswer = 0 };
         _createQuestionOpen = true;
     }
 
-    private Task OnCreateQuestionOpenChanged(bool isOpen)
-    {
-        _createQuestionOpen = isOpen;
-        return Task.CompletedTask;
-    }
+    private Task OnCreateQuestionOpenChanged(bool isOpen) { _createQuestionOpen = isOpen; return Task.CompletedTask; }
 
     private async Task ReloadQuestions()
     {
         try
         {
             _errorMessage = null;
-
             _questions = await QuizService.GetByArticleAsync(Id);
-
             _createQuestionOpen = false;
-
             StateHasChanged();
         }
-        catch (Exception ex)
-        {
-            _errorMessage = ex.Message;
-            StateHasChanged();
-        }
+        catch (Exception ex) { _errorMessage = ex.Message; StateHasChanged(); }
     }
 
     private async Task CreateQuestionAsync(QuestionTechnique questionTechnique)
@@ -287,13 +244,7 @@ else
             await ReloadQuestions();
             _createQuestionOpen = false;
         }
-        catch (Exception ex)
-        {
-            _createError = ex.Message;
-        }
-        finally
-        {
-            _createBusy = false;
-        }
+        catch (Exception ex) { _createError = ex.Message; }
+        finally { _createBusy = false; }
     }
 }

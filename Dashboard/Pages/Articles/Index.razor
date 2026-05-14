@@ -8,6 +8,7 @@
 @using global::Dashboard.Persistance.Entities
 @using global::Dashboard.Services
 
+@inherits LocalizedComponentBase
 @inject IArticleService ArticleService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
@@ -16,15 +17,15 @@
 
 <PageTitle>Articles</PageTitle>
 
-<div class="mt-5 mb-5 article-page article-list">
+<div class="container mt-3 mb-3 mt-md-5 mb-md-5 article-page article-list">
 
     <div class="d-flex flex-column flex-sm-row gap-2 mt-2 align-items-sm-center">
-        <h2 class="mb-0 me-auto">Derniers articles</h2>
+        <h2 class="mb-0 me-auto">@Language.Translate("Derniers articles", "Latest articles")</h2>
 
         <div class="d-flex flex-wrap align-items-center gap-2">
             <input type="text"
                    class="form-control form-control-sm"
-                   placeholder="Rechercher..."
+                   placeholder="@Language.Translate("Rechercher...", "Search...")"
                    style="min-width:120px;flex:1 1 120px"
                    @bind="_searchText"
                    @bind:event="oninput"
@@ -34,13 +35,13 @@
                     style="min-width:140px;flex:1 1 140px"
                     @bind="_selectedSort"
                     @bind:after="OnSortAfter">
-                <option value="@ArticleSort.DateNewest">Plus récent → plus ancien</option>
-                <option value="@ArticleSort.DateOldest">Plus ancien → plus récent</option>
-                <option value="@ArticleSort.TitleAsc">Titre A → Z</option>
-                <option value="@ArticleSort.TitleDesc">Titre Z → A</option>
+                <option value="@ArticleSort.DateNewest">@Language.Translate("Plus récent → plus ancien", "Newest → oldest")</option>
+                <option value="@ArticleSort.DateOldest">@Language.Translate("Plus ancien → plus récent", "Oldest → newest")</option>
+                <option value="@ArticleSort.TitleAsc">@Language.Translate("Titre A → Z", "Title A → Z")</option>
+                <option value="@ArticleSort.TitleDesc">@Language.Translate("Titre Z → A", "Title Z → A")</option>
             </select>
 
-            <button class="btn btn-sm" @onclick="ResetFilters" disabled="@_loading">Réinitialiser</button>
+            <button class="btn btn-sm" @onclick="ResetFilters" disabled="@_loading">@Language.Translate("Réinitialiser", "Reset")</button>
         </div>
     </div>
 
@@ -50,7 +51,7 @@
         <div class="d-flex flex-wrap align-items-center gap-2 bb-text-cyan">
             @if (_labels.Count == 0)
             {
-                <span class="text-muted">Aucun label</span>
+                <span class="text-muted">@Language.Translate("Aucun label", "No labels")</span>
             }
             else
             {
@@ -74,13 +75,13 @@
 
     <AuthorizeView>
         <Authorized>
-            <a class="btn btn-primary mt-3" href="/Articles/Create">Nouvel article</a>
+            <a class="btn btn-primary mt-3" href="/Articles/Create">@Language.Translate("Nouvel article", "New article")</a>
         </Authorized>
     </AuthorizeView>
 
     @if (_loading)
     {
-        <p class="text-muted mt-3">Chargement…</p>
+        <p class="text-muted mt-3">@Language.Translate("Chargement…", "Loading…")</p>
     }
     else if (!string.IsNullOrWhiteSpace(_error))
     {
@@ -88,7 +89,7 @@
     }
     else if (_articles.Count == 0)
     {
-        <p class="mt-3">Aucun article pour le moment.</p>
+        <p class="mt-3">@Language.Translate("Aucun article pour le moment.", "No articles yet.")</p>
     }
     else
     {
@@ -100,7 +101,7 @@
 
                 <a class="article-row-link"
                    href="@href"
-                   aria-label="@($"Lire l'article {article.Titre}")">
+                   aria-label="@(Language.Translate($"Lire l'article {article.Titre}", $"Read article {article.Titre}"))">
 
                     <div class="article-row-item">
                         <div class="d-flex flex-column flex-md-row gap-3">
@@ -116,7 +117,7 @@
                                 else
                                 {
                                     <div class="article-thumb-placeholder">
-                                        <div class="small text-muted">Aucune image</div>
+                                        <div class="small text-muted">@Language.Translate("Aucune image", "No image")</div>
                                     </div>
                                 }
                             </div>
@@ -157,23 +158,19 @@
         flex-direction: column;
     }
 
-    /* Ligne entière cliquable */
     .article-row-link {
         text-decoration: none;
         color: inherit;
         display: block;
-        border-radius: 14px; /* hover only */
+        border-radius: 14px;
         padding: 10px 6px;
     }
 
-        /* Hover discret (pas de bordure, pas de card) */
         .article-row-link:hover {
             background: rgba(0,0,0,.03);
         }
 
-    /* Plus de card/bordure ici */
     .article-row-item {
-        /* intentionally empty */
     }
 
     .article-thumb {
@@ -210,7 +207,6 @@
         -webkit-box-orient: vertical;
     }
 
-    /* Séparateur horizontal entre articles */
     .article-sep {
         margin: 10px 0;
         border: 0;
@@ -230,7 +226,6 @@
 </style>
 
 @code {
-    // Query-string
     [SupplyParameterFromQuery(Name = "labels")]
     public int[] Labels { get; set; } = Array.Empty<int>();
 
@@ -313,14 +308,10 @@
     {
         var isChecked = ParseCheckboxValue(e.Value);
         _labelSelection[labelId] = isChecked;
-
         ApplyFilters(replace: true);
     }
 
-    private void OnSortAfter()
-    {
-        ApplyFilters(replace: true);
-    }
+    private void OnSortAfter() => ApplyFilters(replace: true);
 
     private async Task OnSearchAfterAsync()
     {
@@ -328,24 +319,15 @@
         _searchDebounceCts = new CancellationTokenSource();
         var token = _searchDebounceCts.Token;
 
-        try
-        {
-            await Task.Delay(250, token);
-        }
-        catch (TaskCanceledException)
-        {
-            return;
-        }
+        try { await Task.Delay(250, token); }
+        catch (TaskCanceledException) { return; }
 
         ApplyFilters(replace: true);
     }
 
     private void ApplyFilters(bool replace)
     {
-        if (_loading)
-        {
-            return;
-        }
+        if (_loading) return;
 
         var selectedLabelIds = _labelSelection
             .Where(kvp => kvp.Value)
@@ -353,24 +335,17 @@
             .ToList();
 
         var queryParts = new List<string>();
-
         foreach (var id in selectedLabelIds)
-        {
             queryParts.Add($"labels={id}");
-        }
 
         queryParts.Add($"sort={_selectedSort}");
 
         if (!string.IsNullOrWhiteSpace(_searchText))
-        {
             queryParts.Add($"search={Uri.EscapeDataString(_searchText)}");
-        }
 
         var url = "/articles";
         if (queryParts.Count > 0)
-        {
             url += "?" + string.Join("&", queryParts);
-        }
 
         Navigation.NavigateTo(url, replace: replace);
     }
@@ -383,80 +358,44 @@
 
     private static bool ParseCheckboxValue(object? raw)
     {
-        if (raw is bool b)
-        {
-            return b;
-        }
-
+        if (raw is bool b) return b;
         if (raw is string s)
         {
-            if (bool.TryParse(s, out var parsed))
-            {
-                return parsed;
-            }
-
-            if (string.Equals(s, "on", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
+            if (bool.TryParse(s, out var parsed)) return parsed;
+            if (string.Equals(s, "on", StringComparison.OrdinalIgnoreCase)) return true;
         }
-
         return false;
     }
 
     private static string PlainExcerpt(string html, int maxChars)
     {
-        if (string.IsNullOrEmpty(html))
-        {
-            return string.Empty;
-        }
-
+        if (string.IsNullOrEmpty(html)) return string.Empty;
         var text = Regex.Replace(html, "<.*?>", " ");
         text = Regex.Replace(text, @"\s+", " ").Trim();
-
-        if (text.Length <= maxChars)
-        {
-            return text;
-        }
-
-        return text.Substring(0, maxChars).Trim() + "…";
+        return text.Length <= maxChars ? text : text.Substring(0, maxChars).Trim() + "…";
     }
 
     private static string? GetCoverUrl(Article article)
     {
-        // 1) Couverture explicite si tu ajoutes CoverMediaId
-        // (si ta propriété n’existe pas encore, commente cette partie le temps de migrer)
         if (article.CoverMediaId.HasValue)
-        {
             return "/media/" + article.CoverMediaId.Value;
-        }
 
-        // 2) Fallback: 1ère image trouvée dans le HTML (permet de garder un rendu même avant migration)
         var first = ExtractFirstImageSrc(article.Contenu);
-        if (string.IsNullOrWhiteSpace(first))
-            return null;
+        if (string.IsNullOrWhiteSpace(first)) return null;
 
-        // petite barrière : autoriser uniquement URLs relatives /media ou http(s)
         if (first.StartsWith("/media/", StringComparison.OrdinalIgnoreCase) ||
             first.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
             first.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-        {
             return first;
-        }
 
         return null;
     }
 
     private static string? ExtractFirstImageSrc(string? html)
     {
-        if (string.IsNullOrWhiteSpace(html))
-            return null;
-
-        var m = Regex.Match(
-            html,
-            @"<img[^>]*\ssrc\s*=\s*[""'](?<src>[^""']+)[""']",
+        if (string.IsNullOrWhiteSpace(html)) return null;
+        var m = Regex.Match(html, @"<img[^>]*\ssrc\s*=\s*[""'](?<src>[^""']+)[""']",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
         return m.Success ? m.Groups["src"].Value : null;
     }
 }

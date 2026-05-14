@@ -1,9 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(xargs -I {} basename {})",
-      "Bash(grep -E \"\\\\.razor$\")",
-      "Bash(dotnet ef *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\jor63\\\\source\\\\repos\\\\Dashboard\" -Depth 3 -Directory)",
+      "Bash(Select-Object -First 50)",
+      "WebFetch(domain:jorisreynes.com)",
+      "Bash(curl *)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:hub.docker.com)",
+      "Bash(gh api *)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(dir C:\\\\Users\\\\jor63\\\\source\\\\repos\\\\Dashboard\\\\Dashboard\\\\Components *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\jor63\\\\source\\\\repos\\\\Dashboard\\\\Dashboard\" -Recurse -Filter \"*.razor\")",
+      "Bash(Select-Object FullName)",
       "Bash(dotnet build *)"
     ]
   }
