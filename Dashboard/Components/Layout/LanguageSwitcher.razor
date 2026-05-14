@@ -1,0 +1,40 @@
+﻿@namespace Dashboard.Components.Layout
+@rendermode RenderMode.InteractiveServer
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@implements IDisposable
+@inject LanguageService Language
+@inject IJSRuntime JS
+
+<button type="button"
+        class="btn btn-link p-1 lh-1 border-0 lang-btn @(Language.Current == "fr" ? "lang-active" : "lang-inactive")"
+        @onclick='() => SetLang("fr")' title="Français">
+    <span class="fi fi-fr"></span>
+</button>
+<button type="button"
+        class="btn btn-link p-1 lh-1 border-0 lang-btn @(Language.Current == "en" ? "lang-active" : "lang-inactive")"
+        @onclick='() => SetLang("en")' title="English">
+    <span class="fi fi-gb"></span>
+</button>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Language.OnChange += Refresh;
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Language.OnChange -= Refresh;
+        GC.SuppressFinalize(this);
+    }
+
+    private async Task SetLang(string lang)
+    {
+        Language.Set(lang);
+        await JS.InvokeVoidAsync("localStorage.setItem", "lang", lang);
+        await JS.InvokeVoidAsync("setDocLang", lang);
+    }
+}

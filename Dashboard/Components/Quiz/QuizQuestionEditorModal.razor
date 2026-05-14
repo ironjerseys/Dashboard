@@ -3,6 +3,7 @@
 @using Microsoft.JSInterop
 @using global::Dashboard.Persistance.Entities
 
+@inherits LocalizedComponentBase
 @rendermode RenderMode.InteractiveServer
 @namespace Dashboard.Components.Quiz
 
@@ -40,12 +41,12 @@
 
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">Proposition 1</label>
+                                <label class="form-label">@Language.Translate("Proposition 1", "Choice 1")</label>
                                 <InputText class="form-control" @bind-Value="_editModel.Choice0" />
                                 <ValidationMessage For="() => _editModel.Choice0" />
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Proposition 2</label>
+                                <label class="form-label">@Language.Translate("Proposition 2", "Choice 2")</label>
                                 <InputText class="form-control" @bind-Value="_editModel.Choice1" />
                                 <ValidationMessage For="() => _editModel.Choice1" />
                             </div>
@@ -53,25 +54,25 @@
 
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">Proposition 3</label>
+                                <label class="form-label">@Language.Translate("Proposition 3", "Choice 3")</label>
                                 <InputText class="form-control" @bind-Value="_editModel.Choice2" />
                                 <ValidationMessage For="() => _editModel.Choice2" />
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Proposition 4</label>
+                                <label class="form-label">@Language.Translate("Proposition 4", "Choice 4")</label>
                                 <InputText class="form-control" @bind-Value="_editModel.Choice3" />
                                 <ValidationMessage For="() => _editModel.Choice3" />
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Bonne réponse (index 0-3)</label>
+                            <label class="form-label">@Language.Translate("Bonne réponse (index 0-3)", "Correct answer (index 0-3)")</label>
                             <InputNumber class="form-control" @bind-Value="_editModel.CorrectAnswer" min="0" max="3" />
                             <ValidationMessage For="() => _editModel.CorrectAnswer" />
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Explication</label>
+                            <label class="form-label">@Language.Translate("Explication", "Explanation")</label>
 
                             @* Summernote s’attache à ce textarea *@
                             <textarea class="form-control" rows="3" @ref="_explanationTextArea"></textarea>
@@ -80,9 +81,9 @@
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label">Article lié (optionnel)</label>
+                            <label class="form-label">@Language.Translate("Article lié (optionnel)", "Linked article (optional)")</label>
                             <InputSelect TValue="int?" class="form-select" @bind-Value="_editModel.ArticleId">
-                                <option value="">-- Aucun --</option>
+                                <option value="">@Language.Translate("-- Aucun --", "-- None --")</option>
                                 @foreach (Article article in Articles)
                                 {
                                     <option value="@article.Id">@article.Titre</option>
@@ -100,7 +101,7 @@
                                 @SubmitLabel
                             </button>
                             <button type="button" class="btn btn-secondary" @onclick="CloseAsync" disabled="@Busy">
-                                Annuler
+                                @Language.Translate("Annuler", "Cancel")
                             </button>
                         </div>
                     </EditForm>

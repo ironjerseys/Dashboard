@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Dashboard.Services;
 
 public record JobCountItem(string Label, int Count);
+public record JobRoleCityItem(string Role, string City, int Count);
 
 public class JobStats
 {
@@ -14,6 +15,7 @@ public class JobStats
     public List<JobCountItem> ByCity { get; set; } = [];
     public List<JobCountItem> BySite { get; set; } = [];
     public List<JobCountItem> ByWeek { get; set; } = [];
+    public List<JobRoleCityItem> ByRoleCity { get; set; } = [];
 }
 
 public interface IJobPostingService
@@ -76,6 +78,11 @@ public sealed class JobPostingService : IJobPostingService
             .OrderBy(x => x.Year).ThenBy(x => x.Week)
             .ToListAsync(ct);
 
+        var byRoleCity = await jobs
+            .GroupBy(j => new { j.SearchRole, j.SearchCity })
+            .Select(g => new { Role = g.Key.SearchRole, City = g.Key.SearchCity, Count = g.Count() })
+            .ToListAsync(ct);
+
         return new JobStats
         {
             TotalCount = total,
@@ -87,6 +94,7 @@ public sealed class JobPostingService : IJobPostingService
             ByWeek = byWeek
                 .Select(x => new JobCountItem(x.MinDate.ToString("dd/MM/yy"), x.Count))
                 .ToList(),
+            ByRoleCity = byRoleCity.Select(x => new JobRoleCityItem(x.Role, x.City, x.Count)).ToList(),
         };
     }
 }

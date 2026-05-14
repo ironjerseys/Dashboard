@@ -9,6 +9,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 
+@inherits LocalizedComponentBase
 @inject IArticleService ArticleService
 @inject IMediaLibraryService MediaLibrary
 @inject NavigationManager Navigation
@@ -16,11 +17,11 @@
 
 @rendermode RenderMode.InteractiveServer
 
-<h1 class="mt-4">Modifier un article</h1>
+<h1 class="mt-4">@Language.Translate("Modifier un article", "Edit article")</h1>
 
 @if (_isLoading)
 {
-    <p>Chargement…</p>
+    <p>@Language.Translate("Chargement…", "Loading…")</p>
 }
 else if (!string.IsNullOrWhiteSpace(_loadError))
 {
@@ -28,7 +29,7 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
 }
 else if (_editModel is null)
 {
-    <div class="alert alert-warning">Article introuvable.</div>
+    <div class="alert alert-warning">@Language.Translate("Article introuvable.", "Article not found.")</div>
 }
 else
 {
@@ -40,73 +41,62 @@ else
                 <ValidationSummary />
 
                 <div class="mb-3">
-                    <label class="form-label">Titre</label>
+                    <label class="form-label">@Language.Translate("Titre", "Title")</label>
                     <InputText class="form-control" @bind-Value="_editModel.Titre" />
                     <ValidationMessage For="() => _editModel.Titre" />
                 </div>
 
-                @* ---------------- IMAGE DE COUVERTURE ---------------- *@
                 <div class="mb-3">
-                    <label class="form-label">Image de couverture</label>
+                    <label class="form-label">@Language.Translate("Image de couverture", "Cover image")</label>
 
                     @if (_editModel.CoverMediaId is Guid coverId)
                     {
                         <div class="mb-2">
                             <img src="@($"/media/{coverId}")"
-                                 alt="Couverture"
+                                 alt="@Language.Translate("Couverture", "Cover")"
                                  class="img-fluid rounded"
                                  style="max-height:180px; width:100%; object-fit:cover;" />
                         </div>
-
-                        <div class="small text-muted mb-2">
-                            Id : @coverId
-                        </div>
+                        <div class="small text-muted mb-2">Id : @coverId</div>
                     }
                     else
                     {
-                        <div class="text-muted small mb-2">Aucune image sélectionnée.</div>
+                        <div class="text-muted small mb-2">@Language.Translate("Aucune image sélectionnée.", "No image selected.")</div>
                     }
 
                     <div class="d-flex gap-2 flex-wrap">
-                        <button type="button"
-                                class="btn btn-outline-secondary btn-sm"
-                                @onclick="OpenUploadModal"
-                                disabled="@_isBusy">
-                            Uploader…
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                @onclick="OpenUploadModal" disabled="@_isBusy">
+                            @Language.Translate("Uploader…", "Upload…")
                         </button>
-
-                        <button type="button"
-                                class="btn btn-outline-secondary btn-sm"
-                                @onclick="OpenCoverLibraryModalAsync"
-                                disabled="@_isBusy">
-                            Choisir dans la bibliothèque…
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                @onclick="OpenCoverLibraryModalAsync" disabled="@_isBusy">
+                            @Language.Translate("Choisir dans la bibliothèque…", "Choose from library…")
                         </button>
-
-                        <button type="button"
-                                class="btn btn-outline-danger btn-sm"
+                        <button type="button" class="btn btn-outline-danger btn-sm"
                                 @onclick="ClearCover"
                                 disabled="@(_isBusy || _editModel.CoverMediaId is null)">
-                            Retirer
+                            @Language.Translate("Retirer", "Remove")
                         </button>
                     </div>
 
                     <div class="form-text">
-                        La couverture sert pour la liste des articles (carte / aperçu). Elle est indépendante des images insérées dans le contenu.
+                        @Language.Translate("La couverture sert pour la liste des articles (carte / aperçu). Elle est indépendante des images insérées dans le contenu.",
+                              "The cover image is used for the article list (card / preview). It is independent of images inserted in the content.")
                     </div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Contenu</label>
+                    <label class="form-label">@Language.Translate("Contenu", "Content")</label>
 
                     <div class="d-flex gap-2 mb-2">
                         <button type="button" class="btn btn-outline-secondary btn-sm"
                                 @onclick="OpenUploadModal" disabled="@_isBusy">
-                            Uploader une image
+                            @Language.Translate("Uploader une image", "Upload image")
                         </button>
-
                         <button type="button" class="btn btn-outline-secondary btn-sm"
                                 @onclick="OpenInsertLibraryModalAsync" disabled="@_isBusy">
-                            Insérer une image
+                            @Language.Translate("Insérer une image", "Insert image")
                         </button>
                     </div>
 
@@ -116,12 +106,12 @@ else
 
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label">Labels existants</label>
+                        <label class="form-label">@Language.Translate("Labels existants", "Existing labels")</label>
 
                         <div class="border rounded p-2" style="max-height: 220px; overflow:auto;">
                             @if (_allLabels.Count == 0)
                             {
-                                <div class="text-muted">Aucun label.</div>
+                                <div class="text-muted">@Language.Translate("Aucun label.", "No labels.")</div>
                             }
                             else
                             {
@@ -129,8 +119,7 @@ else
                                 {
                                     var checkboxId = $"lbl_{label.Id}";
                                     <div class="form-check">
-                                        <input class="form-check-input"
-                                               type="checkbox"
+                                        <input class="form-check-input" type="checkbox"
                                                id="@checkboxId"
                                                checked="@_editModel.SelectedLabelIds.Contains(label.Id)"
                                                @onchange="(e) => OnLabelChanged(label.Id, e)" />
@@ -140,18 +129,18 @@ else
                             }
                         </div>
 
-                        <div class="form-text">Coche les labels à associer à l’article.</div>
+                        <div class="form-text">@Language.Translate("Coche les labels à associer à l'article.", "Check the labels to associate with this article.")</div>
                     </div>
 
                     <div class="col-md-6">
-                        <label class="form-label">Nouveaux labels (séparés par des virgules)</label>
+                        <label class="form-label">@Language.Translate("Nouveaux labels (séparés par des virgules)", "New labels (comma-separated)")</label>
                         <InputText class="form-control" @bind-Value="_editModel.NewLabelsCsv" placeholder="ex: C#, OOP" />
                     </div>
                 </div>
 
                 <div class="form-check form-switch mb-3">
                     <InputCheckbox class="form-check-input" @bind-Value="_editModel.IsPublic" />
-                    <label class="form-check-label">Article public</label>
+                    <label class="form-check-label">@Language.Translate("Article public", "Public article")</label>
                 </div>
 
                 @if (!string.IsNullOrWhiteSpace(_saveError))
@@ -160,8 +149,8 @@ else
                 }
 
                 <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary" disabled="@_isBusy">Enregistrer</button>
-                    <button type="button" class="btn btn-secondary" @onclick="Cancel" disabled="@_isBusy">Annuler</button>
+                    <button type="submit" class="btn btn-primary" disabled="@_isBusy">@Language.Translate("Enregistrer", "Save")</button>
+                    <button type="button" class="btn btn-secondary" @onclick="Cancel" disabled="@_isBusy">@Language.Translate("Annuler", "Cancel")</button>
                 </div>
             </EditForm>
 
@@ -169,17 +158,15 @@ else
     </div>
 }
 
-@* ---------------- MODALE UPLOAD ---------------- *@
 @if (_uploadOpen)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.35);">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Uploader une image</h5>
+                    <h5 class="modal-title">@Language.Translate("Uploader une image", "Upload image")</h5>
                     <button type="button" class="btn-close" @onclick="CloseUploadModal"></button>
                 </div>
-
                 <div class="modal-body">
                     <InputFile OnChange="OnUploadAsync" accept="image/*" />
 
@@ -190,32 +177,28 @@ else
                     else if (!string.IsNullOrWhiteSpace(_uploadSuccess))
                     {
                         <div class="alert alert-success mt-3 mb-0">@_uploadSuccess</div>
-
                         <div class="d-flex gap-2 mt-3 flex-wrap">
                             <button type="button" class="btn btn-outline-secondary btn-sm"
                                     @onclick="OpenInsertLibraryModalAsync" disabled="@_isBusy">
-                                Ouvrir la bibliothèque (insérer)
+                                @Language.Translate("Ouvrir la bibliothèque (insérer)", "Open library (insert)")
                             </button>
-
                             <button type="button" class="btn btn-outline-secondary btn-sm"
                                     @onclick="OpenCoverLibraryModalAsync" disabled="@_isBusy">
-                                Ouvrir la bibliothèque (couverture)
+                                @Language.Translate("Ouvrir la bibliothèque (couverture)", "Open library (cover)")
                             </button>
                         </div>
                     }
 
-                    <div class="form-text mt-2">Taille max : 2 Mo.</div>
+                    <div class="form-text mt-2">@Language.Translate("Taille max : 2 Mo.", "Max size: 2 MB.")</div>
                 </div>
-
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseUploadModal">Fermer</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CloseUploadModal">@Language.Translate("Fermer", "Close")</button>
                 </div>
             </div>
         </div>
     </div>
 }
 
-@* ---------------- MODALE LIBRAIRIE (INSERER OU COUVERTURE) ---------------- *@
 @if (_libraryOpen)
 {
     <div class="modal fade show d-block" tabindex="-1" style="background: rgba(0,0,0,.35);">
@@ -223,15 +206,16 @@ else
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        @(_libraryPurpose == LibraryPurpose.InsertIntoContent ? "Insérer une image" : "Choisir une image de couverture")
+                        @(_libraryPurpose == LibraryPurpose.InsertIntoContent
+                            ? Language.Translate("Insérer une image", "Insert image")
+                            : Language.Translate("Choisir une image de couverture", "Choose cover image"))
                     </h5>
                     <button type="button" class="btn-close" @onclick="CloseLibraryModal"></button>
                 </div>
-
                 <div class="modal-body">
                     @if (_libraryLoading)
                     {
-                        <div class="text-muted">Chargement…</div>
+                        <div class="text-muted">@Language.Translate("Chargement…", "Loading…")</div>
                     }
                     else if (!string.IsNullOrWhiteSpace(_libraryError))
                     {
@@ -239,7 +223,7 @@ else
                     }
                     else if (_media.Count == 0)
                     {
-                        <div class="text-muted">Aucune image.</div>
+                        <div class="text-muted">@Language.Translate("Aucune image.", "No images.")</div>
                     }
                     else
                     {
@@ -248,24 +232,21 @@ else
                             {
                                 <div class="col">
                                     <div class="border rounded p-2 h-100 d-flex flex-column gap-2">
-                                        <img src="@m.Url"
-                                             alt="@m.FileName"
+                                        <img src="@m.Url" alt="@m.FileName"
                                              style="width:100%;height:140px;object-fit:cover;border-radius:.5rem;" />
-
                                         <div class="small text-truncate" title="@m.FileName">@m.FileName</div>
-
                                         @if (_libraryPurpose == LibraryPurpose.InsertIntoContent)
                                         {
                                             <button type="button" class="btn btn-primary btn-sm"
                                                     @onclick="() => InsertAsync(m.Url)">
-                                                Insérer
+                                                @Language.Translate("Insérer", "Insert")
                                             </button>
                                         }
                                         else
                                         {
                                             <button type="button" class="btn btn-primary btn-sm"
                                                     @onclick="() => SelectCover(m.Id)">
-                                                Choisir
+                                                @Language.Translate("Choisir", "Choose")
                                             </button>
                                         }
                                     </div>
@@ -274,9 +255,8 @@ else
                         </div>
                     }
                 </div>
-
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseLibraryModal">Fermer</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CloseLibraryModal">@Language.Translate("Fermer", "Close")</button>
                 </div>
             </div>
         </div>
@@ -293,30 +273,20 @@ else
 
     private ArticleEditModel? _editModel;
     private EditContext _editContext = default!;
-
     private readonly List<Label> _allLabels = new();
-
     private ElementReference _contentTextArea;
     private bool _shouldInitEditor;
 
-    // --- Modales images ---
     private bool _uploadOpen;
     private bool _libraryOpen;
-
     private string? _uploadError;
     private string? _uploadSuccess;
-
     private bool _libraryLoading;
     private string? _libraryError;
     private List<MediaItem> _media = new();
-
     private LibraryPurpose _libraryPurpose = LibraryPurpose.InsertIntoContent;
 
-    private enum LibraryPurpose
-    {
-        InsertIntoContent = 0,
-        SelectCover = 1
-    }
+    private enum LibraryPurpose { InsertIntoContent = 0, SelectCover = 1 }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -327,11 +297,7 @@ else
         try
         {
             var article = await ArticleService.GetArticleByIdAsync(Id);
-            if (article is null)
-            {
-                _editModel = null;
-                return;
-            }
+            if (article is null) { _editModel = null; return; }
 
             var labels = await ArticleService.GetLabelsAsync();
             _allLabels.Clear();
@@ -349,24 +315,15 @@ else
             };
 
             _editContext = new EditContext(_editModel);
-
-            // Initialise (ou met à jour) Summernote après le rendu
             _shouldInitEditor = true;
         }
-        catch (Exception exception)
-        {
-            _loadError = exception.Message;
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+        catch (Exception exception) { _loadError = exception.Message; }
+        finally { _isLoading = false; }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (_editModel is null) return;
-
         if (_shouldInitEditor)
         {
             _shouldInitEditor = false;
@@ -374,13 +331,7 @@ else
         }
     }
 
-    private void OpenUploadModal()
-    {
-        _uploadError = null;
-        _uploadSuccess = null;
-        _uploadOpen = true;
-    }
-
+    private void OpenUploadModal() { _uploadError = null; _uploadSuccess = null; _uploadOpen = true; }
     private void CloseUploadModal() => _uploadOpen = false;
 
     private async Task OpenInsertLibraryModalAsync()
@@ -406,49 +357,30 @@ else
         _libraryOpen = false;
     }
 
-    private void ClearCover()
-    {
-        if (_editModel is null) return;
-        _editModel.CoverMediaId = null;
-    }
+    private void ClearCover() { if (_editModel is null) return; _editModel.CoverMediaId = null; }
 
     private async Task LoadLibraryAsync()
     {
         _libraryLoading = true;
         _libraryError = null;
-
-        try
-        {
-            _media = await MediaLibrary.GetLatestAsync(take: 36);
-        }
-        catch (Exception ex)
-        {
-            _libraryError = ex.Message;
-            _media = new();
-        }
-        finally
-        {
-            _libraryLoading = false;
-        }
+        try { _media = await MediaLibrary.GetLatestAsync(take: 36); }
+        catch (Exception ex) { _libraryError = ex.Message; _media = new(); }
+        finally { _libraryLoading = false; }
     }
 
     private async Task OnUploadAsync(InputFileChangeEventArgs e)
     {
         _uploadError = null;
         _uploadSuccess = null;
-
         try
         {
             await MediaLibrary.UploadAsync(e.File, maxBytes: 2 * 1024 * 1024);
-            _uploadSuccess = "Upload réussi. Vous pouvez maintenant sélectionner l’image depuis la bibliothèque.";
-
+            _uploadSuccess = Language.Translate("Upload réussi. Vous pouvez maintenant sélectionner l'image depuis la bibliothèque.",
+                                  "Upload successful. You can now select the image from the library.");
             if (_libraryOpen)
                 _media = await MediaLibrary.GetLatestAsync(take: 36);
         }
-        catch (Exception ex)
-        {
-            _uploadError = ex.Message;
-        }
+        catch (Exception ex) { _uploadError = ex.Message; }
     }
 
     private async Task InsertAsync(string url)
@@ -457,35 +389,16 @@ else
         _libraryOpen = false;
     }
 
-    private void OnLabelChanged(int labelId, ChangeEventArgs changeEventArgs)
-    {
-        if (_editModel is null) return;
-
-        var raw = changeEventArgs.Value;
-        var isChecked =
-            raw is bool b ? b :
-            string.Equals(raw?.ToString(), "true", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(raw?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
-
-        if (isChecked) _editModel.SelectedLabelIds.Add(labelId);
-        else _editModel.SelectedLabelIds.Remove(labelId);
-    }
-
     private async Task HandleSubmit(EditContext editContext)
     {
         if (_editModel is null) return;
-
         _isBusy = true;
         _saveError = null;
 
         try
         {
-            // Sync contenu depuis Summernote (ou fallback textarea)
             _editModel.Contenu = await JavaScript.InvokeAsync<string>("articleEditor.getHtml", _contentTextArea);
-
-            // Valider après synchro
-            if (!editContext.Validate())
-                return;
+            if (!editContext.Validate()) return;
 
             string[]? newLabels = ParseNewLabels(_editModel.NewLabelsCsv);
             int[] selectedLabelIds = _editModel.SelectedLabelIds.ToArray();
@@ -500,25 +413,30 @@ else
             };
 
             await ArticleService.UpdateArticleAsync(updatedArticle, newLabels, selectedLabelIds);
-
             Navigation.NavigateTo("/articles");
         }
-        catch (Exception exception)
-        {
-            _saveError = exception.Message;
-        }
-        finally
-        {
-            _isBusy = false;
-        }
+        catch (Exception exception) { _saveError = exception.Message; }
+        finally { _isBusy = false; }
     }
 
     private void Cancel() => Navigation.NavigateTo("/articles");
 
+    private void OnLabelChanged(int labelId, ChangeEventArgs changeEventArgs)
+    {
+        if (_editModel is null) return;
+        var raw = changeEventArgs.Value;
+        var isChecked =
+            raw is bool b ? b :
+            string.Equals(raw?.ToString(), "true", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(raw?.ToString(), "on", StringComparison.OrdinalIgnoreCase);
+
+        if (isChecked) _editModel.SelectedLabelIds.Add(labelId);
+        else _editModel.SelectedLabelIds.Remove(labelId);
+    }
+
     private static string[]? ParseNewLabels(string? csv)
     {
         if (string.IsNullOrWhiteSpace(csv)) return null;
-
         var items = csv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         return items.Length == 0 ? null : items;
     }
@@ -534,12 +452,8 @@ else
         public string Contenu { get; set; } = string.Empty;
 
         public bool IsPublic { get; set; }
-
-        // Image de couverture (MediaAsset.Id)
         public Guid? CoverMediaId { get; set; }
-
         public string NewLabelsCsv { get; set; } = string.Empty;
-
         public HashSet<int> SelectedLabelIds { get; set; } = new();
     }
 }

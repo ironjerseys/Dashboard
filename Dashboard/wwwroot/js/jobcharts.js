@@ -84,5 +84,31 @@ window.JobCharts = (function () {
         });
     }
 
-    return { bar, doughnut, line };
+    function groupedBar(id, labels, datasets) {
+        destroy(id);
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+        instances[id] = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels,
+                datasets: datasets.map((ds, i) => ({
+                    label: ds.label,
+                    data: ds.data,
+                    backgroundColor: COLORS[i % COLORS.length],
+                    borderRadius: 3,
+                    barPercentage: 0.75,
+                })),
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: "y",
+                plugins: { legend: { position: "top" } },
+                scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
+            },
+        });
+    }
+
+    return { bar, doughnut, line, groupedBar };
 })();

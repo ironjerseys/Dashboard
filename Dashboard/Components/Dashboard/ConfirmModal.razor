@@ -2,6 +2,7 @@
 
 @using Microsoft.AspNetCore.Components.Web
 
+@inherits LocalizedComponentBase
 @rendermode RenderMode.InteractiveServer
 
 @if (IsOpen)
@@ -25,7 +26,7 @@
 
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-secondary" @onclick="CloseAsync" disabled="@Busy">
-                        Annuler
+                        @Language.Translate("Annuler", "Cancel")
                     </button>
 
                     <button type="button" class="btn btn-danger" @onclick="ConfirmAsync" disabled="@Busy">

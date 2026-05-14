@@ -1,11 +1,33 @@
 ﻿@using global::Dashboard.Components.Layout
+@using Microsoft.JSInterop
 
 @inherits LayoutComponentBase
+@inject LanguageService Language
+@inject IJSRuntime JS
 
 @namespace Dashboard.Components.Layout
 
 <NavMenu />
 
-<div class="container mt-4">
+<div class="page-body">
     @Body
 </div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var lang = await JS.InvokeAsync<string?>("localStorage.getItem", "lang");
+                if (lang == "fr" || lang == "en")
+                {
+                    Language.Set(lang);
+                    await JS.InvokeVoidAsync("setDocLang", lang);
+                }
+            }
+            catch { }
+        }
+    }
+}
