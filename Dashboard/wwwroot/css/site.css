@@ -24,37 +24,14 @@ body {
     padding-inline: 1rem
 }
 
-.page-body {
-    padding: 0 8px;
-}
-
-@media (min-width: 576px) {
-    .page-body { padding: 0 12px; }
-}
-
-@media (min-width: 992px) {
-    .page-body { padding: 0 20px; }
-}
-
-.page-body {
-    padding: 0 8px;
-}
-
-@media (min-width: 576px) {
-    .page-body { padding: 0 12px; }
-}
-
-@media (min-width: 992px) {
-    .page-body { padding: 0 20px; }
-}
-
 a {
     text-decoration: none
 }
 
 .navbar {
     backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--bs-border-color)
+    border-bottom: 1px solid var(--bs-border-color);
+    z-index: 1000;
 }
 
 .lang-btn {
@@ -181,14 +158,6 @@ code {
     background: #fff
 }
 
-
-.exp-item {
-    border-bottom: 1px solid var(--bs-border-color)
-}
-
-    .exp-item:last-child {
-        border-bottom: 0
-    }
 
 .exp-logo {
     width: 60px;

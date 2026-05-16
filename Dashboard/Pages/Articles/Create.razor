@@ -17,7 +17,7 @@
 
 @rendermode RenderMode.InteractiveServer
 
-<h1 class="mt-4">@Language.Translate("Nouvel article", "New article")</h1>
+<h1 class="mb-4">@Language.Translate("Nouvel article", "New article")</h1>
 
 @if (_isLoading)
 {
@@ -29,7 +29,7 @@ else if (!string.IsNullOrWhiteSpace(_loadError))
 }
 else
 {
-    <div class="container mt-4 article-page">
+    <div class="article-page">
         <div class="card article-card">
 
             <EditForm EditContext="_editContext" OnSubmit="HandleSubmit">

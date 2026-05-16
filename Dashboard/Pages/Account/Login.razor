@@ -8,8 +8,8 @@
 
 <PageTitle>@Language.Translate("Connexion", "Login")</PageTitle>
 
-<div class="container mt-5 article-page">
-    <h1 class="mb-3">@Language.Translate("Connexion", "Login")</h1>
+@* <div class="container mt-3 mt-md-4">
+ *@    <h1 class="mb-3">@Language.Translate("Connexion", "Login")</h1>
 
     @if (!string.IsNullOrWhiteSpace(_errorMessage))
     {
@@ -39,7 +39,7 @@
 
         <button type="submit" class="btn btn-primary">@Language.Translate("Se connecter", "Sign in")</button>
     </form>
-</div>
+@* </div> *@
 
 @code {
     [SupplyParameterFromQuery(Name = "returnUrl")]
