@@ -29,6 +29,8 @@ public sealed class QuestionTechniqueService : IDbQuizService
 
         return await dbContext.QuizQuestions
             .AsNoTracking()
+            .Include(q => q.Article)
+            .Include(q => q.Labels)
             .OrderBy(question => question.Id)
             .ToListAsync(cancellationToken);
     }

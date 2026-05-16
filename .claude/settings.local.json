@@ -13,7 +13,10 @@
       "Bash(dir C:\\\\Users\\\\jor63\\\\source\\\\repos\\\\Dashboard\\\\Dashboard\\\\Components *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\jor63\\\\source\\\\repos\\\\Dashboard\\\\Dashboard\" -Recurse -Filter \"*.razor\")",
       "Bash(Select-Object FullName)",
-      "Bash(dotnet build *)"
+      "Bash(dotnet build *)",
+      "Bash(xargs grep -l \"IDbQuizService\\\\|GetQuestionsAsync\")",
+      "Bash(xargs grep -l \"GetQuestionsAsync\\\\|GetByArticleAsync\")",
+      "Bash(xargs grep -l \"GetQuestionsAsync\")"
     ]
   }
 }
