@@ -54,7 +54,8 @@ a {
 
 .navbar {
     backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--bs-border-color)
+    border-bottom: 1px solid var(--bs-border-color);
+    z-index: 1000;
 }
 
 .lang-btn {
