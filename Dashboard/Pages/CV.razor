@@ -9,14 +9,13 @@
 
 @rendermode RenderMode.InteractiveServer
 
-<div class="container mt-3 mt-md-4">
-    @{
-        var index = 0;
-    }
+@{
+    var index = 0;
+}
 
-    @foreach (var exp in Experiences)
-    {
-        <article class="exp-item afficher py-4" data-index="@index">
+@foreach (var exp in Experiences)
+{
+    <article class="exp-item afficher @(index == 0 ? "pb-4" : "py-4")" data-index="@index">
             <div class="d-flex gap-3 align-items-start">
 
                 @if (!string.IsNullOrWhiteSpace(exp.LogoUrl))
@@ -30,7 +29,7 @@
                 <div class="flex-grow-1">
                     <header class="d-flex flex-column flex-md-row justify-content-between gap-2">
                         <div>
-                            <h2 class="exp-title mb-1">@exp.Titre</h2>
+                            <h1 class="exp-title mb-1">@exp.Titre</h1>
                             <div class="exp-meta">
                                 <span class="exp-company">@exp.Entreprise</span>
                                 <span class="exp-sep">•</span>
@@ -56,9 +55,8 @@
             </div>
         </article>
 
-        index++;
-    }
-</div>
+    index++;
+}
 
 @code {
     private IReadOnlyList<Experience> Experiences => new List<Experience>

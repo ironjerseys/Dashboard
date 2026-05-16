@@ -25,15 +25,15 @@ else if (!string.IsNullOrWhiteSpace(_error))
 }
 else if (_article is null || _notFound)
 {
-    <div class="container mt-3 mt-md-5 article-page">
+    <div class="article-page">
         <div class="alert alert-warning">@Language.Translate("Article introuvable.", "Article not found.")</div>
         <a class="btn btn-secondary" href="/articles">@Language.Translate("Retour à la liste", "Back to list")</a>
     </div>
 }
 else
 {
-    <div class="container mt-3 mb-3 mt-md-5 mb-md-5 article-page">
-        <div class="mb-3 mb-md-5 article-content card p-3">
+    <div class="article-page">
+        <div class="article-content card p-3">
 
             <div class="d-flex align-items-center gap-2 flex-nowrap overflow-auto pb-2 mb-2">
                 @if (_isAdmin)
