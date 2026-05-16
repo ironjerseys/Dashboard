@@ -76,10 +76,13 @@ window.setDocLang = function (l) { document.documentElement.lang = l; };
             if (mobile()) { isOpen ? closeNav() : openNav(); }
             return;
         }
+        if (!mobile() || !isOpen) return;
         var p = getPanel();
-        var link = e.target.closest('a');
-        if (mobile() && isOpen && p && p.contains(e.target) && link && !link.dataset.bsToggle) {
+        if (!p || !p.contains(e.target)) {
             closeNav();
+        } else {
+            var link = e.target.closest('a');
+            if (link && !link.dataset.bsToggle) closeNav();
         }
     });
 

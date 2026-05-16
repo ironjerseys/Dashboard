@@ -33,7 +33,7 @@ else if (_article is null || _notFound)
 else
 {
     <div class="article-page">
-        <div class="article-content card p-3">
+        <div class="article-content card">
 
             <div class="d-flex align-items-center gap-2 flex-nowrap overflow-auto pb-2 mb-2">
                 @if (_isAdmin)
@@ -46,12 +46,16 @@ else
                         <i class="bi bi-trash"></i>
                     </button>
 
-                    <button type="button" class="btn btn-outline-light" @onclick="OpenCreateQuestion">
-                        @Language.Translate("Ajouter une question liée", "Add related question")
+                    <button type="button" class="btn btn-outline-light" @onclick="OpenCreateQuestion"
+                            title="@Language.Translate("Ajouter une question liée", "Add related question")">
+                        <i class="bi bi-patch-question-fill"></i>
                     </button>
                 }
 
-                <a class="btn btn-secondary ms-auto" href="/articles">@Language.Translate("Retour à la liste", "Back to list")</a>
+                <a class="btn btn-secondary ms-auto" href="/articles"
+                   title="@Language.Translate("Retour à la liste", "Back to list")">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
             </div>
 
             <div class="d-flex flex-column flex-md-row gap-2 mt-2">
