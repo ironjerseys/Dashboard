@@ -686,16 +686,7 @@
     };
 
     private static bool LooksLikeHtml(string? s)
-    {
-        if (string.IsNullOrWhiteSpace(s)) return false;
-        return s.Contains("<p", StringComparison.OrdinalIgnoreCase)
-            || s.Contains("<br", StringComparison.OrdinalIgnoreCase)
-            || s.Contains("<div", StringComparison.OrdinalIgnoreCase)
-            || s.Contains("<span", StringComparison.OrdinalIgnoreCase)
-            || s.Contains("<pre", StringComparison.OrdinalIgnoreCase)
-            || s.Contains("<code", StringComparison.OrdinalIgnoreCase)
-            || s.Contains("<img", StringComparison.OrdinalIgnoreCase);
-    }
+        => !string.IsNullOrWhiteSpace(s) && Regex.IsMatch(s, @"<[a-zA-Z]");
 
     private static string ToPlainText(string? html)
     {
