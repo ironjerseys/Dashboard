@@ -16,7 +16,13 @@
       "Bash(dotnet build *)",
       "Bash(xargs grep -l \"IDbQuizService\\\\|GetQuestionsAsync\")",
       "Bash(xargs grep -l \"GetQuestionsAsync\\\\|GetByArticleAsync\")",
-      "Bash(xargs grep -l \"GetQuestionsAsync\")"
+      "Bash(xargs grep -l \"GetQuestionsAsync\")",
+      "Bash(docker-compose up *)",
+      "Bash(docker stop *)",
+      "Bash(docker rm *)",
+      "Bash(docker network *)",
+      "Bash(timeout 12 bash -c \"sleep 10 && docker logs dashboard-dashboard-1 --tail 10 2>&1\")",
+      "Bash(timeout 12 bash -c \"sleep 10 && docker logs dashboard-dashboard-1 --tail 5 2>&1\")"
     ]
   }
 }

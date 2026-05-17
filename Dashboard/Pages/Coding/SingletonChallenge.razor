@@ -1,0 +1,184 @@
+@page "/coding/singleton"
+
+@using Dashboard.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+
+@attribute [Authorize]
+@rendermode RenderMode.InteractiveServer
+
+@inject CodeChallengeService ChallengeService
+
+<PageTitle>Défi : Pattern Singleton</PageTitle>
+
+<div class="container-lg py-4">
+
+    <div class="mb-4">
+        <h1 class="mb-1">Défi : Pattern Singleton</h1>
+        <p class="text-muted mb-0">Implémente la classe <code>Singleton</code> puis clique sur <strong>Valider</strong> — ton code sera compilé et testé en direct.</p>
+    </div>
+
+    <!-- Rappel théorique -->
+    <div class="card p-3 mb-4">
+        <div class="fw-semibold mb-2">Qu'est-ce qu'un Singleton ?</div>
+        <ul class="mb-0 ps-3">
+            <li>Une seule instance de la classe existe dans toute l'application.</li>
+            <li>Le constructeur est <strong>privé</strong> — impossible d'instancier la classe avec <code>new</code>.</li>
+            <li>L'accès se fait via une méthode statique <code>GetInstance()</code>.</li>
+            <li>Idéalement <strong>thread-safe</strong> : si deux threads appellent <code>GetInstance()</code> simultanément, ils obtiennent la même instance.</li>
+        </ul>
+    </div>
+
+    <!-- Hints -->
+    <details class="mb-4">
+        <summary class="fw-semibold" style="cursor:pointer;">Indices (cliquer pour afficher)</summary>
+        <ol class="mt-2 ps-3">
+            <li>Déclare un champ <code>private static Singleton? _instance;</code></li>
+            <li>Dans <code>GetInstance()</code>, vérifie si <code>_instance</code> est null et crée-le si besoin.</li>
+            <li>Pour le thread-safety, utilise <code>lock</code> ou <code>Lazy&lt;T&gt;</code>.</li>
+        </ol>
+    </details>
+
+    <!-- Éditeur de code -->
+    <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+            <label class="fw-semibold mb-0">Ton code C#</label>
+            <button class="btn btn-sm btn-outline-secondary" @onclick="Reset" disabled="@_busy">
+                Réinitialiser
+            </button>
+        </div>
+        <textarea class="form-control font-monospace"
+                  rows="18"
+                  spellcheck="false"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  style="font-size:.88rem;resize:vertical;tab-size:4;"
+                  @bind="_code"
+                  @bind:event="oninput"
+                  disabled="@_busy"></textarea>
+    </div>
+
+    <div class="d-flex gap-2 align-items-center mb-4">
+        <button class="btn" @onclick="ValidateAsync" disabled="@_busy">
+            @if (_busy)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                <span>Compilation en cours…</span>
+            }
+            else
+            {
+                <span>Valider le code</span>
+            }
+        </button>
+    </div>
+
+    <!-- Erreur inattendue -->
+    @if (_unexpectedError is not null)
+    {
+        <div class="alert alert-danger">
+            <strong>Erreur inattendue :</strong> @_unexpectedError
+        </div>
+    }
+
+    <!-- Résultats -->
+    @if (_result is not null)
+    {
+        <div class="card p-3">
+            <div class="fw-semibold mb-3">Résultats</div>
+
+            @if (_result.HasCompileError)
+            {
+                <div class="alert alert-danger mb-0">
+                    <div class="fw-semibold mb-1">Erreur de compilation</div>
+                    <pre class="mb-0" style="font-size:.82rem;white-space:pre-wrap;">@_result.CompileErrors</pre>
+                </div>
+            }
+            else
+            {
+                var allPassed = _result.TestResults.All(r => r.Passed);
+
+                @foreach (var test in _result.TestResults)
+                {
+                    <div class="d-flex align-items-start gap-2 mb-2">
+                        @if (test.Passed)
+                        {
+                            <span class="text-success fw-bold flex-shrink-0">&#10003;</span>
+                            <span>@test.Message</span>
+                        }
+                        else
+                        {
+                            <span class="text-danger fw-bold flex-shrink-0">&#10007;</span>
+                            <span class="text-danger">@test.Message</span>
+                        }
+                    </div>
+                }
+
+                <hr class="my-3" />
+
+                @if (allPassed)
+                {
+                    <div class="alert alert-success mb-0 fw-semibold">
+                        Tous les tests sont passés — ton Singleton est correct !
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning mb-0">
+                        Certains tests ont échoué. Relis les indices et retente.
+                    </div>
+                }
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    private static readonly string Template =
+        "public class Singleton\n" +
+        "{\n" +
+        "    // 1. Déclarez ici le champ statique privé qui stocke l'instance unique\n" +
+        "\n" +
+        "    // 2. Le constructeur doit être privé\n" +
+        "    private Singleton() { }\n" +
+        "\n" +
+        "    // 3. Implémentez GetInstance() : doit toujours retourner la même instance\n" +
+        "    public static Singleton GetInstance()\n" +
+        "    {\n" +
+        "        // TODO : votre implémentation ici\n" +
+        "        throw new NotImplementedException();\n" +
+        "    }\n" +
+        "}";
+
+    private string _code = Template;
+    private bool _busy;
+    private ChallengeRunResult? _result;
+    private string? _unexpectedError;
+
+    private async Task ValidateAsync()
+    {
+        _busy = true;
+        _result = null;
+        _unexpectedError = null;
+        try
+        {
+            _result = await ChallengeService.ValidateSingletonAsync(_code);
+        }
+        catch (Exception ex)
+        {
+            _unexpectedError = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private void Reset()
+    {
+        _code = Template;
+        _result = null;
+    }
+}
