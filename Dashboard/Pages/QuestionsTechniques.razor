@@ -14,6 +14,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 
 @inherits LocalizedComponentBase
 @inject IDbQuizService QuizService
@@ -21,6 +22,7 @@
 @inject ILeitnerService LeitnerService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 
 @rendermode RenderMode.InteractiveServer
 
@@ -92,19 +94,21 @@
                 @for (var i = 0; i < 4; i++)
                 {
                     var choiceText = GetChoiceText(question, i);
-                    <div class="form-check mb-2">
+                    var rId = $"review_{question.Id}_{i}";
+                    <div class="form-check mb-2" style="cursor:pointer;">
                         <InputRadio TValue="int?"
                                     class="form-check-input"
+                                    id="@rId"
                                     Value="@i"
                                     disabled="@(_reviewBusy || _reviewShowResult)" />
-                        <label class="form-check-label">@choiceText</label>
+                        <label class="form-check-label" for="@rId" style="cursor:pointer;">@choiceText</label>
                     </div>
                 }
             </InputRadioGroup>
 
             @if (_reviewShowResult)
             {
-                <div class="mt-3">
+                <div id="review-result" class="mt-3">
                     @if (_reviewIsCorrect)
                     {
                         <div class="alert alert-success mb-2">@Language.Translate("Bonne réponse.", "Correct.")</div>
@@ -254,9 +258,9 @@
                     @for (int i = 0; i < 4; i++)
                     {
                         var choiceIdx = i;
-                        <div class="form-check mb-2">
+                        <div class="form-check mb-2" style="cursor:pointer;">
                             <InputRadio class="form-check-input" id="@($"q{q.Id}_c{choiceIdx}")" Value="@choiceIdx" />
-                            <label class="form-check-label" for="@($"q{q.Id}_c{choiceIdx}")">
+                            <label class="form-check-label" for="@($"q{q.Id}_c{choiceIdx}")" style="cursor:pointer;">
                                 @GetChoiceText(q, choiceIdx)
                             </label>
                         </div>
@@ -269,6 +273,7 @@
             }
             else
             {
+                <div id="quiz-result">
                 @if (_quizIsCorrect)
                 {
                     <p class="text-success fw-semibold">@Language.Translate("Bonne réponse !", "Correct!")</p>
@@ -306,6 +311,7 @@
                         @Language.Translate("Terminer", "Finish")
                     }
                 </button>
+                </div>
             }
         </div>
     }
@@ -533,9 +539,9 @@
 
         var uri = NavigationManager.Uri;
         if (uri.Contains("/quiz/questions", StringComparison.OrdinalIgnoreCase))
-            _activeTab = _isAdmin ? "manage" : "today";
+            _activeTab = _isAdmin ? "manage" : (_isAuthenticated ? "today" : "all");
         else
-            _activeTab = "today";
+            _activeTab = _isAuthenticated ? "today" : "all";
 
         await LoadDueCountAsync();
         await LoadTabDataAsync(_activeTab);
@@ -608,6 +614,9 @@
         }
         catch (Exception ex) { _reviewError = ex.Message; }
         finally { _reviewBusy = false; }
+
+        if (_reviewShowResult)
+            await JS.InvokeVoidAsync("scrollToId", "review-result");
     }
 
     private async Task NextReviewAsync()
@@ -636,7 +645,7 @@
         finally { _quizLoading = false; }
     }
 
-    private void ValidateQuizAnswer()
+    private async Task ValidateQuizAnswer()
     {
         if (!_quizSelectedChoice.HasValue)
         {
@@ -649,6 +658,8 @@
         _questionResults[q.Id] = _quizIsCorrect;
         _quizShowResult = true;
         _quizError = null;
+        await Task.Yield();
+        await JS.InvokeVoidAsync("scrollToId", "quiz-result");
     }
 
     private void NextQuizQuestion()

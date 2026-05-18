@@ -1,5 +1,10 @@
 window.setDocLang = function (l) { document.documentElement.lang = l; };
 
+window.scrollToId = function (id) {
+    var el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+};
+
 // Navbar mobile : panneau qui glisse depuis la droite
 // Uses event delegation on document to survive Blazor DOM reconciliation
 (function () {

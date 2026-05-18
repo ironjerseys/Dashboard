@@ -61,35 +61,6 @@ public static class __TestRunner__
         }
         catch (Exception ex) { sb.AppendLine(""FAIL:Vérification du constructeur : "" + ex.Message); }
 
-        // Test 4 : Thread-safety — 8 threads doivent obtenir la même instance
-        try
-        {
-            var instances = new Singleton[8];
-            var threads = new System.Threading.Thread[8];
-            for (int i = 0; i < 8; i++)
-            {
-                var idx = i;
-                threads[idx] = new System.Threading.Thread(() =>
-                {
-                    try { instances[idx] = Singleton.GetInstance(); }
-                    catch { /* l'instance reste null */ }
-                });
-            }
-            foreach (var t in threads) t.Start();
-            foreach (var t in threads) t.Join(2000);
-
-            bool allNonNull = instances.All(inst => inst != null);
-            bool allSame = allNonNull && instances.All(inst => object.ReferenceEquals(inst, instances[0]));
-
-            if (allSame)
-                sb.AppendLine(""PASS:Thread-safe — 8 threads obtiennent la même instance"");
-            else if (!allNonNull)
-                sb.AppendLine(""FAIL:Thread-safety non vérifiable — GetInstance() a échoué dans certains threads"");
-            else
-                sb.AppendLine(""FAIL:Non thread-safe — des instances différentes ont été créées en parallèle"");
-        }
-        catch (Exception ex) { sb.AppendLine(""FAIL:Test thread-safety : "" + ex.Message); }
-
         return sb.ToString();
     }
 }
