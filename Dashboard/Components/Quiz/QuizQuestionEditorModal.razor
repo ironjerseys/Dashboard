@@ -33,7 +33,7 @@
                         <div class="mb-3">
                             <label class="form-label">Question</label>
 
-                            @* Summernote s’attache à ce textarea *@
+                            @* Summernote attaches to this textarea *@
                             <textarea class="form-control" rows="4" @ref="_questionTextArea"></textarea>
 
                             <ValidationMessage For="() => _editModel.QuestionText" />
@@ -74,7 +74,7 @@
                         <div class="mb-3">
                             <label class="form-label">@Language.Translate("Explication", "Explanation")</label>
 
-                            @* Summernote s’attache à ce textarea *@
+                            @* Summernote attaches to this textarea *@
                             <textarea class="form-control" rows="3" @ref="_explanationTextArea"></textarea>
 
                             <ValidationMessage For="() => _editModel.Explanation" />
@@ -122,7 +122,7 @@
             box-shadow: 0 20px 60px rgba(0,0,0,.55);
         }
 
-            /* Optionnel : rendre l’éditeur lisible dans un modal sombre */
+            /* Make the editor readable inside a dark modal */
             .glass-modal .note-editor.note-frame {
                 background: #fff;
                 color: #000;
@@ -145,8 +145,8 @@
     [Parameter] public bool IsOpen { get; set; }
     [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
 
-    [Parameter] public string Title { get; set; } = "Nouvelle question";
-    [Parameter] public string SubmitLabel { get; set; } = "Créer";
+    [Parameter] public string Title { get; set; } = "New question";
+    [Parameter] public string SubmitLabel { get; set; } = "Create";
     [Parameter] public bool Busy { get; set; }
     [Parameter] public string? Error { get; set; }
 
@@ -167,7 +167,7 @@
 
     protected override void OnParametersSet()
     {
-        // Réinitialiser le modèle uniquement à l’ouverture (ou si on change de question)
+        // Reset the model only on open (or when the question changes)
         if (IsOpen && (!_wasOpen || Model.Id != _lastModelId))
         {
             _editModel = new QuestionTechnique
@@ -191,7 +191,7 @@
 
         _wasOpen = IsOpen;
 
-        // Au cas où le composant est instancié fermé au départ
+        // Fallback if the component is first instantiated while closed
         if (_editContext is null)
             _editContext = new EditContext(_editModel);
     }
@@ -203,7 +203,7 @@
 
         _shouldInitEditors = false;
 
-        // Initialise Summernote (fallback textarea si Summernote non chargé)
+        // Initialize Summernote (falls back to plain textarea if Summernote is not loaded)
         await JS.InvokeVoidAsync("articleEditor.init", _questionTextArea, _editModel.QuestionText);
         await JS.InvokeVoidAsync("articleEditor.init", _explanationTextArea, _editModel.Explanation);
     }
@@ -213,7 +213,7 @@
         if (Busy)
             return;
 
-        // Sync HTML depuis Summernote avant validation
+        // Sync HTML from Summernote before validation
         _editModel.QuestionText = await JS.InvokeAsync<string>("articleEditor.getHtml", _questionTextArea);
         _editModel.Explanation = await JS.InvokeAsync<string>("articleEditor.getHtml", _explanationTextArea);
 

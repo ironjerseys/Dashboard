@@ -27,15 +27,10 @@
                 <!-- Liens droite -->
                 <ul class="navbar-nav ms-auto align-items-center">
 
-                    <!-- Sélecteur de langue -->
-                    <li class="nav-item d-flex align-items-center gap-1 me-2">
-                        <LanguageSwitcher />
-                    </li>
-
                     <AuthorizeView Context="auth">
                         <Authorized>
                             @{
-                                var userName = auth.User.Identity?.Name ?? "(utilisateur)";
+                                var userName = auth.User.Identity?.Name ?? "(user)";
                             }
 
                             <li class="nav-item dropdown">
