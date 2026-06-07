@@ -2,28 +2,11 @@ namespace Dashboard.Services;
 
 public class LanguageService
 {
-    public string Current { get; private set; } = "fr";
+    public string Current { get; private set; } = "en";
 
     public event Action? OnChange;
 
-    public void Set(string lang)
-    {
-        if (lang != "fr" && lang != "en")
-        {
-            return;
-        }
+    public void Set(string lang) { }
 
-        if (Current == lang)
-        {
-            return;
-        }
-
-        Current = lang;
-        OnChange?.Invoke();
-    }
-
-    public string Translate(string fr, string en)
-    {
-        return Current == "en" ? en : fr;
-    }
+    public string Translate(string fr, string en) => en;
 }

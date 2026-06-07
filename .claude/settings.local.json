@@ -22,7 +22,10 @@
       "Bash(docker rm *)",
       "Bash(docker network *)",
       "Bash(timeout 12 bash -c \"sleep 10 && docker logs dashboard-dashboard-1 --tail 10 2>&1\")",
-      "Bash(timeout 12 bash -c \"sleep 10 && docker logs dashboard-dashboard-1 --tail 5 2>&1\")"
+      "Bash(timeout 12 bash -c \"sleep 10 && docker logs dashboard-dashboard-1 --tail 5 2>&1\")",
+      "Bash(Get-ChildItem -Force)",
+      "Bash(Select-Object -First 30)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\jor63\\\\source\\\\repos\\\\Dashboard\" -Recurse -Force | Where-Object {$_.Extension -in @\\('.razor', '.cs', '.html', '.json', '.resx'\\)} | Select-Object -ExpandProperty FullName | Select-Object -First 50)"
     ]
   }
 }
