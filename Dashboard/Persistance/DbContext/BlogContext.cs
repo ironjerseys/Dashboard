@@ -16,6 +16,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<QuestionTechnique> QuizQuestions => Set<QuestionTechnique>();
     public DbSet<LeitnerCard> LeitnerCards => Set<LeitnerCard>();
     public DbSet<LeitnerReview> LeitnerReviews => Set<LeitnerReview>();
+    public DbSet<CodeChallengeCard> CodeChallengeCards => Set<CodeChallengeCard>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<JobPosting> JobPostings => Set<JobPosting>();
 
@@ -69,6 +70,10 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             .WithMany()
             .HasForeignKey(card => card.QuizQuestionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<CodeChallengeCard>()
+            .HasIndex(card => new { card.OwnerId, card.ChallengeKey })
+            .IsUnique();
 
         builder.Entity<MediaAsset>().HasIndex(x => x.CreatedUtc);
 

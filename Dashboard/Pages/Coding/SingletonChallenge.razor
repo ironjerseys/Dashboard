@@ -1,16 +1,20 @@
 @page "/coding/singleton"
 
+@using System.Security.Claims
 @using Dashboard.Services
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 
 @* @attribute [Authorize]
  *@
- 
+
 @rendermode RenderMode.InteractiveServer
 
 @inject CodeChallengeService ChallengeService
+@inject ICodeChallengeReviewService ReviewService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <PageTitle>Challenge: Singleton Pattern</PageTitle>
 
@@ -20,6 +24,24 @@
         <h1 class="mb-1">Challenge: Singleton Pattern</h1>
         <p class="text-muted mb-0">Implement the <code>Singleton</code> class then click <strong>Validate</strong> — your code will be compiled and tested live.</p>
     </div>
+
+    @if (_isAuthenticated && _card is not null)
+    {
+        <div class="card p-3 mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span class="text-muted small">
+                    Box @_card.Box
+                    @if (_card.IsDue)
+                    {
+                        <span class="badge bg-warning text-dark ms-2">Due today</span>
+                    }
+                </span>
+                <span class="text-muted small">
+                    Due: @_card.NextDueDate.ToString("yyyy-MM-dd")
+                </span>
+            </div>
+        </div>
+    }
 
     <!-- Theory reminder -->
     <div class="card p-3 mb-4">
@@ -123,6 +145,12 @@
                 {
                     <div class="alert alert-success mb-0 fw-semibold">
                         All tests passed — your Singleton is correct!
+                        @if (_isAuthenticated && _card is not null)
+                        {
+                            <div class="fw-normal small mt-1">
+                                Next review: @_card.NextDueDate.ToString("yyyy-MM-dd") (box @_card.Box).
+                            </div>
+                        }
                     </div>
                 }
                 else
@@ -154,10 +182,35 @@
         "    }\n" +
         "}";
 
+    private const string ChallengeKey = "singleton";
+
     private string _code = Template;
     private bool _busy;
     private ChallengeRunResult? _result;
     private string? _unexpectedError;
+
+    // ── Répétition espacée (Leitner), comme les questions techniques ──
+    private bool _isAuthenticated;
+    private string _userId = string.Empty;
+    private CodeChallengeCardInfo? _card;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAuthenticated = user.Identity?.IsAuthenticated ?? false;
+        _userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        if (_isAuthenticated && !string.IsNullOrWhiteSpace(_userId))
+        {
+            try
+            {
+                _card = await ReviewService.GetOrCreateCardAsync(
+                    _userId, ChallengeKey, DateOnly.FromDateTime(DateTime.UtcNow));
+            }
+            catch { /* l'affichage de la due date est optionnel */ }
+        }
+    }
 
     private async Task ValidateAsync()
     {
@@ -167,6 +220,7 @@
         try
         {
             _result = await ChallengeService.ValidateSingletonAsync(_code);
+            await RecordReviewIfDueAsync();
         }
         catch (Exception ex)
         {
@@ -176,6 +230,20 @@
         {
             _busy = false;
         }
+    }
+
+    private async Task RecordReviewIfDueAsync()
+    {
+        // On n'enregistre une tentative que si la carte est due aujourd'hui,
+        // pour ne pas gonfler la boîte en cliquant plusieurs fois sur Validate.
+        if (!_isAuthenticated || string.IsNullOrWhiteSpace(_userId) || _result is null) return;
+        if (_card is null || !_card.IsDue) return;
+        if (_result.HasCompileError) return;
+        if (_result.TestResults.Count == 0) return;
+
+        bool allPassed = _result.TestResults.All(r => r.Passed);
+        _card = await ReviewService.RecordReviewAsync(
+            _userId, ChallengeKey, allPassed, DateOnly.FromDateTime(DateTime.UtcNow));
     }
 
     private void Reset()

@@ -31,17 +31,20 @@
 <h1 class="mb-4">@Language.Translate("Questions Techniques", "Technical Questions")</h1>
 
 <!-- Onglets -->
-<div class="d-flex flex-wrap gap-2 mb-4">
+<div class="quiz-tabs d-flex flex-wrap gap-2 mb-4">
     <button class="btn @TabBtn("today")" @onclick='() => ActivateTabAsync("today")'>
-        @Language.Translate("Questions du jour", "Today's questions")@(_dueCount > 0 ? $" ({_dueCount})" : "")
+        <i class="bi bi-lightning-charge"></i>
+        <span class="tab-label">@Language.Translate("Questions du jour", "Today's questions")</span>@(_dueCount > 0 ? $" ({_dueCount})" : "")
     </button>
     <button class="btn @TabBtn("all")" @onclick='() => ActivateTabAsync("all")'>
-        @Language.Translate("Toutes les questions", "All questions")
+        <i class="bi bi-collection"></i>
+        <span class="tab-label">@Language.Translate("Toutes les questions", "All questions")</span>
     </button>
     @if (_isAdmin)
     {
         <button class="btn @TabBtn("manage")" @onclick='() => ActivateTabAsync("manage")'>
-            @Language.Translate("Gestion", "Manage")
+            <i class="bi bi-gear"></i>
+            <span class="tab-label">@Language.Translate("Gestion", "Manage")</span>
         </button>
     }
 </div>
@@ -147,7 +150,7 @@
                 }
                 else
                 {
-                    <button class="btn" disabled="@_reviewBusy" @onclick="NextReviewAsync">
+                    <button id="review-next-btn" class="btn" disabled="@_reviewBusy" @onclick="NextReviewAsync">
                         @Language.Translate("Suivant", "Next")
                     </button>
                 }
@@ -301,7 +304,7 @@
                     </div>
                 }
 
-                <button type="button" class="btn mt-3" @onclick="NextQuizQuestion">
+                <button id="quiz-next-btn" type="button" class="btn mt-3" @onclick="NextQuizQuestion">
                     @if (_quizIndex + 1 < _quizQuestions.Count)
                     {
                         @Language.Translate("Suivant →", "Next →")
@@ -444,6 +447,26 @@
         background: rgba(0,0,0,.04) !important;
     }
     .min-w-0 { min-width: 0; }
+
+    /* Onglets : icône + libellé sur grand écran */
+    .quiz-tabs .btn i { margin-right: .4rem; }
+
+    /* Mobile : les 3 onglets tiennent sur une seule ligne (icônes seules) */
+    @@media (max-width: 575.98px) {
+        .quiz-tabs {
+            flex-wrap: nowrap !important;
+            gap: .4rem !important;
+        }
+        .quiz-tabs .btn {
+            flex: 1 1 0;
+            min-width: 0;
+            padding-left: .5rem;
+            padding-right: .5rem;
+            white-space: nowrap;
+        }
+        .quiz-tabs .btn i { margin-right: 0; }
+        .quiz-tabs .tab-label { display: none; }
+    }
 
     .quiz-label-card {
         background: var(--bs-card-bg, #fff);
@@ -616,7 +639,7 @@
         finally { _reviewBusy = false; }
 
         if (_reviewShowResult)
-            await JS.InvokeVoidAsync("scrollToId", "review-result");
+            await JS.InvokeVoidAsync("scrollToId", "review-next-btn");
     }
 
     private async Task NextReviewAsync()
@@ -659,7 +682,7 @@
         _quizShowResult = true;
         _quizError = null;
         await Task.Yield();
-        await JS.InvokeVoidAsync("scrollToId", "quiz-result");
+        await JS.InvokeVoidAsync("scrollToId", "quiz-next-btn");
     }
 
     private void NextQuizQuestion()

@@ -74,6 +74,7 @@ builder.Services.AddScoped<ILeitnerService, LeitnerService>();
 builder.Services.AddScoped<IMediaLibraryService, MediaLibraryService>();
 builder.Services.AddScoped<IJobPostingService, JobPostingService>();
 builder.Services.AddSingleton<CodeChallengeService>();
+builder.Services.AddScoped<ICodeChallengeReviewService, CodeChallengeReviewService>();
 builder.Services.AddScoped<LanguageService>();
 
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
