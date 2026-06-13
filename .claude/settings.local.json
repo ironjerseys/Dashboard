@@ -27,7 +27,8 @@
       "Bash(Select-Object -First 30)",
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\jor63\\\\source\\\\repos\\\\Dashboard\" -Recurse -Force | Where-Object {$_.Extension -in @\\('.razor', '.cs', '.html', '.json', '.resx'\\)} | Select-Object -ExpandProperty FullName | Select-Object -First 50)",
       "Bash(dotnet --version)",
-      "Bash(dotnet ef *)"
+      "Bash(dotnet ef *)",
+      "Bash(dotnet add *)"
     ]
   }
 }

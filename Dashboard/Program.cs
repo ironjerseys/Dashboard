@@ -75,6 +75,7 @@ builder.Services.AddScoped<IMediaLibraryService, MediaLibraryService>();
 builder.Services.AddScoped<IJobPostingService, JobPostingService>();
 builder.Services.AddSingleton<CodeChallengeService>();
 builder.Services.AddScoped<ICodeChallengeReviewService, CodeChallengeReviewService>();
+builder.Services.AddScoped<ISqlChallengeService, SqlChallengeService>();
 builder.Services.AddScoped<LanguageService>();
 
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
@@ -248,6 +249,10 @@ using (var scope = app.Services.CreateScope())
     {
         var db = sp.GetRequiredService<BlogContext>();
         await db.Database.MigrateAsync();
+
+        // Seed défi SQL d'exemple (si aucun n'existe encore)
+        var sqlChallengeService = sp.GetRequiredService<ISqlChallengeService>();
+        await sqlChallengeService.EnsureSeedAsync();
 
         // Seed rôles
         var roleMgr = sp.GetRequiredService<RoleManager<IdentityRole>>();

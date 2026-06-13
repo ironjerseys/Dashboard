@@ -1,0 +1,261 @@
+@page "/coding/sql/{Id:int}"
+
+@using System.Security.Claims
+@using Dashboard.Persistance.Entities
+@using Dashboard.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+
+@rendermode RenderMode.InteractiveServer
+
+@inject ISqlChallengeService SqlService
+@inject ICodeChallengeReviewService ReviewService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>@(_challenge?.Title ?? "SQL Challenge")</PageTitle>
+
+<div class="container-lg py-4">
+
+    <div class="mb-3">
+        <a href="/coding/sql" class="text-decoration-none small">&larr; All SQL challenges</a>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-muted">Loading…</div>
+    }
+    else if (_challenge is null)
+    {
+        <div class="alert alert-warning">Challenge not found.</div>
+    }
+    else
+    {
+        <div class="mb-4">
+            <h1 class="mb-1">@_challenge.Title</h1>
+            <p class="text-muted mb-0">@_challenge.Prompt</p>
+        </div>
+
+        @if (_isAuthenticated && _card is not null)
+        {
+            <div class="card p-3 mb-4">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <span class="text-muted small">
+                        Box @_card.Box
+                        @if (_card.IsDue)
+                        {
+                            <span class="badge bg-warning text-dark ms-2">Due today</span>
+                        }
+                    </span>
+                    <span class="text-muted small">Due: @_card.NextDueDate.ToString("yyyy-MM-dd")</span>
+                </div>
+            </div>
+        }
+
+        <!-- Schema -->
+        <div class="card p-3 mb-4">
+            <div class="fw-semibold mb-2">Table schema</div>
+            <pre class="mb-0 p-3" style="background:rgba(0,0,0,.06);border:1px solid rgba(0,0,0,.10);border-radius:12px;overflow:auto;font-size:.85rem;"><code>@_challenge.SchemaSql</code></pre>
+        </div>
+
+        <!-- Hint -->
+        @if (!string.IsNullOrWhiteSpace(_challenge.Hint))
+        {
+            <details class="mb-4">
+                <summary class="fw-semibold" style="cursor:pointer;">Hint (click to show)</summary>
+                <div class="mt-2">@_challenge.Hint</div>
+            </details>
+        }
+
+        <!-- SQL editor -->
+        <div class="mb-3">
+            <label class="fw-semibold mb-1 d-block">Your SQL query</label>
+            <textarea class="form-control font-monospace"
+                      rows="6"
+                      spellcheck="false"
+                      autocomplete="off"
+                      autocorrect="off"
+                      autocapitalize="off"
+                      placeholder="SELECT ..."
+                      style="font-size:.9rem;resize:vertical;tab-size:4;"
+                      @bind="_userSql"
+                      @bind:event="oninput"
+                      disabled="@_busy"></textarea>
+        </div>
+
+        <div class="d-flex gap-2 align-items-center mb-4">
+            <button class="btn" @onclick="ValidateAsync" disabled="@_busy">
+                @if (_busy)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    <span>Running…</span>
+                }
+                else
+                {
+                    <span>Run query</span>
+                }
+            </button>
+        </div>
+
+        @if (_result is not null)
+        {
+            @if (_result.HasError)
+            {
+                <div class="alert alert-danger">
+                    <strong>Error:</strong> @_result.Error
+                </div>
+            }
+            else
+            {
+                @if (_result.Passed)
+                {
+                    <div class="alert alert-success fw-semibold">
+                        Correct — your query returns the expected result!
+                        @if (_isAuthenticated && _card is not null)
+                        {
+                            <div class="fw-normal small mt-1">
+                                Next review: @_card.NextDueDate.ToString("yyyy-MM-dd") (box @_card.Box).
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning">Your result doesn't match the expected one yet. Compare the tables below.</div>
+                }
+
+                <div class="card p-3 mb-3">
+                    <div class="fw-semibold mb-2">Your result</div>
+                    @RenderTable(_result.UserResult)
+                </div>
+
+                @if (!_result.Passed && _result.ExpectedResult is not null)
+                {
+                    <div class="card p-3">
+                        <div class="fw-semibold mb-2">Expected result</div>
+                        @RenderTable(_result.ExpectedResult)
+                    </div>
+                }
+            }
+        }
+    }
+
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private bool _loading = true;
+    private bool _busy;
+    private SqlChallenge? _challenge;
+    private string _userSql = string.Empty;
+    private SqlChallengeRunResult? _result;
+
+    // Répétition espacée (Leitner), même fonctionnement que les questions techniques.
+    private bool _isAuthenticated;
+    private string _userId = string.Empty;
+    private CodeChallengeCardInfo? _card;
+
+    private string ChallengeKey => $"sql-{Id}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAuthenticated = user.Identity?.IsAuthenticated ?? false;
+        _userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        _challenge = await SqlService.GetByIdAsync(Id);
+        _loading = false;
+
+        if (_challenge is not null && _isAuthenticated && !string.IsNullOrWhiteSpace(_userId))
+        {
+            try
+            {
+                _card = await ReviewService.GetOrCreateCardAsync(
+                    _userId, ChallengeKey, DateOnly.FromDateTime(DateTime.UtcNow));
+            }
+            catch { /* l'affichage de la due date est optionnel */ }
+        }
+    }
+
+    private async Task ValidateAsync()
+    {
+        if (_challenge is null) return;
+        _busy = true;
+        _result = null;
+        try
+        {
+            _result = await SqlService.ValidateAsync(_challenge, _userSql);
+            await RecordReviewIfDueAsync();
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RecordReviewIfDueAsync()
+    {
+        // On n'enregistre une tentative que si la carte est due aujourd'hui.
+        if (!_isAuthenticated || string.IsNullOrWhiteSpace(_userId) || _result is null) return;
+        if (_card is null || !_card.IsDue) return;
+        if (_result.HasError) return;
+
+        _card = await ReviewService.RecordReviewAsync(
+            _userId, ChallengeKey, _result.Passed, DateOnly.FromDateTime(DateTime.UtcNow));
+    }
+
+    private RenderFragment RenderTable(SqlResultSet? rs) => builder =>
+    {
+        if (rs is null) return;
+
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "table-responsive");
+        builder.OpenElement(2, "table");
+        builder.AddAttribute(3, "class", "table table-sm table-bordered mb-0");
+
+        // En-tête
+        builder.OpenElement(4, "thead");
+        builder.OpenElement(5, "tr");
+        int seq = 6;
+        foreach (var col in rs.Columns)
+        {
+            builder.OpenElement(seq++, "th");
+            builder.AddContent(seq++, col);
+            builder.CloseElement();
+        }
+        builder.CloseElement(); // tr
+        builder.CloseElement(); // thead
+
+        // Corps
+        builder.OpenElement(seq++, "tbody");
+        if (rs.Rows.Count == 0)
+        {
+            builder.OpenElement(seq++, "tr");
+            builder.OpenElement(seq++, "td");
+            builder.AddAttribute(seq++, "colspan", Math.Max(1, rs.Columns.Count));
+            builder.AddAttribute(seq++, "class", "text-muted");
+            builder.AddContent(seq++, "(no rows)");
+            builder.CloseElement();
+            builder.CloseElement();
+        }
+        else
+        {
+            foreach (var row in rs.Rows)
+            {
+                builder.OpenElement(seq++, "tr");
+                foreach (var cell in row)
+                {
+                    builder.OpenElement(seq++, "td");
+                    builder.AddContent(seq++, cell ?? "NULL");
+                    builder.CloseElement();
+                }
+                builder.CloseElement();
+            }
+        }
+        builder.CloseElement(); // tbody
+
+        builder.CloseElement(); // table
+        builder.CloseElement(); // div
+    };
+}

@@ -1,0 +1,57 @@
+@page "/coding/sql"
+
+@using Dashboard.Persistance.Entities
+@using Dashboard.Services
+@using Microsoft.AspNetCore.Components.Web
+
+@rendermode RenderMode.InteractiveServer
+
+@inject ISqlChallengeService SqlService
+@inject NavigationManager Navigation
+
+<PageTitle>SQL Challenges</PageTitle>
+
+<div class="container-lg py-4">
+
+    <div class="mb-4">
+        <h1 class="mb-1">SQL Challenges</h1>
+        <p class="text-muted mb-0">Write a SQL query that answers the question. Your query runs in a sandboxed, in-memory database — no access to the real data.</p>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="text-muted">Loading…</div>
+    }
+    else if (_challenges.Count == 0)
+    {
+        <div class="alert alert-warning">No SQL challenge yet.</div>
+    }
+    else
+    {
+        <div class="d-flex flex-column gap-3">
+            @foreach (var challenge in _challenges)
+            {
+                <button type="button" class="card p-3 text-start border-0 shadow-sm"
+                        style="cursor:pointer;"
+                        @onclick="() => Open(challenge.Id)">
+                    <div class="fw-semibold mb-1">@challenge.Title</div>
+                    <div class="text-muted small">@challenge.Prompt</div>
+                </button>
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    private bool _loading = true;
+    private IReadOnlyList<SqlChallenge> _challenges = Array.Empty<SqlChallenge>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _challenges = await SqlService.GetAllAsync();
+        _loading = false;
+    }
+
+    private void Open(int id) => Navigation.NavigateTo($"/coding/sql/{id}");
+}
