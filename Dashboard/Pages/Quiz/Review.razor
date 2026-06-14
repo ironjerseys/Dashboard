@@ -1,0 +1,207 @@
+@page "/quiz/review"
+@page "/review"
+
+@using System.Security.Claims
+@using Dashboard.Persistance.Entities
+@using Dashboard.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+
+@inject ILeitnerService LeitnerService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
+
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Today's review</PageTitle>
+
+<div class="container-lg py-4">
+
+    <div class="mb-4">
+        <a href="/quiz/all" class="text-decoration-none small">&larr; Technical Questions</a>
+        <h1 class="mb-1 mt-2">Today's review</h1>
+        <p class="text-muted mb-0">Spaced-repetition review of the technical questions that are due today.</p>
+    </div>
+
+    @if (!_isAuthenticated)
+    {
+        <div class="card p-4">
+            <p class="mb-3">You must be logged in to access today's review.</p>
+            <a class="btn" href="/Account/Login?returnUrl=/quiz/review">Sign in</a>
+        </div>
+    }
+    else if (_loading)
+    {
+        <div class="text-muted">Loading…</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
+    else if (_dueItems.Count == 0)
+    {
+        <div class="card p-4">
+            <h4 class="mb-1">Nothing to review</h4>
+            <p class="text-muted mb-0">No questions are due today.</p>
+        </div>
+    }
+    else
+    {
+        var current = _dueItems[_index];
+        var question = current.Question;
+
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+                <span class="text-muted small">
+                    Question @(_index + 1) / @_dueItems.Count &mdash; Box @current.Box
+                </span>
+                <span class="text-muted small">
+                    Due: @current.NextDueDate.ToString("yyyy-MM-dd")
+                </span>
+            </div>
+
+            <hr />
+
+            @QuizRender.RenderQuestionText(question.QuestionText)
+
+            <InputRadioGroup TValue="int?" @bind-Value="_selectedChoice" Name="review-choice">
+                @for (var i = 0; i < 4; i++)
+                {
+                    var choiceText = QuizRender.GetChoiceText(question, i);
+                    var rId = $"review_{question.Id}_{i}";
+                    <div class="form-check mb-2" style="cursor:pointer;">
+                        <InputRadio TValue="int?"
+                                    class="form-check-input"
+                                    id="@rId"
+                                    Value="@i"
+                                    disabled="@(_busy || _showResult)" />
+                        <label class="form-check-label" for="@rId" style="cursor:pointer;">@choiceText</label>
+                    </div>
+                }
+            </InputRadioGroup>
+
+            @if (_showResult)
+            {
+                <div id="review-result" class="mt-3">
+                    @if (_isCorrect)
+                    {
+                        <div class="alert alert-success mb-2">Correct.</div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-danger mb-2">
+                            Wrong answer. The correct answer was:
+                            <strong>@QuizRender.GetChoiceText(question, question.CorrectAnswer)</strong>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(question.Explanation))
+                    {
+                        <div class="card p-3 mt-2">
+                            <div class="fw-bold mb-1">Explanation</div>
+                            @if (QuizRender.LooksLikeHtml(question.Explanation))
+                            {
+                                <div class="quiz-html">@((MarkupString)(question.Explanation ?? string.Empty))</div>
+                            }
+                            else
+                            {
+                                <div>@question.Explanation</div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <div class="d-flex gap-2 mt-4">
+                @if (!_showResult)
+                {
+                    <button class="btn" disabled="@_busy" @onclick="SubmitAnswerAsync">Submit</button>
+                }
+                else
+                {
+                    <button id="review-next-btn" class="btn" disabled="@_busy" @onclick="NextAsync">Next</button>
+                }
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private bool _isAuthenticated;
+    private string _userId = string.Empty;
+
+    private bool _loading;
+    private string? _error;
+    private List<LeitnerDueItem> _dueItems = new();
+    private int _index;
+    private int? _selectedChoice;
+    private bool _showResult;
+    private bool _isCorrect;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAuthenticated = user.Identity?.IsAuthenticated ?? false;
+        _userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        if (_isAuthenticated)
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            await LeitnerService.SyncMissingCardsAsync(_userId);
+            var due = await LeitnerService.GetDueAsync(_userId, today, take: 50);
+            _dueItems = due.ToList();
+            _index = 0;
+            _selectedChoice = null;
+            _showResult = false;
+            _isCorrect = false;
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private async Task SubmitAnswerAsync()
+    {
+        if (_selectedChoice is null)
+        {
+            _error = "Select an answer.";
+            return;
+        }
+        try
+        {
+            _error = null;
+            _busy = true;
+            var current = _dueItems[_index];
+            _isCorrect = (_selectedChoice.Value == current.Question.CorrectAnswer);
+            _showResult = true;
+            await LeitnerService.RecordReviewAsync(_userId, current.CardId, _isCorrect, DateOnly.FromDateTime(DateTime.UtcNow));
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+
+        if (_showResult)
+            await JS.InvokeVoidAsync("scrollToId", "review-next-btn");
+    }
+
+    private async Task NextAsync()
+    {
+        _dueItems.RemoveAt(_index);
+        _selectedChoice = null;
+        _showResult = false;
+        _isCorrect = false;
+        if (_dueItems.Count == 0) { await LoadAsync(); return; }
+        if (_index >= _dueItems.Count) _index = 0;
+    }
+}
