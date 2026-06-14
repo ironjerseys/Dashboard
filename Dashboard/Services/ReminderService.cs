@@ -56,11 +56,12 @@ public class ReminderService : BackgroundService
         using var scope = _serviceProvider.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
         var leitnerService = scope.ServiceProvider.GetRequiredService<ILeitnerService>();
+        var reviewService = scope.ServiceProvider.GetRequiredService<ICodeChallengeReviewService>();
         var mail = scope.ServiceProvider.GetRequiredService<IEmailSender>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
         var baseUrl = configuration["App:BaseUrl"];
-        var reviewUrl = BuildAbsoluteUrl(baseUrl, "/review");
+        var practiceUrl = BuildAbsoluteUrl(baseUrl, "/quiz/all");
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var users = userManager.Users.ToList();
@@ -69,17 +70,18 @@ public class ReminderService : BackgroundService
             if (_sentToday.Contains(user.Id)) continue;
             if (string.IsNullOrWhiteSpace(user.Email)) continue;
 
-            var dueCount = await leitnerService.GetDueCountAsync(user.Id, today, ct);
-            if (dueCount == 0) continue;
+            var questionsDue = await leitnerService.GetDueCountAsync(user.Id, today, ct);
+            var (codingDue, sqlDue) = await reviewService.GetDueCountsAsync(user.Id, today, ct);
+            if (questionsDue + codingDue + sqlDue == 0) continue;
 
-            var subject = $"Questions techniques du jour — {today:yyyy-MM-dd}";
-            var body = BuildEmailBody(dueCount, reviewUrl);
+            var subject = $"Daily practice reminder — {today:yyyy-MM-dd}";
+            var body = BuildEmailBody(questionsDue, codingDue, sqlDue, practiceUrl);
 
             try
             {
                 await mail.SendAsync(user.Email, subject, body);
                 _sentToday.Add(user.Id);
-                await LogAsync("Info", "EmailSent", $"To={user.Email}; DueQuestions={dueCount}");
+                await LogAsync("Info", "EmailSent", $"To={user.Email}; Questions={questionsDue}; Coding={codingDue}; Sql={sqlDue}");
             }
             catch (Exception ex)
             {
@@ -94,11 +96,19 @@ public class ReminderService : BackgroundService
         return baseUrl.TrimEnd('/') + "/" + path.TrimStart('/');
     }
 
-    private static string BuildEmailBody(int dueCount, string reviewUrl)
+    private static string BuildEmailBody(int questionsDue, int codingDue, int sqlDue, string practiceUrl)
     {
         var sb = new System.Text.StringBuilder();
-        sb.Append($"<p>Vous avez <strong>{dueCount}</strong> question(s) technique(s) à réviser aujourd'hui.</p>");
-        sb.Append($"<p><a href=\"{System.Net.WebUtility.HtmlEncode(reviewUrl)}\">Cliquez ici pour répondre aux questions</a></p>");
+        sb.Append("<p>You have items to practice today:</p>");
+        sb.Append("<ul>");
+        if (questionsDue > 0)
+            sb.Append($"<li><strong>{questionsDue}</strong> technical question(s)</li>");
+        if (codingDue > 0)
+            sb.Append($"<li><strong>{codingDue}</strong> coding challenge(s)</li>");
+        if (sqlDue > 0)
+            sb.Append($"<li><strong>{sqlDue}</strong> SQL challenge(s)</li>");
+        sb.Append("</ul>");
+        sb.Append($"<p><a href=\"{System.Net.WebUtility.HtmlEncode(practiceUrl)}\">Open your practice page</a></p>");
         return sb.ToString();
     }
 

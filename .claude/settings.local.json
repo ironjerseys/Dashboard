@@ -28,7 +28,9 @@
       "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\jor63\\\\source\\\\repos\\\\Dashboard\" -Recurse -Force | Where-Object {$_.Extension -in @\\('.razor', '.cs', '.html', '.json', '.resx'\\)} | Select-Object -ExpandProperty FullName | Select-Object -First 50)",
       "Bash(dotnet --version)",
       "Bash(dotnet ef *)",
-      "Bash(dotnet add *)"
+      "Bash(dotnet add *)",
+      "Bash(sqlite3 --version)",
+      "Bash(python3 -c \"import sqlite3; print\\('sqlite', sqlite3.sqlite_version\\)\")"
     ]
   }
 }
