@@ -1,4 +1,6 @@
 ﻿@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Hosting
+@inject IWebHostEnvironment Env
 
 <!DOCTYPE html>
 <html lang="fr">
@@ -17,7 +19,7 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.7/dist/lux/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css" />
-    <link rel="stylesheet" href="/css/site.css" />
+    <link rel="stylesheet" href="@Versioned("/css/site.css")" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,3 +52,14 @@
     <script src="/_framework/blazor.web.js"></script>
 </body>
 </html>
+
+@code {
+    // Cache-buster basé sur la date de modification du fichier (les TagHelpers
+    // asp-append-version ne s'exécutent pas dans les composants Blazor).
+    private string Versioned(string path)
+    {
+        var file = Env.WebRootFileProvider.GetFileInfo(path);
+        var version = file.Exists ? file.LastModified.ToUnixTimeSeconds().ToString() : "1";
+        return $"{path}?v={version}";
+    }
+}

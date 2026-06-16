@@ -30,165 +30,159 @@
     }
     else
     {
-        <div class="mb-4">
-            <h1 class="mb-1">Technical Questions</h1>
-            <p class="text-muted mb-0">Everything to practice in one place — questions and challenges, grouped by topic.</p>
+        <div class="mb-4 d-flex justify-content-between align-items-start gap-3">
+            <div>
+                <h1 class="mb-1">Technical Questions</h1>
+                <p class="text-muted mb-0">Everything to practice in one place — questions and challenges, grouped by topic.</p>
+            </div>
+            @if (_isAdmin)
+            {
+                <a class="icon-btn" href="/quiz/manage" title="Manage questions" aria-label="Manage questions">
+                    <i class="bi bi-sliders"></i>
+                </a>
+            }
         </div>
 
-        <!-- ── Due today ── -->
-        <section class="mb-5">
-            <h2 class="h5 fw-semibold mb-3"><i class="bi bi-lightning-charge text-warning me-1"></i>Due today</h2>
-
-            @if (!_isAuthenticated)
-            {
-                <div class="card p-4">
-                    <p class="mb-2">Sign in to track what's due and review everything with spaced repetition.</p>
-                    <div><a class="btn btn-sm" href="/Account/Login?returnUrl=/quiz/all">Sign in</a></div>
+        <!-- ── Due today (hero, en haut de page) ── -->
+        @if (!_isAuthenticated)
+        {
+            <div class="due-empty mb-5">
+                <i class="bi bi-box-arrow-in-right"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">Sign in to start practicing</div>
+                    <div class="text-muted small">Track what's due and review everything with spaced repetition.</div>
                 </div>
-            }
-            else
-            {
-                <div class="row g-3">
-                    <div class="col-6 col-lg-3">
-                        <div class="card practice-stat practice-stat-accent h-100 p-3">
-                            <div class="practice-stat-num">@_totalDue</div>
-                            <div class="practice-stat-label">Total due today</div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-lg-3">
-                        <a class="card practice-stat h-100 p-3 text-reset" href="/quiz/review">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="bi bi-patch-question practice-stat-icon text-primary"></i>
-                                <span class="practice-stat-num">@_questionsDue</span>
-                            </div>
-                            <div class="practice-stat-label">Questions</div>
-                        </a>
-                    </div>
-                    <div class="col-6 col-lg-3">
-                        <a class="card practice-stat h-100 p-3 text-reset" href="/coding/singleton">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="bi bi-code-slash practice-stat-icon text-primary"></i>
-                                <span class="practice-stat-num">@_codingDue</span>
-                            </div>
-                            <div class="practice-stat-label">Coding</div>
-                        </a>
-                    </div>
-                    <div class="col-6 col-lg-3">
-                        <a class="card practice-stat h-100 p-3 text-reset" href="/coding/sql">
-                            <div class="d-flex align-items-center gap-2">
-                                <i class="bi bi-database practice-stat-icon text-primary"></i>
-                                <span class="practice-stat-num">@_sqlDue</span>
-                            </div>
-                            <div class="practice-stat-label">SQL</div>
-                        </a>
-                    </div>
+                <a class="btn" href="/Account/Login?returnUrl=/quiz/all">Sign in</a>
+            </div>
+        }
+        else if (_totalDue == 0)
+        {
+            <div class="due-empty mb-5">
+                <i class="bi bi-check-circle-fill"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">You're all caught up</div>
+                    <div class="text-muted small">Nothing due today — explore a topic below to keep your edge sharp.</div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="due-hero mb-5">
+                <div class="due-hero-main">
+                    <span class="due-hero-total">@_totalDue</span>
+                    <span>
+                        <span class="due-hero-eyebrow"><i class="bi bi-lightning-charge-fill"></i> Due today</span>
+                        <span class="due-hero-sub d-block">item@(_totalDue == 1 ? "" : "s") ready for review</span>
+                    </span>
                 </div>
 
-                <div class="mt-3">
-                    <a class="btn" href="/quiz/review">
-                        <i class="bi bi-lightning-charge me-1"></i>Start review@(_questionsDue > 0 ? $" ({_questionsDue})" : "")
+                <div class="due-chips">
+                    <a class="due-chip" href="/quiz/review">
+                        <i class="bi bi-patch-question"></i>
+                        <span class="due-chip-num">@_questionsDue</span>
+                        <span class="due-chip-label">Questions</span>
+                    </a>
+                    <a class="due-chip" href="/coding/singleton">
+                        <i class="bi bi-code-slash"></i>
+                        <span class="due-chip-num">@_codingDue</span>
+                        <span class="due-chip-label">Coding</span>
+                    </a>
+                    <a class="due-chip" href="/coding/sql">
+                        <i class="bi bi-database"></i>
+                        <span class="due-chip-num">@_sqlDue</span>
+                        <span class="due-chip-label">SQL</span>
                     </a>
                 </div>
-            }
-        </section>
 
-        <!-- ── Explore everything ── -->
-        <section class="mb-5">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                <h2 class="h5 fw-semibold mb-0"><i class="bi bi-grid-3x3-gap me-1"></i>Explore everything</h2>
-                @if (_questionResults.Count > 0)
-                {
-                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Restart">Reset progress</button>
-                }
+                <a class="btn due-cta" href="/quiz/review">
+                    <i class="bi bi-play-fill me-1"></i>Start review
+                </a>
             </div>
+        }
 
-            @if (_loading)
-            {
-                <div class="text-muted">Loading…</div>
-            }
-            else if (!string.IsNullOrWhiteSpace(_error))
-            {
-                <div class="alert alert-danger">@_error</div>
-            }
-            else
-            {
-                <div class="d-flex flex-wrap gap-3">
+        <!-- ── Questions (2/3) + challenges (1/3) ── -->
+        @if (_loading)
+        {
+            <div class="text-muted">Loading…</div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="alert alert-danger">@_error</div>
+        }
+        else
+        {
+            <div class="row g-4">
+                <!-- Gauche : questions techniques -->
+                <div class="col-lg-8">
+                    <div class="section-head">
+                        <h2 class="section-title"><span class="section-icon"><i class="bi bi-collection"></i></span>Practice by topic</h2>
+                        @if (_questionResults.Count > 0)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Restart">Reset progress</button>
+                        }
+                    </div>
+
                     @if (_allQuestions.Count > 0)
                     {
-                        var allAnswered = AnsweredFor(_allQuestions);
-                        var allCorrect  = CorrectFor(_allQuestions);
-                        <button type="button" class="quiz-label-card" @onclick='() => SelectTheme(_allQuestions, "All")'>
-                            <div class="quiz-label-icon"><i class="bi bi-collection"></i></div>
-                            <div class="quiz-label-name">All questions</div>
-                            <div class="quiz-label-count">@_allQuestions.Count questions</div>
-                            @if (allAnswered > 0)
+                        var tileIndex = 0;
+                        <div class="topic-grid">
+                            @foreach (var theme in AllThemes)
                             {
-                                <div class="quiz-label-progress">@allCorrect / @_allQuestions.Count ✓</div>
+                                var themeQs       = theme.Questions;
+                                var themeName     = theme.Name;
+                                var themeAnswered = AnsweredFor(themeQs);
+                                var themeCorrect  = CorrectFor(themeQs);
+                                var themeTile     = TilePalette[tileIndex++ % TilePalette.Length];
+                                <button type="button" class="topic-card @themeTile" @onclick="() => SelectTheme(themeQs, themeName)">
+                                    <span class="topic-card-name">@themeName</span>
+                                    <span class="topic-card-count">@themeQs.Count questions</span>
+                                    @if (themeAnswered > 0)
+                                    {
+                                        <span class="topic-card-progress">@themeCorrect / @themeQs.Count ✓</span>
+                                    }
+                                </button>
                             }
-                        </button>
-
-                        @foreach (var theme in AllThemes)
-                        {
-                            var themeQs       = theme.Questions;
-                            var themeName     = theme.Name;
-                            var themeAnswered = AnsweredFor(themeQs);
-                            var themeCorrect  = CorrectFor(themeQs);
-                            <button type="button" class="quiz-label-card" @onclick="() => SelectTheme(themeQs, themeName)">
-                                <div class="quiz-label-icon"><i class="bi bi-tag"></i></div>
-                                <div class="quiz-label-name">@themeName</div>
-                                <div class="quiz-label-count">@themeQs.Count questions</div>
-                                @if (themeAnswered > 0)
-                                {
-                                    <div class="quiz-label-progress">@themeCorrect / @themeQs.Count ✓</div>
-                                }
-                            </button>
-                        }
-                    }
-
-                    <a class="quiz-label-card" href="/coding/singleton">
-                        <div class="quiz-label-icon"><i class="bi bi-code-slash"></i></div>
-                        <div class="quiz-label-name">Coding Challenges</div>
-                        <div class="quiz-label-count">Compiled &amp; tested live</div>
-                        @if (_codingDue > 0)
-                        {
-                            <div class="quiz-label-progress">@_codingDue due ✦</div>
-                        }
-                    </a>
-
-                    <a class="quiz-label-card" href="/coding/sql">
-                        <div class="quiz-label-icon"><i class="bi bi-database"></i></div>
-                        <div class="quiz-label-name">SQL Challenges</div>
-                        <div class="quiz-label-count">@_sqlCount @(_sqlCount == 1 ? "challenge" : "challenges")</div>
-                        @if (_sqlDue > 0)
-                        {
-                            <div class="quiz-label-progress">@_sqlDue due ✦</div>
-                        }
-                    </a>
-                </div>
-            }
-        </section>
-
-        <!-- ── Management ── -->
-        @if (_isAdmin)
-        {
-            <section class="mb-4">
-                <h2 class="h5 fw-semibold mb-3"><i class="bi bi-gear me-1"></i>Management</h2>
-                <a class="card practice-card p-3 text-reset" href="/quiz/manage" style="max-width:340px;">
-                    <div class="d-flex align-items-center gap-3">
-                        <i class="bi bi-pencil-square practice-card-icon"></i>
-                        <div>
-                            <div class="fw-semibold">Manage questions</div>
-                            <div class="text-muted small">Create, edit and delete questions.</div>
                         </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">No questions yet.</p>
+                    }
+                </div>
+
+                <!-- Droite : Coding (haut) + SQL (bas) -->
+                <div class="col-lg-4">
+                    <div class="section-head">
+                        <h2 class="section-title"><span class="section-icon"><i class="bi bi-trophy"></i></span>Challenges</h2>
                     </div>
-                </a>
-            </section>
+
+                    <div class="d-flex flex-column gap-3 h-100">
+                        <a class="challenge-card tile-indigo" href="/coding/singleton">
+                            <div class="challenge-card-title">Coding Challenges</div>
+                            <div class="challenge-card-desc">Compiled &amp; tested live, with instant feedback.</div>
+                            <span class="challenge-badge">@(_codingDue > 0 ? $"{_codingDue} due" : "Ready when you are")</span>
+                        </a>
+                        <a class="challenge-card tile-cyan" href="/coding/sql">
+                            <div class="challenge-card-title">SQL Challenges</div>
+                            <div class="challenge-card-desc">@_sqlCount @(_sqlCount == 1 ? "query challenge" : "query challenges") run against a real database.</div>
+                            <span class="challenge-badge">@(_sqlDue > 0 ? $"{_sqlDue} due" : "Ready when you are")</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
         }
     }
 
 </div>
 
 @code {
+    // Palette de tuiles dégradées (cf. site.css), cyclée sur les cartes de thèmes.
+    private static readonly string[] TilePalette =
+    {
+        "tile-violet", "tile-blue", "tile-green", "tile-orange",
+        "tile-cyan", "tile-teal", "tile-rose", "tile-indigo"
+    };
+
     // ── Auth & due counts ──
     private bool _isAuthenticated;
     private bool _isAdmin;
