@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'dashboard-cache-v1';
+﻿const CACHE_NAME = 'dashboard-cache-v2';
 const ASSETS = [
   '/',
   '/css/site.css',
@@ -11,6 +11,8 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  // Active immédiatement la nouvelle version sans attendre la fermeture des onglets.
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
@@ -18,7 +20,9 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
@@ -52,14 +56,20 @@ self.addEventListener('fetch', (event) => {
     // Cache uniquement les fichiers connus (assets)
     if (!ASSETS.includes(url.pathname)) return;
 
+    // Network-first : on récupère toujours la dernière version quand le réseau est
+    // disponible (et le cache ne sert que de repli hors-ligne). Évite que le CSS/JS
+    // reste figé après un déploiement.
     event.respondWith(
         caches.open(CACHE_NAME).then(async (cache) => {
-            const cached = await cache.match(req);
-            if (cached) return cached;
-
-            const resp = await fetch(req);
-            if (resp.ok) cache.put(req, resp.clone());
-            return resp;
+            try {
+                const resp = await fetch(req);
+                if (resp.ok) cache.put(req, resp.clone());
+                return resp;
+            } catch {
+                const cached = await cache.match(req, { ignoreSearch: true });
+                if (cached) return cached;
+                throw new Error('Network error and no cached response for ' + url.pathname);
+            }
         })
     );
 

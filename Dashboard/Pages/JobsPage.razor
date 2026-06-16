@@ -10,7 +10,10 @@
 
 @rendermode RenderMode.InteractiveServer
 
-<h1 class="mb-4">@Language.Translate("Offres d'emploi", "Job Listings")</h1>
+<div class="mb-4">
+    <h1 class="mb-1">@Language.Translate("Offres d'emploi", "Job Listings")</h1>
+    <p class="text-muted mb-0">@Language.Translate("Aperçu du marché, actualisé chaque semaine.", "Live market overview, refreshed weekly.")</p>
+</div>
 
     @if (_error is not null)
     {
@@ -33,38 +36,34 @@
     }
     else
     {
-        <!-- KPI cards -->
-        <div class="row g-3 mb-4">
-            <div class="col-6 col-md-3">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-2 fw-bold text-primary">@_stats.TotalCount.ToString("N0")</div>
-                        <div class="text-muted small">@Language.Translate("Offres totales", "Total listings")</div>
-                    </div>
+        <!-- KPI strip -->
+        <div class="stat-bar mb-4">
+            <div class="stat-bar-item accent">
+                <i class="bi bi-briefcase stat-bar-icon"></i>
+                <div>
+                    <div class="stat-bar-num">@_stats.TotalCount.ToString("N0")</div>
+                    <div class="stat-bar-label">@Language.Translate("Offres totales", "Total listings")</div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-2 fw-bold text-success">@RemotePct%</div>
-                        <div class="text-muted small">Remote</div>
-                    </div>
+            <div class="stat-bar-item">
+                <i class="bi bi-house-door stat-bar-icon"></i>
+                <div>
+                    <div class="stat-bar-num">@RemotePct%</div>
+                    <div class="stat-bar-label">Remote</div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-2 fw-bold">@_stats.ByRole.Count</div>
-                        <div class="text-muted small">@Language.Translate("Rôles suivis", "Tracked roles")</div>
-                    </div>
+            <div class="stat-bar-item">
+                <i class="bi bi-tags stat-bar-icon"></i>
+                <div>
+                    <div class="stat-bar-num">@_stats.ByRole.Count</div>
+                    <div class="stat-bar-label">@Language.Translate("Rôles suivis", "Tracked roles")</div>
                 </div>
             </div>
-            <div class="col-6 col-md-3">
-                <div class="card text-center h-100">
-                    <div class="card-body">
-                        <div class="fs-5 fw-bold">@(_stats.LastScrapeAt?.ToString("dd/MM/yyyy") ?? "—")</div>
-                        <div class="text-muted small">@Language.Translate("Dernier scraping", "Last scrape")</div>
-                    </div>
+            <div class="stat-bar-item">
+                <i class="bi bi-clock-history stat-bar-icon"></i>
+                <div>
+                    <div class="stat-bar-num" style="font-size:1.15rem;">@(_stats.LastScrapeAt?.ToString("dd/MM/yyyy") ?? "—")</div>
+                    <div class="stat-bar-label">@Language.Translate("Dernier scraping", "Last scrape")</div>
                 </div>
             </div>
         </div>
@@ -95,7 +94,9 @@
                 <div class="card h-100">
                     <div class="card-header">@Language.Translate("Répartition par site", "Distribution by source")</div>
                     <div class="card-body d-flex align-items-center justify-content-center">
-                        <canvas id="siteChart"></canvas>
+                        <div style="width:100%;max-width:220px;">
+                            <canvas id="siteChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>

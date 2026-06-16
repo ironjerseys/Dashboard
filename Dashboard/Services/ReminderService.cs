@@ -98,18 +98,95 @@ public class ReminderService : BackgroundService
 
     private static string BuildEmailBody(int questionsDue, int codingDue, int sqlDue, string practiceUrl)
     {
-        var sb = new System.Text.StringBuilder();
-        sb.Append("<p>You have items to practice today:</p>");
-        sb.Append("<ul>");
-        if (questionsDue > 0)
-            sb.Append($"<li><strong>{questionsDue}</strong> technical question(s)</li>");
-        if (codingDue > 0)
-            sb.Append($"<li><strong>{codingDue}</strong> coding challenge(s)</li>");
-        if (sqlDue > 0)
-            sb.Append($"<li><strong>{sqlDue}</strong> SQL challenge(s)</li>");
-        sb.Append("</ul>");
-        sb.Append($"<p><a href=\"{System.Net.WebUtility.HtmlEncode(practiceUrl)}\">Open your practice page</a></p>");
-        return sb.ToString();
+        // Couleurs reprises du site (wwwroot/css/site.css).
+        const string Primary = "#ff7a00";
+        const string PrimaryAlt = "#ff9e44";
+        const string Text = "#111827";
+        const string Muted = "#6b7280";
+        const string Border = "#e5e7eb";
+        const string PageBg = "#f3f4f6";
+
+        var url = System.Net.WebUtility.HtmlEncode(practiceUrl);
+        var total = questionsDue + codingDue + sqlDue;
+
+        var rows = new System.Text.StringBuilder();
+        void Row(string icon, int count, string label)
+        {
+            if (count <= 0) return;
+            rows.Append($@"
+                <tr>
+                    <td style=""padding:10px 14px;border:1px solid {Border};border-radius:12px;background:#fff;"">
+                        <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""border-collapse:collapse;"">
+                            <tr>
+                                <td style=""font-size:22px;width:34px;vertical-align:middle;"">{icon}</td>
+                                <td style=""vertical-align:middle;font-family:Segoe UI,Arial,sans-serif;color:{Text};font-size:15px;"">{label}</td>
+                                <td align=""right"" style=""vertical-align:middle;font-family:Segoe UI,Arial,sans-serif;color:{Primary};font-size:20px;font-weight:700;"">{count}</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr><td style=""height:10px;line-height:10px;font-size:0;"">&nbsp;</td></tr>");
+        }
+
+        Row("📝", questionsDue, "Technical questions");
+        Row("💻", codingDue, "Coding challenges");
+        Row("🗄️", sqlDue, "SQL challenges");
+
+        return $@"
+<!DOCTYPE html>
+<html lang=""en"">
+<head><meta charset=""utf-8""><meta name=""viewport"" content=""width=device-width,initial-scale=1""></head>
+<body style=""margin:0;padding:0;background:{PageBg};"">
+    <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""background:{PageBg};padding:24px 12px;"">
+        <tr>
+            <td align=""center"">
+                <table role=""presentation"" width=""600"" cellpadding=""0"" cellspacing=""0"" style=""max-width:600px;width:100%;background:#fff;border:1px solid {Border};border-radius:18px;overflow:hidden;"">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style=""background:linear-gradient(135deg,{Primary},{PrimaryAlt});padding:26px 28px;"">
+                            <div style=""font-family:Segoe UI,Arial,sans-serif;color:rgba(255,255,255,.85);font-size:13px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;"">Joris Reynes</div>
+                            <div style=""font-family:Segoe UI,Arial,sans-serif;color:#fff;font-size:24px;font-weight:700;margin-top:4px;"">⚡ Time to practice</div>
+                        </td>
+                    </tr>
+
+                    <!-- Body -->
+                    <tr>
+                        <td style=""padding:28px;"">
+                            <p style=""font-family:Segoe UI,Arial,sans-serif;color:{Text};font-size:16px;margin:0 0 20px;"">
+                                You have <strong style=""color:{Primary};"">{total}</strong> item{(total == 1 ? "" : "s")} due for review today. Keep your streak going!
+                            </p>
+
+                            <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""border-collapse:separate;"">
+                                {rows}
+                            </table>
+
+                            <!-- CTA -->
+                            <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" style=""margin:14px auto 4px;"">
+                                <tr>
+                                    <td align=""center"" style=""border-radius:12px;background:{Primary};"">
+                                        <a href=""{url}"" style=""display:inline-block;padding:13px 30px;font-family:Segoe UI,Arial,sans-serif;font-size:16px;font-weight:600;color:#fff;text-decoration:none;border-radius:12px;"">Start reviewing →</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style=""padding:18px 28px;border-top:1px solid {Border};"">
+                            <p style=""font-family:Segoe UI,Arial,sans-serif;color:{Muted};font-size:12px;margin:0;text-align:center;"">
+                                You receive this daily reminder because you have spaced-repetition reviews scheduled.
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>";
     }
 
     private async Task LogAsync(string level, string evt, string? message)
