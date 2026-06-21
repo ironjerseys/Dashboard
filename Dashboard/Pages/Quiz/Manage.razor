@@ -1,0 +1,246 @@
+@page "/quiz/manage"
+@page "/quiz/questions"
+
+@using System.Security.Claims
+@using Dashboard.Components.Quiz
+@using Dashboard.Components.Dashboard
+@using Dashboard.Persistance.Entities
+@using Dashboard.Persistance.Entities.Enums
+@using Dashboard.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+
+@inject IDbQuizService QuizService
+@inject IArticleService ArticleService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Manage questions</PageTitle>
+
+<div class="container-lg py-4">
+
+    <div class="mb-4">
+        <a href="/quiz/all" class="text-decoration-none small">&larr; Technical Questions</a>
+        <h1 class="mb-1 mt-2">Manage questions</h1>
+        <p class="text-muted mb-0">Create, edit and delete technical questions.</p>
+    </div>
+
+    @if (!_isAdmin)
+    {
+        <div class="alert alert-warning">Access restricted to administrators.</div>
+    }
+    else
+    {
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <span class="text-muted">@_questions.Count question(s)</span>
+            <button class="btn" @onclick="OpenCreateModal" disabled="@_busy">+ New question</button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="alert alert-danger">@_error</div>
+        }
+
+        @if (_busy && _questions.Count == 0)
+        {
+            <div class="text-muted">Loading…</div>
+        }
+
+        @foreach (var question in _questions)
+        {
+            <div class="card p-3 mb-3">
+                <div class="d-flex justify-content-between gap-3 flex-wrap">
+                    <div class="flex-grow-1 min-w-0">
+                        <div class="fw-semibold mb-2">
+                            @QuizRender.RenderQuestionText(question.QuestionText)
+                        </div>
+
+                        <ol class="mb-2 ps-3">
+                            @for (int ci = 0; ci < 4; ci++)
+                            {
+                                var isCorrect = question.CorrectAnswer == ci;
+                                <li class="@(isCorrect ? "text-success fw-semibold" : "")">
+                                    @QuizRender.RenderInlineHtmlOrText(QuizRender.GetChoiceText(question, ci))
+                                </li>
+                            }
+                        </ol>
+
+                        @if (!string.IsNullOrWhiteSpace(question.Explanation))
+                        {
+                            <div class="mt-2">
+                                <div class="text-muted small fw-semibold mb-1">Explanation</div>
+                                @if (QuizRender.LooksLikeHtml(question.Explanation))
+                                {
+                                    <div class="quiz-html">@((MarkupString)(question.Explanation ?? string.Empty))</div>
+                                }
+                                else
+                                {
+                                    <div class="text-muted">@question.Explanation</div>
+                                }
+                            </div>
+                        }
+
+                        <div class="small text-muted mt-2">
+                            Correct answer: <strong>@(question.CorrectAnswer + 1)</strong>
+                            @if (question.ArticleId.HasValue)
+                            {
+                                <span class="mx-2">&bull;</span>
+                                <span>@(question.Article?.Titre ?? $"Article #{question.ArticleId}")</span>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 align-items-start flex-shrink-0">
+                        <button class="btn" title="Edit"
+                                @onclick="() => OpenEditModal(question)"
+                                disabled="@_busy">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn" title="Delete"
+                                @onclick="() => AskDelete(question)"
+                                disabled="@_busy">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <QuizQuestionEditorModal IsOpen="_editorOpen"
+                                 IsOpenChanged="OnEditorOpenChanged"
+                                 Title="@_editorTitle"
+                                 SubmitLabel="@_editorSubmitLabel"
+                                 Busy="_busy"
+                                 Error="_editorError"
+                                 Model="_editorModel"
+                                 Articles="_articles"
+                                 OnSubmit="SaveQuestionAsync" />
+
+        <ConfirmModal IsOpen="_deleteConfirmOpen"
+                      IsOpenChanged="OnDeleteConfirmOpenChanged"
+                      Title="Delete question"
+                      Message="@_deleteMessage"
+                      ConfirmLabel="Delete"
+                      Busy="_busy"
+                      OnConfirm="DeleteConfirmedAsync" />
+    }
+
+</div>
+
+@code {
+    private bool _isAdmin;
+
+    private bool _busy;
+    private string? _error;
+    private List<QuestionTechnique> _questions = new();
+    private List<Article> _articles = new();
+    private bool _editorOpen;
+    private string _editorTitle = "";
+    private string _editorSubmitLabel = "";
+    private string? _editorError;
+    private QuestionTechnique _editorModel = new();
+    private bool _isEditMode;
+    private bool _deleteConfirmOpen;
+    private int _deleteQuestionId;
+    private string _deleteMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _isAdmin = authState.User.IsInRole("Admin");
+
+        if (_isAdmin)
+            await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            _questions = await QuizService.GetQuestionsAsync();
+            _articles = (await ArticleService.GetArticlesAsync(sort: ArticleSort.DateNewest)).ToList();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private void OpenCreateModal()
+    {
+        _isEditMode = false;
+        _editorTitle = "New question";
+        _editorSubmitLabel = "Create";
+        _editorError = null;
+        _editorModel = new QuestionTechnique { CorrectAnswer = 0 };
+        _editorOpen = true;
+    }
+
+    private void OpenEditModal(QuestionTechnique question)
+    {
+        _isEditMode = true;
+        _editorTitle = "Edit question";
+        _editorSubmitLabel = "Save";
+        _editorError = null;
+        _editorModel = new QuestionTechnique
+        {
+            Id = question.Id,
+            QuestionText = question.QuestionText,
+            Choice0 = question.Choice0,
+            Choice1 = question.Choice1,
+            Choice2 = question.Choice2,
+            Choice3 = question.Choice3,
+            CorrectAnswer = question.CorrectAnswer,
+            Explanation = question.Explanation,
+            ArticleId = question.ArticleId
+        };
+        _editorOpen = true;
+    }
+
+    private Task OnEditorOpenChanged(bool open) { _editorOpen = open; return Task.CompletedTask; }
+
+    private async Task SaveQuestionAsync(QuestionTechnique model)
+    {
+        _editorError = null;
+        try
+        {
+            _busy = true;
+            if (_isEditMode)
+            {
+                bool ok = await QuizService.UpdateAsync(model);
+                if (!ok) { _editorError = "Question not found."; return; }
+            }
+            else
+            {
+                await QuizService.CreateAsync(model);
+            }
+            _editorOpen = false;
+            await LoadAsync();
+        }
+        catch (Exception ex) { _editorError = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private void AskDelete(QuestionTechnique question)
+    {
+        _deleteQuestionId = question.Id;
+        _deleteMessage = $"Delete this question?\n\n\"{QuizRender.MakePreview(question.QuestionText, 90)}\"\n\nThis action is permanent.";
+        _deleteConfirmOpen = true;
+    }
+
+    private Task OnDeleteConfirmOpenChanged(bool open) { _deleteConfirmOpen = open; return Task.CompletedTask; }
+
+    private async Task DeleteConfirmedAsync()
+    {
+        try
+        {
+            _busy = true;
+            await QuizService.DeleteAsync(_deleteQuestionId);
+            _deleteConfirmOpen = false;
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+}

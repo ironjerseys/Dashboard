@@ -1,0 +1,404 @@
+@page "/quiz"
+@page "/quiz/all"
+@page "/practice"
+@page "/dashboard"
+
+@using System.Security.Claims
+@using Dashboard.Persistance.Entities
+@using Dashboard.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+
+@inject IDbQuizService QuizService
+@inject ILeitnerService LeitnerService
+@inject ICodeChallengeReviewService ReviewService
+@inject ISqlChallengeService SqlService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IJSRuntime JS
+
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Technical Questions</PageTitle>
+
+<div class="container-lg py-4">
+
+    @if (_view == "quiz")
+    {
+        @RenderQuizPlay()
+    }
+    else
+    {
+        <div class="mb-4 d-flex justify-content-between align-items-start gap-3">
+            <div>
+                <h1 class="mb-1">Technical Questions</h1>
+                <p class="text-muted mb-0">Everything to practice in one place — questions and challenges, grouped by topic.</p>
+            </div>
+            @if (_isAdmin)
+            {
+                <a class="icon-btn" href="/quiz/manage" title="Manage questions" aria-label="Manage questions">
+                    <i class="bi bi-sliders"></i>
+                </a>
+            }
+        </div>
+
+        <!-- ── Due today (hero, en haut de page) ── -->
+        @if (!_isAuthenticated)
+        {
+            <div class="due-empty mb-5">
+                <i class="bi bi-box-arrow-in-right"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">Sign in to start practicing</div>
+                    <div class="text-muted small">Track what's due and review everything with spaced repetition.</div>
+                </div>
+                <a class="btn" href="/Account/Login?returnUrl=/quiz/all">Sign in</a>
+            </div>
+        }
+        else if (_totalDue == 0)
+        {
+            <div class="due-empty mb-5">
+                <i class="bi bi-check-circle-fill"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold">You're all caught up</div>
+                    <div class="text-muted small">Nothing due today — explore a topic below to keep your edge sharp.</div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="due-hero mb-5">
+                <div class="due-hero-main">
+                    <span class="due-hero-total">@_totalDue</span>
+                    <span>
+                        <span class="due-hero-eyebrow"><i class="bi bi-lightning-charge-fill"></i> Due today</span>
+                        <span class="due-hero-sub d-block">item@(_totalDue == 1 ? "" : "s") ready for review</span>
+                    </span>
+                </div>
+
+                <div class="due-chips">
+                    <a class="due-chip" href="/quiz/review">
+                        <i class="bi bi-patch-question"></i>
+                        <span class="due-chip-num">@_questionsDue</span>
+                        <span class="due-chip-label">Questions</span>
+                    </a>
+                    <a class="due-chip" href="/coding/singleton">
+                        <i class="bi bi-code-slash"></i>
+                        <span class="due-chip-num">@_codingDue</span>
+                        <span class="due-chip-label">Coding</span>
+                    </a>
+                    <a class="due-chip" href="/coding/sql">
+                        <i class="bi bi-database"></i>
+                        <span class="due-chip-num">@_sqlDue</span>
+                        <span class="due-chip-label">SQL</span>
+                    </a>
+                </div>
+
+                <a class="btn due-cta" href="/quiz/review">
+                    <i class="bi bi-play-fill me-1"></i>Start review
+                </a>
+            </div>
+        }
+
+        <!-- ── Questions (2/3) + challenges (1/3) ── -->
+        @if (_loading)
+        {
+            <div class="text-muted">Loading…</div>
+        }
+        else if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <div class="alert alert-danger">@_error</div>
+        }
+        else
+        {
+            <div class="row g-4">
+                <!-- Gauche : questions techniques -->
+                <div class="col-lg-8">
+                    <div class="section-head">
+                        <h2 class="section-title"><span class="section-icon"><i class="bi bi-collection"></i></span>Practice by topic</h2>
+                        @if (_questionResults.Count > 0)
+                        {
+                            <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="Restart">Reset progress</button>
+                        }
+                    </div>
+
+                    @if (_allQuestions.Count > 0)
+                    {
+                        var tileIndex = 0;
+                        <div class="topic-grid">
+                            @foreach (var theme in AllThemes)
+                            {
+                                var themeQs       = theme.Questions;
+                                var themeName     = theme.Name;
+                                var themeAnswered = AnsweredFor(themeQs);
+                                var themeCorrect  = CorrectFor(themeQs);
+                                var themeTile     = TilePalette[tileIndex++ % TilePalette.Length];
+                                <button type="button" class="topic-card @themeTile" @onclick="() => SelectTheme(themeQs, themeName)">
+                                    <span class="topic-card-name">@themeName</span>
+                                    <span class="topic-card-count">@themeQs.Count questions</span>
+                                    @if (themeAnswered > 0)
+                                    {
+                                        <span class="topic-card-progress">@themeCorrect / @themeQs.Count ✓</span>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">No questions yet.</p>
+                    }
+                </div>
+
+                <!-- Droite : Coding (haut) + SQL (bas) -->
+                <div class="col-lg-4">
+                    <div class="section-head">
+                        <h2 class="section-title"><span class="section-icon"><i class="bi bi-trophy"></i></span>Challenges</h2>
+                    </div>
+
+                    <div class="d-flex flex-column gap-3 h-100">
+                        <a class="challenge-card tile-indigo" href="/coding/singleton">
+                            <div class="challenge-card-title">Coding Challenges</div>
+                            <div class="challenge-card-desc">Compiled &amp; tested live, with instant feedback.</div>
+                            <span class="challenge-badge">@(_codingDue > 0 ? $"{_codingDue} due" : "Ready when you are")</span>
+                        </a>
+                        <a class="challenge-card tile-cyan" href="/coding/sql">
+                            <div class="challenge-card-title">SQL Challenges</div>
+                            <div class="challenge-card-desc">@_sqlCount @(_sqlCount == 1 ? "query challenge" : "query challenges") run against a real database.</div>
+                            <span class="challenge-badge">@(_sqlDue > 0 ? $"{_sqlDue} due" : "Ready when you are")</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+
+</div>
+
+@code {
+    // Palette de tuiles dégradées (cf. site.css), cyclée sur les cartes de thèmes.
+    private static readonly string[] TilePalette =
+    {
+        "tile-violet", "tile-blue", "tile-green", "tile-orange",
+        "tile-cyan", "tile-teal", "tile-rose", "tile-indigo"
+    };
+
+    // ── Auth & due counts ──
+    private bool _isAuthenticated;
+    private bool _isAdmin;
+    private string _userId = string.Empty;
+    private int _questionsDue;
+    private int _codingDue;
+    private int _sqlDue;
+    private int _totalDue => _questionsDue + _codingDue + _sqlDue;
+    private int _sqlCount;
+
+    // ── Questions / quiz play ──
+    private bool _loading;
+    private string? _error;
+    private List<QuestionTechnique> _allQuestions = new();
+    private int _index;
+    private int _score;
+    private bool _showResult;
+    private bool _isCorrect;
+    private int? _selectedChoice;
+    private string _view = "overview";
+    private readonly Dictionary<int, bool?> _questionResults = new();
+    private string _selectedLabelName = "";
+    private List<QuestionTechnique> _quizQuestions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAuthenticated = user.Identity?.IsAuthenticated ?? false;
+        _isAdmin = user.IsInRole("Admin");
+        _userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        _loading = true;
+        _error = null;
+        try
+        {
+            _allQuestions = await QuizService.GetQuestionsAsync();
+            _sqlCount = (await SqlService.GetAllAsync()).Count;
+            Restart();
+
+            if (_isAuthenticated && !string.IsNullOrWhiteSpace(_userId))
+            {
+                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                _questionsDue = await LeitnerService.GetDueCountAsync(_userId, today);
+                (_codingDue, _sqlDue) = await ReviewService.GetDueCountsAsync(_userId, today);
+            }
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    // ── Quiz play view ──
+    private RenderFragment RenderQuizPlay() =>@<text>
+        @{
+            var q           = _quizQuestions[_index];
+            var qHtml       = q.QuestionText ?? "";
+            var qPlain      = QuizRender.ToPlainText(qHtml);
+            var progressPct = (int)Math.Round((_index + 1.0) / _quizQuestions.Count * 100);
+        }
+
+        <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+            <button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" @onclick="GoToOverview">
+                <i class="bi bi-arrow-left"></i>
+            </button>
+            <span class="text-muted small">
+                Question @(_index + 1) / @_quizQuestions.Count &nbsp;·&nbsp; Score: @_score
+            </span>
+            @if (!string.IsNullOrWhiteSpace(_selectedLabelName))
+            {
+                <span class="badge bg-secondary ms-auto">@_selectedLabelName</span>
+            }
+        </div>
+
+        <div class="progress mb-3" style="height:5px;">
+            <div class="progress-bar" style="width:@progressPct%"></div>
+        </div>
+
+        <div class="card p-3">
+            @if (QuizRender.HasCodeFence(qPlain))
+            {
+                <pre class="mb-3 p-3" style="background:rgba(0,0,0,.06);border:1px solid rgba(0,0,0,.10);border-radius:12px;overflow:auto;"><code>@QuizRender.ExtractCode(qPlain)</code></pre>
+            }
+            else if (QuizRender.LooksLikeHtml(qHtml))
+            {
+                <div class="mb-3 quiz-html">@((MarkupString)qHtml)</div>
+            }
+            else
+            {
+                <p class="mb-3">@qHtml</p>
+            }
+
+            @if (!_showResult)
+            {
+                <InputRadioGroup @bind-Value="_selectedChoice">
+                    @for (int i = 0; i < 4; i++)
+                    {
+                        var choiceIdx = i;
+                        <div class="form-check mb-2" style="cursor:pointer;">
+                            <InputRadio class="form-check-input" id="@($"q{q.Id}_c{choiceIdx}")" Value="@choiceIdx" />
+                            <label class="form-check-label" for="@($"q{q.Id}_c{choiceIdx}")" style="cursor:pointer;">
+                                @QuizRender.GetChoiceText(q, choiceIdx)
+                            </label>
+                        </div>
+                    }
+                </InputRadioGroup>
+
+                <button type="button" class="btn mt-3" @onclick="ValidateAnswer">Submit</button>
+            }
+            else
+            {
+                <div id="quiz-result">
+                    @if (_isCorrect)
+                    {
+                        <p class="text-success fw-semibold">Correct!</p>
+                    }
+                    else
+                    {
+                        <p class="text-danger fw-semibold">
+                            Wrong answer. The correct answer was: @QuizRender.GetChoiceText(q, q.CorrectAnswer)
+                        </p>
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(q.Explanation))
+                    {
+                        <div class="mt-2">
+                            <strong>Explanation:</strong>
+                            @if (QuizRender.LooksLikeHtml(q.Explanation))
+                            {
+                                <div class="mt-1 quiz-html">@((MarkupString)q.Explanation)</div>
+                            }
+                            else
+                            {
+                                <div class="mt-1">@q.Explanation</div>
+                            }
+                        </div>
+                    }
+
+                    <button id="quiz-next-btn" type="button" class="btn mt-3" @onclick="NextQuestion">
+                        @(_index + 1 < _quizQuestions.Count ? "Next →" : "Finish")
+                    </button>
+                </div>
+            }
+        </div>
+    </text>;
+
+    private async Task ValidateAnswer()
+    {
+        if (!_selectedChoice.HasValue)
+        {
+            _error = "Choose an answer.";
+            return;
+        }
+        var q = _quizQuestions[_index];
+        _isCorrect = (_selectedChoice.Value == q.CorrectAnswer);
+        if (!_questionResults.ContainsKey(q.Id) && _isCorrect) _score++;
+        _questionResults[q.Id] = _isCorrect;
+        _showResult = true;
+        _error = null;
+        await Task.Yield();
+        await JS.InvokeVoidAsync("scrollToId", "quiz-next-btn");
+    }
+
+    private void NextQuestion()
+    {
+        if (_index + 1 < _quizQuestions.Count)
+        {
+            _index++;
+            _showResult = false;
+            _isCorrect = false;
+            _selectedChoice = null;
+        }
+        else
+        {
+            _view = "overview";
+        }
+    }
+
+    private void SelectTheme(IEnumerable<QuestionTechnique> questions, string name)
+    {
+        _selectedLabelName  = name;
+        _quizQuestions      = questions.ToList();
+        _index              = 0;
+        _score              = 0;
+        _showResult         = false;
+        _isCorrect          = false;
+        _selectedChoice     = null;
+        _view               = "quiz";
+    }
+
+    private void GoToOverview() => _view = "overview";
+
+    private void Restart()
+    {
+        _index          = 0;
+        _score          = 0;
+        _showResult     = false;
+        _isCorrect      = false;
+        _selectedChoice = null;
+        _questionResults.Clear();
+        _quizQuestions  = new();
+        _selectedLabelName = "";
+        _view           = "overview";
+    }
+
+    private IEnumerable<(string Name, List<QuestionTechnique> Questions)> AllThemes =>
+        _allQuestions
+            .GroupBy(q => q.ArticleId)
+            .Select(g => (
+                Name: g.First().Article?.Titre ?? "General",
+                Questions: g.ToList()
+            ))
+            .OrderBy(t => t.Name);
+
+    private int AnsweredFor(IEnumerable<QuestionTechnique> qs) =>
+        qs.Count(q => _questionResults.ContainsKey(q.Id));
+
+    private int CorrectFor(IEnumerable<QuestionTechnique> qs) =>
+        qs.Count(q => _questionResults.TryGetValue(q.Id, out var r) && r == true);
+}

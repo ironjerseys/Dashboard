@@ -28,6 +28,13 @@ public interface ICodeChallengeReviewService
         bool isCorrect,
         DateOnly todayUtc,
         CancellationToken cancellationToken = default);
+
+    // Compte les défis dus aujourd'hui pour l'utilisateur, séparés en
+    // défis de code (clé quelconque) et défis SQL (clé préfixée "sql-").
+    Task<(int Coding, int Sql)> GetDueCountsAsync(
+        string ownerId,
+        DateOnly todayUtc,
+        CancellationToken cancellationToken = default);
 }
 
 public class CodeChallengeReviewService : ICodeChallengeReviewService
@@ -108,6 +115,27 @@ public class CodeChallengeReviewService : ICodeChallengeReviewService
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return ToInfo(card, todayUtc);
+    }
+
+    public async Task<(int Coding, int Sql)> GetDueCountsAsync(
+        string ownerId,
+        DateOnly todayUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(ownerId))
+            return (0, 0);
+
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        List<string> dueKeys = await dbContext.CodeChallengeCards
+            .AsNoTracking()
+            .Where(c => c.OwnerId == ownerId && c.NextDueDate <= todayUtc)
+            .Select(c => c.ChallengeKey)
+            .ToListAsync(cancellationToken);
+
+        int sql = dueKeys.Count(k => k.StartsWith("sql-", StringComparison.Ordinal));
+        int coding = dueKeys.Count - sql;
+        return (coding, sql);
     }
 
     private static CodeChallengeCardInfo ToInfo(CodeChallengeCard card, DateOnly todayUtc) =>
