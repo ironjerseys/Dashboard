@@ -1,15 +1,10 @@
-@page "/coding/singleton"
+@page "/coding/two-sum"
 
 @using System.Security.Claims
 @using Dashboard.Components.Coding
-@using Dashboard.Services
-@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
-
-@* @attribute [Authorize]
- *@
 
 @rendermode RenderMode.InteractiveServer
 
@@ -17,7 +12,7 @@
 @inject ICodeChallengeReviewService ReviewService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
-<PageTitle>Challenge: Singleton Pattern</PageTitle>
+<PageTitle>Challenge: Two Sum</PageTitle>
 
 <div class="container-lg py-4">
 
@@ -26,8 +21,8 @@
     </div>
 
     <div class="mb-4">
-        <h1 class="mb-1">Challenge: Singleton Pattern</h1>
-        <p class="text-muted mb-0">Implement the <code>Singleton</code> class then click <strong>Validate</strong> — your code will be compiled and tested live.</p>
+        <h1 class="mb-1">Challenge: Two Sum</h1>
+        <p class="text-muted mb-0">A classic interview warm-up. Implement <code>TwoSum</code> then click <strong>Validate</strong> — your code is compiled and tested live.</p>
     </div>
 
     @if (_isAuthenticated && _card is not null)
@@ -48,14 +43,14 @@
         </div>
     }
 
-    <!-- Theory reminder -->
+    <!-- Problem statement -->
     <div class="card p-3 mb-4">
-        <div class="fw-semibold mb-2">What is a Singleton?</div>
+        <div class="fw-semibold mb-2">The problem</div>
         <ul class="mb-0 ps-3">
-            <li>Only one instance of the class exists throughout the entire application.</li>
-            <li>The constructor is <strong>private</strong> — the class cannot be instantiated with <code>new</code>.</li>
-            <li>Access is provided via a static method <code>GetInstance()</code>.</li>
-            <li>Ideally <strong>thread-safe</strong>: if two threads call <code>GetInstance()</code> simultaneously, they get the same instance.</li>
+            <li>Given an array of integers <code>nums</code> and an integer <code>target</code>, return the <strong>indices</strong> of the two numbers that add up to <code>target</code>.</li>
+            <li>Each input has <strong>exactly one</strong> solution, and you may not use the same element twice.</li>
+            <li>The two indices may be returned in any order.</li>
+            <li>Example: <code>nums = [2, 7, 11, 15]</code>, <code>target = 9</code> → <code>[0, 1]</code> (because 2 + 7 = 9).</li>
         </ul>
     </div>
 
@@ -63,9 +58,9 @@
     <details class="mb-4">
         <summary class="fw-semibold" style="cursor:pointer;">Hints (click to show)</summary>
         <ol class="mt-2 ps-3">
-            <li>Declare a field <code>private static Singleton? _instance;</code></li>
-            <li>In <code>GetInstance()</code>, check whether <code>_instance</code> is null and create it if needed.</li>
-            <li>For thread-safety, use <code>lock</code> or <code>Lazy&lt;T&gt;</code>.</li>
+            <li>The brute-force solution uses two nested loops — O(n²).</li>
+            <li>For O(n), keep a <code>Dictionary&lt;int, int&gt;</code> mapping each value to its index.</li>
+            <li>For each number, check whether <code>target - num</code> is already in the dictionary.</li>
         </ol>
     </details>
 
@@ -94,7 +89,6 @@
         </button>
     </div>
 
-    <!-- Unexpected error -->
     @if (_unexpectedError is not null)
     {
         <div class="alert alert-danger">
@@ -102,7 +96,6 @@
         </div>
     }
 
-    <!-- Results -->
     @if (_result is not null)
     {
         <div class="card p-3">
@@ -140,7 +133,7 @@
                 @if (allPassed)
                 {
                     <div class="alert alert-success mb-0 fw-semibold">
-                        All tests passed — your Singleton is correct!
+                        All tests passed — your Two Sum is correct!
                         @if (_isAuthenticated && _card is not null)
                         {
                             <div class="fw-normal small mt-1">
@@ -163,29 +156,23 @@
 
 @code {
     private static readonly string Template =
-        "public class Singleton\n" +
+        "public class Solution\n" +
         "{\n" +
-        "    // 1. Declare the private static field that holds the unique instance\n" +
-        "\n" +
-        "    // 2. The constructor must be private\n" +
-        "    private Singleton() { }\n" +
-        "\n" +
-        "    // 3. Implement GetInstance(): must always return the same instance\n" +
-        "    public static Singleton GetInstance()\n" +
+        "    // Return the indices of the two numbers that add up to target.\n" +
+        "    public int[] TwoSum(int[] nums, int target)\n" +
         "    {\n" +
         "        // TODO: your implementation here\n" +
         "        throw new NotImplementedException();\n" +
         "    }\n" +
         "}";
 
-    private const string ChallengeKey = "singleton";
+    private const string ChallengeKey = "two-sum";
 
     private string _code = Template;
     private bool _busy;
     private ChallengeRunResult? _result;
     private string? _unexpectedError;
 
-    // ── Répétition espacée (Leitner), comme les questions techniques ──
     private bool _isAuthenticated;
     private string _userId = string.Empty;
     private CodeChallengeCardInfo? _card;
@@ -204,7 +191,7 @@
                 _card = await ReviewService.GetOrCreateCardAsync(
                     _userId, ChallengeKey, DateOnly.FromDateTime(DateTime.UtcNow));
             }
-            catch { /* l'affichage de la due date est optionnel */ }
+            catch { /* due date display is optional */ }
         }
     }
 
@@ -215,7 +202,7 @@
         _unexpectedError = null;
         try
         {
-            _result = await ChallengeService.ValidateSingletonAsync(_code);
+            _result = await ChallengeService.ValidateTwoSumAsync(_code);
             await RecordReviewIfDueAsync();
         }
         catch (Exception ex)
@@ -230,8 +217,6 @@
 
     private async Task RecordReviewIfDueAsync()
     {
-        // On n'enregistre une tentative que si la carte est due aujourd'hui,
-        // pour ne pas gonfler la boîte en cliquant plusieurs fois sur Validate.
         if (!_isAuthenticated || string.IsNullOrWhiteSpace(_userId) || _result is null) return;
         if (_card is null || !_card.IsDue) return;
         if (_result.HasCompileError) return;

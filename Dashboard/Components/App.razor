@@ -29,6 +29,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="icon" type="icon/png" sizes="32x32" href="/icon.png">
 
+    <!-- Code editor for coding challenges (CodeMirror, dark theme) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material-darker.min.css" />
+
     <!-- Masque l'overlay de reconnexion par défaut de Blazor ("Rejoining the server…").
          L'élément #components-reconnect-modal est utilisé par Blazor à la place de
          l'UI par défaut ; on le garde caché. La reconnexion automatique fonctionne toujours. -->
@@ -47,6 +51,11 @@
     <script src="/js/articleEditor.js" asp-append-version=true></script>
     <script src="/js/jobcharts.js" asp-append-version=true></script>
     <script src="/js/site.js" asp-append-version=true></script>
+
+    <!-- CodeMirror + C# mode (code challenges) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js"></script>
+    <script src="@Versioned("/js/codeEditor.js")"></script>
 
     <script src="/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/_framework/blazor.web.js"></script>

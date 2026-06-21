@@ -1,0 +1,51 @@
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+@* C# editor backed by CodeMirror (see wwwroot/js/codeEditor.js). The textarea
+   is replaced in-place by the CodeMirror widget once the page is interactive. *@
+
+<div class="code-editor-wrap">
+    <textarea id="@_taId"
+              rows="@Rows"
+              spellcheck="false"
+              value="@Value"
+              @oninput="OnInput"></textarea>
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public int Rows { get; set; } = 18;
+    [Parameter] public bool Disabled { get; set; }
+
+    private readonly string _taId = "ce-ta-" + Guid.NewGuid().ToString("N");
+    private bool _initialized;
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        Value = e.Value?.ToString() ?? string.Empty;
+        await ValueChanged.InvokeAsync(Value);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("codeEditor.init", _taId, Value, Disabled);
+            _initialized = true;
+        }
+        else if (_initialized)
+        {
+            // Reflect programmatic changes (e.g. Reset) and the busy/readonly state.
+            await JS.InvokeVoidAsync("codeEditor.update", _taId, Value, Disabled);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("codeEditor.dispose", _taId); }
+        catch { /* circuit may already be gone */ }
+    }
+}

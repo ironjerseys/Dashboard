@@ -838,3 +838,31 @@ a.stat-bar-item.accent:hover {
     .due-chips { margin-left: 0; }
 }
 
+
+/* ── Code editor for coding challenges (CodeMirror) ───────────────────────── */
+/* Text and highlighting share the same DOM, so selection matches the caret. */
+.code-editor-wrap .CodeMirror {
+    height: auto;
+    min-height: 18rem;
+    border: 1px solid rgba(0, 0, 0, .25);
+    border-radius: 10px;
+    font-family: "Cascadia Code", "Consolas", "SFMono-Regular", "Menlo", monospace;
+    font-size: .88rem;
+    line-height: 1.5;
+}
+
+.code-editor-wrap .CodeMirror-scroll {
+    min-height: 18rem;
+}
+
+/* The bare <textarea> before CodeMirror replaces it (no-JS / first paint). */
+.code-editor-wrap > textarea {
+    width: 100%;
+    min-height: 18rem;
+    border: 1px solid rgba(0, 0, 0, .25);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: "Cascadia Code", "Consolas", "SFMono-Regular", "Menlo", monospace;
+    font-size: .88rem;
+}
+
