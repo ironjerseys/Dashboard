@@ -30,7 +30,11 @@
       "Bash(dotnet ef *)",
       "Bash(dotnet add *)",
       "Bash(sqlite3 --version)",
-      "Bash(python3 -c \"import sqlite3; print\\('sqlite', sqlite3.sqlite_version\\)\")"
+      "Bash(python3 -c \"import sqlite3; print\\('sqlite', sqlite3.sqlite_version\\)\")",
+      "Bash(ls Dashboard/appsettings*.json)",
+      "Bash(which sqlcmd *)",
+      "PowerShell(dotnet run --project \\(Join-Path $env:TEMP 'ce_verify\\\\app'\\) 2>&1)",
+      "PowerShell(Remove-Item *)"
     ]
   }
 }
