@@ -1,17 +1,25 @@
 @page "/coding"
 
+@using System.Security.Claims
+@using Dashboard.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 
 @rendermode RenderMode.InteractiveServer
 
+@inject ICodeChallengeReviewService ReviewService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 
 <PageTitle>Coding Challenges</PageTitle>
 
 <div class="container-lg py-4">
 
-    <div class="mb-3">
-        <a href="/quiz/all" class="text-decoration-none small">&larr; Technical Questions</a>
+    <div class="mb-4">
+        <a href="/quiz/all" class="back-button">
+            <i class="bi bi-arrow-left"></i>
+            <span>Technical Questions</span>
+        </a>
     </div>
 
     <div class="mb-4">
@@ -19,38 +27,117 @@
         <p class="text-muted mb-0">Pick a challenge. Your code is compiled and tested live, with instant feedback.</p>
     </div>
 
-    <div class="row g-3">
-        @foreach (var c in Challenges)
-        {
-            <div class="col-12 col-md-6 col-lg-4">
-                <button type="button" class="card p-3 text-start border-0 shadow-sm h-100 w-100"
-                        style="cursor:pointer;"
-                        @onclick="() => Navigation.NavigateTo(c.Href)">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <i class="bi @c.Icon fs-5"></i>
-                        <span class="fw-semibold">@c.Title</span>
-                    </div>
-                    <div class="text-muted small">@c.Description</div>
-                </button>
-            </div>
-        }
-    </div>
+    @if (_loading)
+    {
+        <div class="text-muted">Loading…</div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @for (int i = 0; i < Challenges.Length; i++)
+            {
+                var c = Challenges[i];
+                _cards.TryGetValue(c.Key, out var card);
+                var borderClass = GetBorderClass(i);
+
+                <div class="col-12 col-md-6 col-lg-4">
+                    <a href="@c.Href" class="challenge-item-card @borderClass">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="bi @c.Icon fs-5 text-primary"></i>
+                            <span class="fw-semibold text-dark-emphasis">@c.Title</span>
+                        </div>
+                        <div class="text-muted small flex-grow-1">@c.Description</div>
+
+                        @if (_isAuthenticated)
+                        {
+                            @if (card is not null)
+                            {
+                                @if (card.IsDue)
+                                {
+                                    <div class="challenge-status-badge due">
+                                        <i class="bi bi-exclamation-circle-fill"></i>
+                                        <span>Due today (Box @card.Box)</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="challenge-status-badge completed">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                        <span>Due: @card.NextDueDate.ToString("yyyy-MM-dd") (Box @card.Box)</span>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="challenge-status-badge ready">
+                                    <i class="bi bi-play-circle-fill"></i>
+                                    <span>Ready to start</span>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="challenge-status-badge ready">
+                                <i class="bi bi-lock-fill"></i>
+                                <span>Sign in to track progress</span>
+                            </div>
+                        }
+                    </a>
+                </div>
+            }
+        </div>
+    }
 
 </div>
 
 @code {
-    private record ChallengeCard(string Title, string Description, string Href, string Icon);
+    private bool _loading = true;
+    private bool _isAuthenticated;
+    private string _userId = string.Empty;
+    private Dictionary<string, CodeChallengeCardInfo> _cards = new();
+
+    private record ChallengeCard(string Key, string Title, string Description, string Href, string Icon);
 
     private static readonly ChallengeCard[] Challenges =
     {
-        new("Singleton Pattern",
+        new("singleton", "Singleton Pattern",
             "Implement a thread-safe singleton with a private constructor and a single shared instance.",
             "/coding/singleton", "bi-box"),
-        new("Two Sum",
+        new("two-sum", "Two Sum",
             "Return the indices of the two numbers that add up to a target. A classic interview warm-up.",
             "/coding/two-sum", "bi-plus-slash-minus"),
-        new("Three Sum",
+        new("three-sum", "Three Sum",
             "Find all unique triplets that sum to zero. A very common interview question.",
             "/coding/three-sum", "bi-collection"),
     };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAuthenticated = user.Identity?.IsAuthenticated ?? false;
+        _userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        if (_isAuthenticated && !string.IsNullOrWhiteSpace(_userId))
+        {
+            foreach (var c in Challenges)
+            {
+                try
+                {
+                    var card = await ReviewService.GetOrCreateCardAsync(_userId, c.Key, DateOnly.FromDateTime(DateTime.UtcNow));
+                    _cards[c.Key] = card;
+                }
+                catch { /* ignore */ }
+            }
+        }
+
+        _loading = false;
+    }
+
+    private string GetBorderClass(int idx)
+    {
+        var classes = new[] { "border-gradient-blue", "border-gradient-purple", "border-gradient-orange", "border-gradient-green", "border-gradient-rose" };
+        return classes[idx % classes.Length];
+    }
 }
+

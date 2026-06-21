@@ -1,20 +1,27 @@
 @page "/coding/sql"
 
+@using System.Security.Claims
 @using Dashboard.Persistance.Entities
 @using Dashboard.Services
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 
 @rendermode RenderMode.InteractiveServer
 
 @inject ISqlChallengeService SqlService
+@inject ICodeChallengeReviewService ReviewService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager Navigation
 
 <PageTitle>SQL Challenges</PageTitle>
 
 <div class="container-lg py-4">
 
-    <div class="mb-3">
-        <a href="/quiz/all" class="text-decoration-none small">&larr; Technical Questions</a>
+    <div class="mb-4">
+        <a href="/quiz/all" class="back-button">
+            <i class="bi bi-arrow-left"></i>
+            <span>Technical Questions</span>
+        </a>
     </div>
 
     <div class="mb-4">
@@ -32,15 +39,57 @@
     }
     else
     {
-        <div class="d-flex flex-column gap-3">
+        <div class="row g-3">
             @foreach (var challenge in _challenges)
             {
-                <button type="button" class="card p-3 text-start border-0 shadow-sm"
-                        style="cursor:pointer;"
-                        @onclick="() => Open(challenge.Id)">
-                    <div class="fw-semibold mb-1">@challenge.Title</div>
-                    <div class="text-muted small">@challenge.Prompt</div>
-                </button>
+                var key = $"sql-{challenge.Id}";
+                _cards.TryGetValue(key, out var card);
+                var borderClass = GetBorderClass(challenge.Id);
+
+                <div class="col-12 col-md-6 col-lg-4">
+                    <a href="/coding/sql/@challenge.Id" class="challenge-item-card @borderClass">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="bi bi-database fs-5 text-primary"></i>
+                            <span class="fw-semibold text-dark-emphasis">@challenge.Title</span>
+                        </div>
+                        <div class="text-muted small flex-grow-1">@challenge.Prompt</div>
+
+                        @if (_isAuthenticated)
+                        {
+                            @if (card is not null)
+                            {
+                                @if (card.IsDue)
+                                {
+                                    <div class="challenge-status-badge due">
+                                        <i class="bi bi-exclamation-circle-fill"></i>
+                                        <span>Due today (Box @card.Box)</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="challenge-status-badge completed">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                        <span>Due: @card.NextDueDate.ToString("yyyy-MM-dd") (Box @card.Box)</span>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="challenge-status-badge ready">
+                                    <i class="bi bi-play-circle-fill"></i>
+                                    <span>Ready to start</span>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="challenge-status-badge ready">
+                                <i class="bi bi-lock-fill"></i>
+                                <span>Sign in to track progress</span>
+                            </div>
+                        }
+                    </a>
+                </div>
             }
         </div>
     }
@@ -51,11 +100,40 @@
     private bool _loading = true;
     private IReadOnlyList<SqlChallenge> _challenges = Array.Empty<SqlChallenge>();
 
+    private bool _isAuthenticated;
+    private string _userId = string.Empty;
+    private Dictionary<string, CodeChallengeCardInfo> _cards = new();
+
     protected override async Task OnInitializedAsync()
     {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        _isAuthenticated = user.Identity?.IsAuthenticated ?? false;
+        _userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
         _challenges = await SqlService.GetAllAsync();
+
+        if (_isAuthenticated && !string.IsNullOrWhiteSpace(_userId))
+        {
+            foreach (var challenge in _challenges)
+            {
+                var key = $"sql-{challenge.Id}";
+                try
+                {
+                    var card = await ReviewService.GetOrCreateCardAsync(_userId, key, DateOnly.FromDateTime(DateTime.UtcNow));
+                    _cards[key] = card;
+                }
+                catch { /* ignore */ }
+            }
+        }
+
         _loading = false;
     }
 
-    private void Open(int id) => Navigation.NavigateTo($"/coding/sql/{id}");
+    private string GetBorderClass(int id)
+    {
+        var classes = new[] { "border-gradient-blue", "border-gradient-purple", "border-gradient-orange", "border-gradient-green", "border-gradient-rose" };
+        return classes[id % classes.Length];
+    }
 }
+
