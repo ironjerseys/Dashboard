@@ -5,6 +5,7 @@ namespace Dashboard.Services;
 
 public record JobCountItem(string Label, int Count);
 public record JobRoleCityItem(string Role, string City, int Count);
+public record JobRoleWeekItem(string Role, string WeekLabel, int Count);
 
 public class JobStats
 {
@@ -16,6 +17,7 @@ public class JobStats
     public List<JobCountItem> BySite { get; set; } = [];
     public List<JobCountItem> ByWeek { get; set; } = [];
     public List<JobRoleCityItem> ByRoleCity { get; set; } = [];
+    public List<JobRoleWeekItem> ByRoleWeek { get; set; } = [];
 }
 
 public interface IJobPostingService
@@ -78,6 +80,25 @@ public sealed class JobPostingService : IJobPostingService
             .OrderBy(x => x.Year).ThenBy(x => x.Week)
             .ToListAsync(ct);
 
+        // Regroupement par rôle et par semaine
+        var byRoleWeek = await jobs
+            .GroupBy(j => new
+            {
+                j.SearchRole,
+                Year = j.ScrapedAt.Year,
+                Week = (j.ScrapedAt.DayOfYear - 1) / 7
+            })
+            .Select(g => new
+            {
+                Role = g.Key.SearchRole,
+                g.Key.Year,
+                g.Key.Week,
+                Count = g.Count(),
+                MinDate = g.Min(j => j.ScrapedAt)
+            })
+            .OrderBy(x => x.Year).ThenBy(x => x.Week)
+            .ToListAsync(ct);
+
         var byRoleCity = await jobs
             .GroupBy(j => new { j.SearchRole, j.SearchCity })
             .Select(g => new { Role = g.Key.SearchRole, City = g.Key.SearchCity, Count = g.Count() })
@@ -95,6 +116,7 @@ public sealed class JobPostingService : IJobPostingService
                 .Select(x => new JobCountItem(x.MinDate.ToString("dd/MM/yy"), x.Count))
                 .ToList(),
             ByRoleCity = byRoleCity.Select(x => new JobRoleCityItem(x.Role, x.City, x.Count)).ToList(),
+            ByRoleWeek = byRoleWeek.Select(x => new JobRoleWeekItem(x.Role, x.MinDate.ToString("dd/MM/yy"), x.Count)).ToList(),
         };
     }
 }

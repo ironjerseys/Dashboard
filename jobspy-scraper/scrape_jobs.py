@@ -21,6 +21,11 @@ ROLES = [
         "google_suffix": "Machine Learning engineer jobs near",
         "label": "ml_engineer",
     },
+    {
+        "search_term": "GRC Governance Risk Compliance",
+        "google_suffix": "GRC Governance Risk Compliance cybersecurity jobs near",
+        "label": "grc",
+    },
 ]
 
 LOCATIONS = [
