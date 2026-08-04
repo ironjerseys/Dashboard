@@ -84,6 +84,32 @@ window.JobCharts = (function () {
         });
     }
 
+    function multiLine(id, labels, datasets) {
+        destroy(id);
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+        instances[id] = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels,
+                datasets: datasets.map((ds, i) => ({
+                    label: ds.label,
+                    data: ds.data,
+                    fill: false,
+                    tension: 0.3,
+                    borderColor: COLORS[i % COLORS.length],
+                    backgroundColor: COLORS[i % COLORS.length],
+                    pointRadius: 4,
+                })),
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: "top" } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+            },
+        });
+    }
+
     function groupedBar(id, labels, datasets) {
         destroy(id);
         const ctx = document.getElementById(id);
@@ -110,5 +136,5 @@ window.JobCharts = (function () {
         });
     }
 
-    return { bar, doughnut, line, groupedBar };
+    return { bar, doughnut, line, multiLine, groupedBar };
 })();

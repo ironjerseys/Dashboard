@@ -201,14 +201,19 @@
             _stats.BySite.Select(x => x.Label).ToArray(),
             _stats.BySite.Select(x => x.Count).ToArray());
 
-        await JS.InvokeVoidAsync("JobCharts.line",
-            "weekChart",
-            _stats.ByWeek.Select(x => x.Label).ToArray(),
-            _stats.ByWeek.Select(x => x.Count).ToArray(),
-            Language.Translate("Nouvelles offres", "New listings"));
+        var weeks = _stats.ByWeek.Select(x => x.Label).ToList();
+        var roles = _stats.ByRole.Select(x => x.Label).ToList();
+
+        var weekLookup = _stats.ByRoleWeek.ToDictionary(x => (x.Role, x.WeekLabel), x => x.Count);
+        var weekDatasets = roles.Select(role => new
+        {
+            label = role,
+            data = weeks.Select(w => weekLookup.TryGetValue((role, w), out var c) ? c : 0).ToArray()
+        }).ToArray();
+
+        await JS.InvokeVoidAsync("JobCharts.multiLine", "weekChart", weeks.ToArray(), weekDatasets);
 
         var cities = _stats.ByCity.Select(x => x.Label).ToList();
-        var roles = _stats.ByRole.Select(x => x.Label).ToList();
         var lookup = _stats.ByRoleCity.ToDictionary(x => (x.Role, x.City), x => x.Count);
         var datasets = roles.Select(role => new
         {
