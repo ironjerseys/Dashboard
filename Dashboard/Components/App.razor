@@ -1,4 +1,4 @@
-﻿@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web
 @using Microsoft.AspNetCore.Hosting
 @inject IWebHostEnvironment Env
 
@@ -49,7 +49,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="/js/articleEditor.js" asp-append-version=true></script>
-    <script src="/js/jobcharts.js" asp-append-version=true></script>
+    <script src="@Versioned("/js/jobcharts.js")"></script>
     <script src="/js/site.js" asp-append-version=true></script>
 
     <!-- CodeMirror + C# mode (code challenges) -->
