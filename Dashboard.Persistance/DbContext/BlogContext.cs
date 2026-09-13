@@ -19,6 +19,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<SqlChallenge> SqlChallenges => Set<SqlChallenge>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<JobPosting> JobPostings => Set<JobPosting>();
+    public DbSet<ReminderSetting> ReminderSettings => Set<ReminderSetting>();
 
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -53,6 +54,10 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             .IsUnique();
 
         builder.Entity<MediaAsset>().HasIndex(x => x.CreatedUtc);
+
+        builder.Entity<ReminderSetting>()
+            .HasIndex(r => r.OwnerId)
+            .IsUnique();
 
         builder.Entity<JobPosting>(e =>
         {

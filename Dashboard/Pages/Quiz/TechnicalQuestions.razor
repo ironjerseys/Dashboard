@@ -4,6 +4,7 @@
 @page "/dashboard"
 
 @using System.Security.Claims
+@using Dashboard.Components.Quiz
 @using Dashboard.Persistance.Entities
 @using Dashboard.Services
 @using Microsoft.AspNetCore.Components.Authorization
@@ -35,12 +36,21 @@
                 <h1 class="mb-1">Technical Questions</h1>
                 <p class="text-muted mb-0">Everything to practice in one place — questions and challenges, grouped by topic.</p>
             </div>
-            @if (_isAdmin)
-            {
-                <a class="icon-btn" href="/quiz/manage" title="Manage questions" aria-label="Manage questions">
-                    <i class="bi bi-sliders"></i>
-                </a>
-            }
+            <div class="d-flex align-items-center gap-2">
+                @if (_isAuthenticated)
+                {
+                    <button type="button" class="icon-btn" title="Reminder emails" aria-label="Reminder emails"
+                            @onclick="() => _reminderSettingsOpen = true">
+                        <i class="bi bi-envelope"></i>
+                    </button>
+                }
+                @if (_isAdmin)
+                {
+                    <a class="icon-btn" href="/quiz/manage" title="Manage questions" aria-label="Manage questions">
+                        <i class="bi bi-sliders"></i>
+                    </a>
+                }
+            </div>
         </div>
 
         <!-- ── Due today (hero, en haut de page) ── -->
@@ -173,6 +183,11 @@
         }
     }
 
+    <ReminderSettingsModal IsOpen="_reminderSettingsOpen"
+                           IsOpenChanged="OnReminderSettingsOpenChanged"
+                           OwnerId="@_userId"
+                           AccountEmail="@_accountEmail" />
+
 </div>
 
 @code {
@@ -187,6 +202,16 @@
     private bool _isAuthenticated;
     private bool _isAdmin;
     private string _userId = string.Empty;
+    private string? _accountEmail;
+
+    // ── Reminder email settings modal ──
+    private bool _reminderSettingsOpen;
+    private Task OnReminderSettingsOpenChanged(bool open)
+    {
+        _reminderSettingsOpen = open;
+        return Task.CompletedTask;
+    }
+
     private int _questionsDue;
     private int _codingDue;
     private int _sqlDue;
@@ -214,6 +239,7 @@
         _isAuthenticated = user.Identity?.IsAuthenticated ?? false;
         _isAdmin = user.IsInRole("Admin");
         _userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        _accountEmail = user.FindFirstValue(ClaimTypes.Email) ?? user.Identity?.Name;
 
         _loading = true;
         _error = null;

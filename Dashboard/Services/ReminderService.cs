@@ -34,10 +34,10 @@ public class ReminderService : BackgroundService
                     _sentToday.Clear();
                 }
 
-                if (now.Hour == 18 && now.Minute == 0)
-                {
-                    await ProcessRemindersAsync(stoppingToken);
-                }
+                // L'heure d'envoi est reglable par utilisateur : on repasse chaque minute et
+                // c'est ProcessRemindersAsync qui filtre sur l'heure configuree. _sentToday
+                // garantit un seul envoi par jour et par utilisateur.
+                await ProcessRemindersAsync(now, stoppingToken);
             }
             catch (TaskCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -51,7 +51,7 @@ public class ReminderService : BackgroundService
         await LogAsync("Info", "ServiceStopped", "ReminderService arrêté");
     }
 
-    private async Task ProcessRemindersAsync(CancellationToken ct)
+    private async Task ProcessRemindersAsync(DateTime now, CancellationToken ct)
     {
         using var scope = _serviceProvider.CreateScope();
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
@@ -59,16 +59,31 @@ public class ReminderService : BackgroundService
         var reviewService = scope.ServiceProvider.GetRequiredService<ICodeChallengeReviewService>();
         var mail = scope.ServiceProvider.GetRequiredService<IEmailSender>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var settingsService = scope.ServiceProvider.GetRequiredService<IReminderSettingsService>();
 
         var baseUrl = configuration["App:BaseUrl"];
         var practiceUrl = BuildAbsoluteUrl(baseUrl, "/quiz/all");
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var users = userManager.Users.ToList();
+        if (users.Count == 0) return;
+
+        var settings = await settingsService.GetAllAsync(ct);
+
         foreach (var user in users)
         {
             if (_sentToday.Contains(user.Id)) continue;
-            if (string.IsNullOrWhiteSpace(user.Email)) continue;
+
+            // Pas de ligne en base => valeurs par defaut (actif, 18h, adresse du compte).
+            settings.TryGetValue(user.Id, out var setting);
+            var enabled = setting?.Enabled ?? true;
+            var hourLocal = setting?.HourLocal ?? ReminderSetting.DefaultHourLocal;
+
+            if (!enabled) continue;
+            if (now.Hour != hourLocal) continue;
+
+            var recipient = string.IsNullOrWhiteSpace(setting?.EmailOverride) ? user.Email : setting.EmailOverride;
+            if (string.IsNullOrWhiteSpace(recipient)) continue;
 
             var questionsDue = await leitnerService.GetDueCountAsync(user.Id, today, ct);
             var (codingDue, sqlDue) = await reviewService.GetDueCountsAsync(user.Id, today, ct);
@@ -79,9 +94,9 @@ public class ReminderService : BackgroundService
 
             try
             {
-                await mail.SendAsync(user.Email, subject, body);
+                await mail.SendAsync(recipient, subject, body);
                 _sentToday.Add(user.Id);
-                await LogAsync("Info", "EmailSent", $"To={user.Email}; Questions={questionsDue}; Coding={codingDue}; Sql={sqlDue}");
+                await LogAsync("Info", "EmailSent", $"To={recipient}; Questions={questionsDue}; Coding={codingDue}; Sql={sqlDue}");
             }
             catch (Exception ex)
             {

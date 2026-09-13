@@ -70,6 +70,7 @@ builder.Services.AddSingleton<CodeChallengeService>();
 builder.Services.AddScoped<ICodeChallengeReviewService, CodeChallengeReviewService>();
 builder.Services.AddScoped<ISqlChallengeService, SqlChallengeService>();
 builder.Services.AddScoped<LanguageService>();
+builder.Services.AddScoped<IReminderSettingsService, ReminderSettingsService>();
 
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
