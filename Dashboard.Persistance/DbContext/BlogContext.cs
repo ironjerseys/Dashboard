@@ -20,6 +20,8 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<JobPosting> JobPostings => Set<JobPosting>();
     public DbSet<ReminderSetting> ReminderSettings => Set<ReminderSetting>();
+    public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
+    public DbSet<MailboxSyncState> MailboxSyncStates => Set<MailboxSyncState>();
 
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -57,6 +59,18 @@ public class BlogContext : IdentityDbContext<IdentityUser>
 
         builder.Entity<ReminderSetting>()
             .HasIndex(r => r.OwnerId)
+            .IsUnique();
+
+        builder.Entity<EmailMessage>(e =>
+        {
+            // Cle de deduplication : un meme mail ne doit jamais entrer deux fois.
+            e.HasIndex(m => m.MessageId).IsUnique();
+            e.HasIndex(m => m.SentUtc);
+            e.HasIndex(m => m.FromAddress);
+        });
+
+        builder.Entity<MailboxSyncState>()
+            .HasIndex(s => new { s.Account, s.Folder })
             .IsUnique();
 
         builder.Entity<JobPosting>(e =>

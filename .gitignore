@@ -12,3 +12,6 @@ riderModule.iml
 /Dashboard/App_Data/blog.db-wal
 /Dashboard/appsettings.Development.json
 /.env
+
+# Classeur de reference des candidatures : binaire, non diffable, garde en local.
+/Candidatures.xlsx
