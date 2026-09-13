@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,15 +43,10 @@ builder.Services.ConfigureApplicationCookie(opts =>
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("CanManageAll", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("CanManageOwn", policy =>
-        policy.RequireAssertion(ctx =>
-        {
-            var userId = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId)) return false;
-            if (ctx.User.IsInRole("Admin")) return true;
-            if (ctx.Resource is Article article) return article.AuthorId == userId;
-            return false;
-        }));
+
+    // La seule ressource "possedee par un auteur" etait l'article. Tant qu'aucune autre
+    // entite n'a de proprietaire, cette politique se reduit au role Admin.
+    options.AddPolicy("CanManageOwn", policy => policy.RequireRole("Admin"));
 });
 
 builder.Services.AddControllersWithViews();
@@ -68,7 +62,6 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddCascadingAuthenticationState();
 
-builder.Services.AddScoped<IArticleService, ArticleService>();
 builder.Services.AddScoped<IDbQuizService, QuestionTechniqueService>();
 builder.Services.AddScoped<ILeitnerService, LeitnerService>();
 builder.Services.AddScoped<IMediaLibraryService, MediaLibraryService>();

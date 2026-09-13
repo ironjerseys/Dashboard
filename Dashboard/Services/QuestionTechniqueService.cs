@@ -11,7 +11,6 @@ public interface IDbQuizService
     Task<int> CreateAsync(QuestionTechnique quizQuestion, CancellationToken cancellationToken = default);
     Task<bool> UpdateAsync(QuestionTechnique quizQuestion, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
-    Task<List<QuestionTechnique>> GetByArticleAsync(int articleId, CancellationToken cancellationToken = default);
 }
 
 public sealed class QuestionTechniqueService : IDbQuizService
@@ -29,7 +28,6 @@ public sealed class QuestionTechniqueService : IDbQuizService
 
         return await dbContext.QuizQuestions
             .AsNoTracking()
-            .Include(q => q.Article)
             .Include(q => q.Labels)
             .OrderBy(question => question.Id)
             .ToListAsync(cancellationToken);
@@ -73,7 +71,6 @@ public sealed class QuestionTechniqueService : IDbQuizService
         existing.Choice3 = quizQuestion.Choice3;
         existing.CorrectAnswer = quizQuestion.CorrectAnswer;
         existing.Explanation = quizQuestion.Explanation;
-        existing.ArticleId = quizQuestion.ArticleId;
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
@@ -95,16 +92,5 @@ public sealed class QuestionTechniqueService : IDbQuizService
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return true;
-    }
-
-    public async Task<List<QuestionTechnique>> GetByArticleAsync(int articleId, CancellationToken cancellationToken = default)
-    {
-        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        return await dbContext.QuizQuestions
-            .AsNoTracking()
-            .Where(q => q.ArticleId == articleId)
-            .OrderBy(q => q.Id)
-            .ToListAsync(cancellationToken);
     }
 }

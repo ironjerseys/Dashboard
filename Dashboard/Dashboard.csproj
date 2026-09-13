@@ -26,4 +26,8 @@
       <Folder Include="wwwroot\images\" />
     </ItemGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\Dashboard.Persistance\Dashboard.Persistance.csproj" />
+    </ItemGroup>
+
 </Project>

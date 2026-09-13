@@ -80,17 +80,6 @@
                             <ValidationMessage For="() => _editModel.Explanation" />
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">@Language.Translate("Article lié (optionnel)", "Linked article (optional)")</label>
-                            <InputSelect TValue="int?" class="form-select" @bind-Value="_editModel.ArticleId">
-                                <option value="">@Language.Translate("-- Aucun --", "-- None --")</option>
-                                @foreach (Article article in Articles)
-                                {
-                                    <option value="@article.Id">@article.Titre</option>
-                                }
-                            </InputSelect>
-                        </div>
-
                         @if (!string.IsNullOrWhiteSpace(Error))
                         {
                             <div class="alert alert-danger">@Error</div>
@@ -151,7 +140,6 @@
     [Parameter] public string? Error { get; set; }
 
     [Parameter] public QuestionTechnique Model { get; set; } = new();
-    [Parameter] public IEnumerable<Article> Articles { get; set; } = Array.Empty<Article>();
 
     [Parameter] public EventCallback<QuestionTechnique> OnSubmit { get; set; }
 
@@ -179,8 +167,7 @@
                 Choice2 = Model.Choice2,
                 Choice3 = Model.Choice3,
                 CorrectAnswer = Model.CorrectAnswer,
-                Explanation = Model.Explanation,
-                ArticleId = Model.ArticleId
+                Explanation = Model.Explanation
             };
 
             _editContext = new EditContext(_editModel);
