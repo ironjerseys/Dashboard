@@ -10,7 +10,6 @@ public class BlogContext : IdentityDbContext<IdentityUser>
 {
     public BlogContext(DbContextOptions<BlogContext> opts) : base(opts) { }
 
-    public DbSet<Article> Articles => Set<Article>();
     public DbSet<Log> Logs => Set<Log>();
     public DbSet<Label> Labels => Set<Label>();
     public DbSet<QuestionTechnique> QuizQuestions => Set<QuestionTechnique>();
@@ -37,29 +36,6 @@ public class BlogContext : IdentityDbContext<IdentityUser>
         {
             e.HasIndex(l => l.Name).IsUnique();
             e.Property(l => l.Name).HasMaxLength(64).IsRequired();
-        });
-
-        builder.Entity<Article>()
-            .HasMany(a => a.Labels)
-            .WithMany();
-
-        builder.Entity<Article>()
-            .HasIndex(a => a.Slug)
-            .IsUnique();
-
-        builder.Entity<Article>()
-            .HasOne(a => a.CoverMedia)
-            .WithMany()
-            .HasForeignKey(a => a.CoverMediaId)
-            .OnDelete(DeleteBehavior.SetNull);
-
-
-        builder.Entity<QuestionTechnique>(e =>
-        {
-            e.HasOne(q => q.Article)
-             .WithMany()
-             .HasForeignKey(q => q.ArticleId)
-             .OnDelete(DeleteBehavior.SetNull);
         });
 
         builder.Entity<LeitnerCard>()

@@ -387,12 +387,17 @@
         _view           = "overview";
     }
 
+    // Les themes sont derives des labels. Une question portant plusieurs labels apparait
+    // dans chaque theme correspondant ; une question sans label tombe dans "General".
     private IEnumerable<(string Name, List<QuestionTechnique> Questions)> AllThemes =>
         _allQuestions
-            .GroupBy(q => q.ArticleId)
+            .SelectMany(q => q.Labels.Count > 0
+                ? q.Labels.Select(l => (Name: l.Name, Question: q))
+                : Enumerable.Repeat((Name: "General", Question: q), 1))
+            .GroupBy(x => x.Name)
             .Select(g => (
-                Name: g.First().Article?.Titre ?? "General",
-                Questions: g.ToList()
+                Name: g.Key,
+                Questions: g.Select(x => x.Question).ToList()
             ))
             .OrderBy(t => t.Name);
 

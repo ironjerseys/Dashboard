@@ -5,13 +5,11 @@
 @using Dashboard.Components.Quiz
 @using Dashboard.Components.Dashboard
 @using Dashboard.Persistance.Entities
-@using Dashboard.Persistance.Entities.Enums
 @using Dashboard.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 
 @inject IDbQuizService QuizService
-@inject IArticleService ArticleService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 @rendermode RenderMode.InteractiveServer
@@ -83,10 +81,10 @@
 
                         <div class="small text-muted mt-2">
                             Correct answer: <strong>@(question.CorrectAnswer + 1)</strong>
-                            @if (question.ArticleId.HasValue)
+                            @if (question.Labels.Count > 0)
                             {
                                 <span class="mx-2">&bull;</span>
-                                <span>@(question.Article?.Titre ?? $"Article #{question.ArticleId}")</span>
+                                <span>@string.Join(", ", question.Labels.Select(l => l.Name))</span>
                             }
                         </div>
                     </div>
@@ -114,7 +112,6 @@
                                  Busy="_busy"
                                  Error="_editorError"
                                  Model="_editorModel"
-                                 Articles="_articles"
                                  OnSubmit="SaveQuestionAsync" />
 
         <ConfirmModal IsOpen="_deleteConfirmOpen"
@@ -134,7 +131,6 @@
     private bool _busy;
     private string? _error;
     private List<QuestionTechnique> _questions = new();
-    private List<Article> _articles = new();
     private bool _editorOpen;
     private string _editorTitle = "";
     private string _editorSubmitLabel = "";
@@ -161,7 +157,6 @@
         try
         {
             _questions = await QuizService.GetQuestionsAsync();
-            _articles = (await ArticleService.GetArticlesAsync(sort: ArticleSort.DateNewest)).ToList();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _busy = false; }
@@ -192,8 +187,7 @@
             Choice2 = question.Choice2,
             Choice3 = question.Choice3,
             CorrectAnswer = question.CorrectAnswer,
-            Explanation = question.Explanation,
-            ArticleId = question.ArticleId
+            Explanation = question.Explanation
         };
         _editorOpen = true;
     }
