@@ -2,7 +2,7 @@
 using Dashboard.Persistance.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Dashboard.Services;
+namespace Dashboard.Business;
 
 public interface IDbQuizService
 {

@@ -1,11 +1,11 @@
 ﻿using Dashboard.Persistance.Entities;
-using Dashboard.Models;
 using Dashboard.Persistance.DbContext;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;
 
-namespace Dashboard.Services;
+namespace Dashboard.Business;
 
 public interface IEmailSender
 {
