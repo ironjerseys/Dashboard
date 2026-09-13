@@ -13,6 +13,8 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Dashboard/Dashboard.csproj", "Dashboard/"]
+COPY ["Dashboard.Business/Dashboard.Business.csproj", "Dashboard.Business/"]
+COPY ["Dashboard.Persistance/Dashboard.Persistance.csproj", "Dashboard.Persistance/"]
 RUN dotnet restore "./Dashboard/Dashboard.csproj"
 COPY . .
 WORKDIR "/src/Dashboard"

@@ -2,7 +2,7 @@ using Dashboard.Persistance.DbContext;
 using Dashboard.Persistance.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Dashboard.Services;
+namespace Dashboard.Business;
 
 public sealed record CodeChallengeCardInfo(
     int Box,

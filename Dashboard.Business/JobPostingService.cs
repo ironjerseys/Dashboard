@@ -1,7 +1,7 @@
 using Dashboard.Persistance.DbContext;
 using Microsoft.EntityFrameworkCore;
 
-namespace Dashboard.Services;
+namespace Dashboard.Business;
 
 public record JobCountItem(string Label, int Count);
 public record JobRoleCityItem(string Role, string City, int Count);

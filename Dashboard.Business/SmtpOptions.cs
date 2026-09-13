@@ -1,4 +1,4 @@
-﻿namespace Dashboard.Models;
+﻿namespace Dashboard.Business;
 
 public class SmtpOptions
 {
