@@ -1,0 +1,174 @@
+@using Microsoft.AspNetCore.Components.Web
+@using global::Dashboard.Persistance.Entities
+
+@rendermode RenderMode.InteractiveServer
+@namespace Dashboard.Components.Quiz
+
+@inject IReminderSettingsService SettingsService
+
+@if (IsOpen)
+{
+    <div class="modal fade show" style="display:block;" tabindex="-1" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered" role="document" @onclick:stopPropagation="true">
+            <div class="modal-content glass-modal text-white">
+
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">
+                        <i class="bi bi-envelope me-2"></i>Reminder emails
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" aria-label="Close"
+                            @onclick="CloseAsync" disabled="@_busy"></button>
+                </div>
+
+                <div class="modal-body">
+                    @if (_loading)
+                    {
+                        <div class="text-muted">Loading…</div>
+                    }
+                    else
+                    {
+                        <div class="form-check form-switch mb-4">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   id="reminder-enabled" @bind="_enabled" disabled="@_busy" />
+                            <label class="form-check-label" for="reminder-enabled">
+                                Send me a daily reminder when reviews are due
+                            </label>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="reminder-hour">Send at</label>
+                            <select id="reminder-hour" class="form-select" @bind="_hour" disabled="@(_busy || !_enabled)">
+                                @for (int h = 0; h < 24; h++)
+                                {
+                                    var hour = h;
+                                    <option value="@hour">@($"{hour:00}:00")</option>
+                                }
+                            </select>
+                            <div class="form-text text-muted">
+                                Server time — it is currently @DateTime.Now.ToString("HH:mm") on the server.
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label" for="reminder-email">Send to</label>
+                            <input id="reminder-email" type="email" class="form-control"
+                                   placeholder="@(string.IsNullOrWhiteSpace(AccountEmail) ? "your account email" : AccountEmail)"
+                                   @bind="_email" @bind:event="oninput" disabled="@(_busy || !_enabled)" />
+                            <div class="form-text text-muted">
+                                Leave empty to use your account email.
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_error))
+                        {
+                            <div class="alert alert-danger mt-3 mb-0">@_error</div>
+                        }
+                        else if (_saved)
+                        {
+                            <div class="alert alert-success mt-3 mb-0">Preferences saved.</div>
+                        }
+                    }
+                </div>
+
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseAsync" disabled="@_busy">
+                        Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveAsync" disabled="@(_busy || _loading)">
+                        Save
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop fade show" @onclick="CloseAsync"></div>
+
+    <style>
+        .glass-modal {
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(20, 20, 22, .88);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,.55);
+        }
+    </style>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    /// <summary>Identity user id whose preferences are edited.</summary>
+    [Parameter] public string OwnerId { get; set; } = string.Empty;
+
+    /// <summary>Account email, shown as the placeholder when no override is set.</summary>
+    [Parameter] public string? AccountEmail { get; set; }
+
+    private bool _enabled = true;
+    private int _hour = ReminderSetting.DefaultHourLocal;
+    private string _email = string.Empty;
+
+    private bool _loading;
+    private bool _busy;
+    private bool _saved;
+    private string? _error;
+    private bool _wasOpen;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Reload from the database every time the modal opens.
+        if (IsOpen && !_wasOpen)
+        {
+            await LoadAsync();
+        }
+
+        _wasOpen = IsOpen;
+    }
+
+    private async Task LoadAsync()
+    {
+        if (string.IsNullOrWhiteSpace(OwnerId)) return;
+
+        _loading = true;
+        _error = null;
+        _saved = false;
+        try
+        {
+            ReminderSetting setting = await SettingsService.GetAsync(OwnerId);
+            _enabled = setting.Enabled;
+            _hour = setting.HourLocal;
+            _email = setting.EmailOverride ?? string.Empty;
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _loading = false; }
+    }
+
+    private async Task SaveAsync()
+    {
+        _error = null;
+        _saved = false;
+
+        var email = _email.Trim();
+        if (email.Length > 0 && !IsValidEmail(email))
+        {
+            _error = "Enter a valid email address, or leave the field empty.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await SettingsService.SaveAsync(OwnerId, _enabled, _hour, email);
+            _saved = true;
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private static bool IsValidEmail(string value) =>
+        System.Net.Mail.MailAddress.TryCreate(value, out _);
+
+    private Task CloseAsync() => IsOpenChanged.InvokeAsync(false);
+}
