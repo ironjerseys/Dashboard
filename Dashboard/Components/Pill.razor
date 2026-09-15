@@ -1,0 +1,7 @@
+@inherits LocalizedComponentBase
+
+<span class="app-pill @Style.Css"><i class="bi @Style.Icon"></i>@Language.Translate(Style.Fr, Style.En)</span>
+
+@code {
+    [Parameter, EditorRequired] public PillStyle Style { get; set; } = null!;
+}

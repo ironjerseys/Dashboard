@@ -20,6 +20,11 @@
                     <li class="nav-item"><a class="nav-link" href="/Websites">Websites</a></li>
                     <li class="nav-item"><a class="nav-link" href="/job-data">Job Data</a></li>
                     <li class="nav-item"><a class="nav-link" href="/quiz/all">Technical Questions</a></li>
+                    <AuthorizeView Roles="Admin" Context="mailAuth">
+                        <Authorized>
+                            <li class="nav-item"><a class="nav-link" href="/applications">Applications</a></li>
+                        </Authorized>
+                    </AuthorizeView>
                 </ul>
 
                 <!-- Liens droite -->

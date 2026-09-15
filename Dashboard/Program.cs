@@ -75,6 +75,20 @@ builder.Services.AddScoped<IReminderSettingsService, ReminderSettingsService>();
 
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+
+// Suivi des candidatures : mails recuperes, analyses par Claude, rattaches, puis libelles dans Gmail.
+builder.Services.Configure<MailOptions>(builder.Configuration.GetSection("Mail"));
+builder.Services.Configure<AnthropicOptions>(builder.Configuration.GetSection("Anthropic"));
+builder.Services.AddScoped<IMailSource, ImapMailSource>();
+builder.Services.AddScoped<IMailIngestionService, MailIngestionService>();
+builder.Services.AddScoped<IEmailMessageService, EmailMessageService>();
+builder.Services.AddScoped<IMailLabelService, MailLabelService>();
+builder.Services.AddSingleton<IEmailClassifier, ClaudeEmailClassifier>();
+builder.Services.AddScoped<IEmailAnalysisService, EmailAnalysisService>();
+builder.Services.AddScoped<IJobApplicationService, JobApplicationService>();
+builder.Services.AddScoped<IApplicationImportService, ApplicationImportService>();
+builder.Services.AddScoped<IMailPipeline, MailPipeline>();
+builder.Services.AddHostedService<MailPipelineWorker>();
 builder.Services.AddHostedService<ReminderService>();
 
 var app = builder.Build();

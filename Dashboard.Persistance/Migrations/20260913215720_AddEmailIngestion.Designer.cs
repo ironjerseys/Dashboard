@@ -4,6 +4,7 @@ using Dashboard.Persistance.DbContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Dashboard.Migrations
 {
     [DbContext(typeof(BlogContext))]
-    partial class BlogContextModelSnapshot : ModelSnapshot
+    [Migration("20260913215720_AddEmailIngestion")]
+    partial class AddEmailIngestion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,53 +24,6 @@ namespace Dashboard.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("Dashboard.Persistance.Entities.AiUsageRecord", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<long>("CacheCreationInputTokens")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("CacheReadInputTokens")
-                        .HasColumnType("bigint");
-
-                    b.Property<int?>("EmailMessageId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("EstimatedCostUsd")
-                        .HasPrecision(18, 6)
-                        .HasColumnType("decimal(18,6)");
-
-                    b.Property<long>("InputTokens")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Model")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<long>("OutputTokens")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Purpose")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<DateTime>("TimestampUtc")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TimestampUtc");
-
-                    b.ToTable("AiUsageRecords");
-                });
 
             modelBuilder.Entity("Dashboard.Persistance.Entities.CodeChallengeCard", b =>
                 {
@@ -118,41 +74,6 @@ namespace Dashboard.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("AnalysisAttempts")
-                        .HasColumnType("int");
-
-                    b.Property<string>("AnalysisError")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
-
-                    b.Property<string>("AnalysisState")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
-
-                    b.Property<string>("AnalysisSummary")
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
-
-                    b.Property<DateTime?>("AnalyzedUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("EventType")
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
-
-                    b.Property<string>("ExtractedCompany")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("ExtractedLocation")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("ExtractedPosition")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
                     b.Property<string>("Folder")
                         .IsRequired()
                         .HasMaxLength(128)
@@ -173,23 +94,10 @@ namespace Dashboard.Migrations
                     b.Property<DateTime>("IngestedUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("JobApplicationId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("LabelSyncError")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
-
-                    b.Property<bool>("LabelSyncPending")
-                        .HasColumnType("bit");
-
                     b.Property<string>("MessageId")
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
-
-                    b.Property<bool>("NeedsReview")
-                        .HasColumnType("bit");
 
                     b.Property<DateTime>("SentUtc")
                         .HasColumnType("datetime2");
@@ -209,74 +117,14 @@ namespace Dashboard.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AnalysisState");
-
                     b.HasIndex("FromAddress");
-
-                    b.HasIndex("JobApplicationId");
-
-                    b.HasIndex("LabelSyncPending");
 
                     b.HasIndex("MessageId")
                         .IsUnique();
 
-                    b.HasIndex("NeedsReview");
-
                     b.HasIndex("SentUtc");
 
                     b.ToTable("EmailMessages");
-                });
-
-            modelBuilder.Entity("Dashboard.Persistance.Entities.JobApplication", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("AppliedUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Company")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<DateTime>("CreatedUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("JobUrl")
-                        .HasMaxLength(2048)
-                        .HasColumnType("nvarchar(2048)");
-
-                    b.Property<DateTime>("LastEventUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Location")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<string>("Position")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Company");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("JobApplications");
                 });
 
             modelBuilder.Entity("Dashboard.Persistance.Entities.JobPosting", b =>
@@ -903,16 +751,6 @@ namespace Dashboard.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("Dashboard.Persistance.Entities.EmailMessage", b =>
-                {
-                    b.HasOne("Dashboard.Persistance.Entities.JobApplication", "JobApplication")
-                        .WithMany("Emails")
-                        .HasForeignKey("JobApplicationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("JobApplication");
-                });
-
             modelBuilder.Entity("Dashboard.Persistance.Entities.Label", b =>
                 {
                     b.HasOne("Dashboard.Persistance.Entities.QuestionTechnique", null)
@@ -980,11 +818,6 @@ namespace Dashboard.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Dashboard.Persistance.Entities.JobApplication", b =>
-                {
-                    b.Navigation("Emails");
                 });
 
             modelBuilder.Entity("Dashboard.Persistance.Entities.QuestionTechnique", b =>

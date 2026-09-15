@@ -1,0 +1,693 @@
+﻿@page "/applications"
+@page "/mail"
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+@using global::Dashboard.Persistance.Entities
+
+@attribute [Authorize(Roles = "Admin")]
+@inherits LocalizedComponentBase
+@inject IJobApplicationService Applications
+@inject IEmailMessageService Messages
+@inject IEmailAnalysisService Analysis
+@inject IMailIngestionService Ingestion
+@inject IApplicationImportService Import
+@inject IMailPipeline Pipeline
+
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>@Language.Translate("Candidatures", "Applications")</PageTitle>
+
+<div class="mb-4 d-flex justify-content-between align-items-start gap-3 flex-wrap">
+    <div>
+        <h1 class="mb-1">@Language.Translate("Candidatures", "Applications")</h1>
+        <p class="text-muted mb-0">
+            @Language.Translate("Construit automatiquement à partir des mails du libellé Gmail Applications.",
+                                "Built automatically from the emails in the Gmail Applications label.")
+        </p>
+    </div>
+    <div class="text-end">
+        <button class="btn btn-primary" @onclick="RunNowAsync" disabled="@Busy">
+            @if (_running || MailPipeline.IsRunning)
+            {
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                @Language.Translate("Mise à jour…", "Updating…")
+            }
+            else
+            {
+                <i class="bi bi-arrow-repeat me-1"></i>
+                @Language.Translate("Mettre à jour maintenant", "Update now")
+            }
+        </button>
+        @if (_spend is not null)
+        {
+            <div class="small text-muted mt-2">
+                @if (_spend.Configured)
+                {
+                    <span title="@Language.Translate("Estimation ; la Console Anthropic fait foi", "Estimate; the Anthropic Console is authoritative")">
+                        IA @Language.Translate("ce mois", "this month") :
+                        <strong>@_spend.MonthCostUsd.ToString("0.00") $</strong> / @_spend.MonthlyBudgetUsd.ToString("0.00") $
+                        &nbsp;•&nbsp; @_spend.CallsToday / @_spend.MaxCallsPerDay @Language.Translate("appels aujourd'hui", "calls today")
+                    </span>
+                }
+                else
+                {
+                    <span class="text-danger">@Language.Translate("Clé Anthropic absente : analyse désactivée.", "Anthropic key missing: analysis disabled.")</span>
+                }
+            </div>
+        }
+        @if (MailPipeline.LastRun is { } last)
+        {
+            <div class="small text-muted">
+                @Language.Translate("Dernier passage", "Last run") : @last.FinishedUtc.ToLocalTime().ToString("dd/MM HH:mm")
+            </div>
+        }
+    </div>
+</div>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger"><pre class="small mb-0" style="white-space:pre-wrap">@_error</pre></div>
+}
+
+@if (_run is not null)
+{
+    <div class="alert @(_run.Errors.Count > 0 || _run.Analysis?.StoppedReason is not null ? "alert-warning" : "alert-success")">
+        @if (_run.AlreadyRunning)
+        {
+            @Language.Translate("Un passage est déjà en cours, réessaie dans un instant.", "A run is already in progress, try again shortly.")
+        }
+        else
+        {
+            <div>
+                @_run.Inserted @Language.Translate("nouveaux mails", "new emails")
+                @if (_run.MailRemaining > 0)
+                {
+                    <span> (@_run.MailRemaining @Language.Translate("restent à récupérer", "left to fetch"))</span>
+                }
+                @if (_run.Analysis is { } a)
+                {
+                    <span> &nbsp;•&nbsp; @a.Analyzed @Language.Translate("analysés", "analyzed")</span>
+                    <span> &nbsp;•&nbsp; @a.ApplicationsCreated @Language.Translate("candidatures créées", "applications created")</span>
+                    @if (a.NeedsReview > 0)
+                    {
+                        <span> &nbsp;•&nbsp; @a.NeedsReview @Language.Translate("à rattacher", "to assign")</span>
+                    }
+                    @if (a.Failed > 0)
+                    {
+                        <span> &nbsp;•&nbsp; @a.Failed @Language.Translate("échecs", "failed")</span>
+                    }
+                    @if (a.Remaining > 0)
+                    {
+                        <span> &nbsp;•&nbsp; @a.Remaining @Language.Translate("en attente d'analyse", "waiting for analysis")</span>
+                    }
+                }
+            </div>
+            @if (_run.Analysis?.StoppedReason is { } reason)
+            {
+                <div class="small mt-1"><i class="bi bi-pause-circle me-1"></i>@reason</div>
+            }
+            @foreach (var err in _run.Errors)
+            {
+                <div class="small mt-1"><i class="bi bi-exclamation-triangle me-1"></i>@err</div>
+            }
+        }
+    </div>
+}
+
+@if (_import is not null)
+{
+    <div class="alert @(_import.Warnings.Count > 0 ? "alert-warning" : "alert-success")">
+        @Language.Translate("Import", "Import") : @_import.Rows @Language.Translate("lignes", "rows")
+        &nbsp;•&nbsp; @_import.Created @Language.Translate("créées", "created")
+        &nbsp;•&nbsp; @_import.Merged @Language.Translate("fusionnées avec une candidature issue des mails", "merged into an email-based application")
+        @if (_import.AlreadyImported > 0)
+        {
+            <span> &nbsp;•&nbsp; @_import.AlreadyImported @Language.Translate("déjà importées", "already imported")</span>
+        }
+        @foreach (var warning in _import.Warnings)
+        {
+            <div class="small mt-1"><i class="bi bi-exclamation-triangle me-1"></i>@warning</div>
+        }
+    </div>
+}
+
+@if (_loading)
+{
+    <div class="text-muted">@Language.Translate("Chargement…", "Loading…")</div>
+}
+else
+{
+    <div class="stat-bar mb-4">
+        <button class="stat-bar-item accent" @onclick="() => FilterAsync(null)">
+            <i class="bi bi-briefcase stat-bar-icon"></i>
+            <div>
+                <div class="stat-bar-num">@Total</div>
+                <div class="stat-bar-label">@Language.Translate("Candidatures", "Applications")</div>
+            </div>
+        </button>
+        <button class="stat-bar-item @(_filter == OpenFilter ? "selected" : "")" @onclick="() => FilterAsync(OpenFilter)">
+            <i class="bi bi-hourglass-split stat-bar-icon"></i>
+            <div>
+                <div class="stat-bar-num">@Open</div>
+                <div class="stat-bar-label">@Language.Translate("En cours", "In progress")</div>
+            </div>
+        </button>
+        @foreach (var status in new[] { JobApplicationStatus.Interview, JobApplicationStatus.Offer, JobApplicationStatus.Rejected })
+        {
+            var s = status;
+            var style = PillStyle.For(s);
+            <button class="stat-bar-item @(_filter == (int)s ? "selected" : "")" @onclick="() => FilterAsync((int)s)">
+                <i class="bi @style.Icon stat-bar-icon"></i>
+                <div>
+                    <div class="stat-bar-num">@_counts.GetValueOrDefault(s)</div>
+                    <div class="stat-bar-label">@Language.Translate(style.Fr, style.En)</div>
+                </div>
+            </button>
+        }
+    </div>
+
+    @if (_review.Count > 0)
+    {
+        <div class="card mb-4 border-warning">
+            <div class="card-header bg-warning-subtle">
+                <i class="bi bi-question-circle me-1"></i>
+                @_review.Count @Language.Translate("mail(s) à rattacher : plusieurs candidatures possibles ou entreprise inconnue.",
+                                                   "email(s) to assign: several possible applications or unknown company.")
+            </div>
+            <ul class="list-group list-group-flush">
+                @foreach (var email in _review)
+                {
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between gap-3 flex-wrap">
+                            @EmailSummary(email)
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                @AssignControls(email)
+                                <button class="btn btn-sm btn-outline-secondary" disabled="@Busy" @onclick="() => DismissAsync(email.Id)"
+                                        title="@Language.Translate("Ne concerne aucune candidature", "Not about any application")">
+                                    @Language.Translate("Ignorer", "Dismiss")
+                                </button>
+                            </div>
+                        </div>
+                        @EmailBody(email.Id)
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
+    <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
+        <div class="text-muted small">
+            @_rows.Count @Language.Translate("affichée(s)", "shown")
+            @if (_filter is not null)
+            {
+                <span> — <a href="" @onclick="() => FilterAsync(null)" @onclick:preventDefault="true">@Language.Translate("tout afficher", "show all")</a></span>
+            }
+        </div>
+        <input class="form-control" style="max-width:18rem" placeholder="@Language.Translate("Entreprise ou poste…", "Company or position…")"
+               @bind="_search" @bind:event="oninput" @bind:after="LoadRowsAsync" />
+    </div>
+
+    @if (_rows.Count == 0)
+    {
+        <div class="alert alert-info">
+            @if (Total == 0)
+            {
+                @Language.Translate("Aucune candidature pour l'instant. Elles apparaîtront après l'analyse des mails.",
+                                    "No applications yet. They will appear once emails are analyzed.")
+            }
+            else
+            {
+                @Language.Translate("Aucune candidature ne correspond.", "No matching applications.")
+            }
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive mb-4">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>@Language.Translate("Entreprise", "Company")</th>
+                        <th>@Language.Translate("Poste", "Position")</th>
+                        <th>@Language.Translate("Lieu", "Location")</th>
+                        <th>@Language.Translate("Statut", "Status")</th>
+                        <th>@Language.Translate("Postulé le", "Applied")</th>
+                        <th>@Language.Translate("Dernière nouvelle", "Last update")</th>
+                        <th class="text-end">@Language.Translate("Mails", "Emails")</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in _rows)
+                    {
+                        var id = row.Id;
+                        <tr role="button" @onclick="() => ToggleApplicationAsync(id)">
+                            <td class="fw-semibold">@row.Company</td>
+                            <td>@(row.Position ?? "—")</td>
+                            <td class="text-muted">@(row.Location ?? "—")</td>
+                            <td><Pill Style="PillStyle.For(row.Status)" /></td>
+                            <td class="text-muted small">@(row.AppliedUtc?.ToLocalTime().ToString("dd/MM/yyyy") ?? "—")</td>
+                            <td class="text-muted small">@row.LastEventUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td class="text-end text-muted">@row.EmailCount</td>
+                        </tr>
+
+                        @if (_openApplicationId == id)
+                        {
+                            <tr>
+                                <td colspan="7" class="bg-body-tertiary">
+                                    <div class="d-flex align-items-center gap-3 mb-2 small flex-wrap">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="text-muted">@Language.Translate("Corriger le statut", "Fix status") :</span>
+                                            <select class="form-select form-select-sm" style="max-width:12rem" value="@row.Status"
+                                                    @onchange="e => SetStatusAsync(id, e.Value)">
+                                                @foreach (var s in Enum.GetValues<JobApplicationStatus>())
+                                                {
+                                                    var st = PillStyle.For(s);
+                                                    <option value="@s">@Language.Translate(st.Fr, st.En)</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        @if (row.JobUrl is not null)
+                                        {
+                                            <a href="@row.JobUrl" target="_blank" rel="noopener noreferrer">
+                                                <i class="bi bi-box-arrow-up-right me-1"></i>@Language.Translate("Voir l'offre", "View posting")
+                                            </a>
+                                        }
+                                        <div class="d-flex align-items-center gap-2 ms-auto">
+                                            <span class="text-muted">@Language.Translate("Doublon ? Fusionner dans", "Duplicate? Merge into") :</span>
+                                            <select class="form-select form-select-sm" style="max-width:20rem" @bind="_mergeTarget">
+                                                <option value="0">@Language.Translate("Choisir une candidature…", "Pick an application…")</option>
+                                                @foreach (var c in _candidates.Where(c => c.Id != id)
+                                                                              .OrderByDescending(c => JobApplicationMatcher.SameCompany(c.Company, row.Company))
+                                                                              .ThenBy(c => c.Company))
+                                                {
+                                                    <option value="@c.Id">@c.Company — @(c.Position ?? "?")</option>
+                                                }
+                                            </select>
+                                            <button class="btn btn-sm btn-outline-danger" disabled="@(Busy || _mergeTarget == 0)" @onclick="() => MergeAsync(id)"
+                                                    title="@Language.Translate("Les mails et informations de cette candidature passent dans l'autre, puis celle-ci est supprimée.",
+                                                                               "This application's emails and details move into the other one, then this one is deleted.")">
+                                                @Language.Translate("Fusionner", "Merge")
+                                            </button>
+                                        </div>
+                                    </div>
+                                    @if (row.Notes is not null)
+                                    {
+                                        <div class="small mb-2" style="white-space:pre-wrap">@row.Notes</div>
+                                    }
+                                    @if (_openEmails is null)
+                                    {
+                                        <div class="text-muted small">@Language.Translate("Chargement…", "Loading…")</div>
+                                    }
+                                    else if (_openEmails.Count == 0)
+                                    {
+                                        <div class="text-muted small">@Language.Translate("Aucun mail rattaché (candidature importée).", "No linked email (imported application).")</div>
+                                    }
+                                    else
+                                    {
+                                        <ul class="list-unstyled mb-0">
+                                            @foreach (var email in _openEmails)
+                                            {
+                                                <li class="mb-2">
+                                                    @EmailSummary(email)
+                                                    @EmailBody(email.Id)
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <div class="card mb-4">
+        <button class="card-header d-flex justify-content-between align-items-center border-0 text-start w-100 bg-body-tertiary"
+                @onclick="ToggleUntracked">
+            <span>
+                <i class="bi @(_showUntracked ? "bi-chevron-down" : "bi-chevron-right") me-1"></i>
+                @Language.Translate("Mails non suivis", "Untracked emails")
+                <span class="text-muted small ms-1">
+                    — @Language.Translate("hors candidature, en attente ou en échec. Un refus mal classé se cache ici.",
+                                          "not an application, waiting or failed. A misclassified rejection would hide here.")
+                </span>
+            </span>
+            <span class="badge rounded-pill text-bg-secondary">@_untrackedCount</span>
+        </button>
+        @if (_showUntracked)
+        {
+            @if (_untracked.Count == 0)
+            {
+                <div class="card-body text-muted small">@Language.Translate("Aucun.", "None.")</div>
+            }
+            else
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var email in _untracked)
+                    {
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between gap-3 flex-wrap">
+                                @EmailSummary(email)
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    @if (email.AnalysisState == EmailAnalysisState.Failed)
+                                    {
+                                        <button class="btn btn-sm btn-outline-primary" disabled="@Busy" @onclick="() => RetryAsync(email.Id)"
+                                                title="@Language.Translate("Réanalysé au prochain passage", "Analyzed again on the next run")">
+                                            @Language.Translate("Réessayer l'analyse", "Retry analysis")
+                                        </button>
+                                    }
+                                    @if (email.AnalysisState != EmailAnalysisState.Pending)
+                                    {
+                                        @AssignControls(email)
+                                    }
+                                </div>
+                            </div>
+                            @EmailBody(email.Id)
+                        </li>
+                    }
+                </ul>
+            }
+        }
+    </div>
+
+    <div class="d-flex align-items-center gap-3 flex-wrap small text-muted border-top pt-3">
+        <span>@Language.Translate("Outils", "Tools") :</span>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="FullRescanAsync" disabled="@Busy"
+                title="@Language.Translate("Relit tout le libellé Gmail au lieu des seuls nouveaux mails. Les mails déjà en base ne sont ni dupliqués ni réanalysés.",
+                                           "Reads the whole Gmail label instead of new emails only. Stored emails are neither duplicated nor analyzed again.")">
+            <i class="bi bi-clock-history me-1"></i>@Language.Translate("Tout rebalayer", "Full rescan")
+        </button>
+        <label class="btn btn-sm btn-outline-secondary mb-0 @(Busy ? "disabled" : "")">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>@Language.Translate("Importer un Excel", "Import Excel")
+            <InputFile OnChange="ImportAsync" accept=".xlsx" class="d-none" disabled="@Busy" />
+        </label>
+    </div>
+}
+
+@code {
+    /// <summary>Filtre "en cours" : pas un statut en base, mais Applied + Assessment + Interview.</summary>
+    private const int OpenFilter = -1;
+
+    private const long MaxImportBytes = 5 * 1024 * 1024;
+
+    private bool _loading = true;
+    private bool _busy;
+    private bool _running;
+    private string? _error;
+    private PipelineRunResult? _run;
+    private ImportResult? _import;
+    private AiSpendSummary? _spend;
+
+    private int? _filter;
+    private string? _search;
+    private Dictionary<JobApplicationStatus, int> _counts = new();
+    private List<ApplicationRow> _rows = new();
+
+    private List<EmailMessage> _review = new();
+    private List<EmailMessage> _untracked = new();
+    private int _untrackedCount;
+    private bool _showUntracked;
+    private List<ApplicationCandidate> _candidates = new();
+    private readonly Dictionary<int, int> _assignChoice = new();
+
+    private int? _openApplicationId;
+    private List<EmailMessage>? _openEmails;
+    private int _mergeTarget;
+
+    private int? _openBodyId;
+    private EmailMessage? _openBody;
+
+    private bool Busy => _busy || _running || MailPipeline.IsRunning;
+
+    private int Total => _counts.Values.Sum();
+
+    private int Open => _counts.Where(c => JobApplicationMatcher.IsOpen(c.Key)).Sum(c => c.Value);
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = _counts.Count == 0;
+        try
+        {
+            _counts = await Applications.CountByStatusAsync();
+            _review = await Applications.GetReviewQueueAsync();
+            _untracked = await Applications.GetUntrackedAsync();
+            _untrackedCount = _untracked.Count;
+            _candidates = await Applications.GetCandidatesAsync();
+            _spend = await Analysis.GetSpendAsync();
+
+            foreach (var email in _review.Concat(_untracked))
+            {
+                _assignChoice.TryAdd(email.Id, 0);
+            }
+
+            await LoadRowsAsync();
+
+            if (_openApplicationId is { } openId)
+            {
+                _openEmails = await Applications.GetEmailsAsync(openId);
+            }
+        }
+        catch (Exception ex) { _error = ex.ToString(); }
+        finally { _loading = false; }
+    }
+
+    private async Task LoadRowsAsync()
+    {
+        var rows = await Applications.GetApplicationsAsync(
+            _filter is >= 0 ? (JobApplicationStatus)_filter.Value : null,
+            _search);
+
+        _rows = _filter == OpenFilter
+            ? rows.Where(r => JobApplicationMatcher.IsOpen(r.Status)).ToList()
+            : rows;
+    }
+
+    private async Task FilterAsync(int? filter)
+    {
+        _filter = _filter == filter ? null : filter;
+        _openApplicationId = null;
+        await LoadRowsAsync();
+    }
+
+    // ---- Fragments reutilises par la file "a rattacher", l'historique d'une candidature et les mails non suivis ----
+
+    private RenderFragment EmailSummary(EmailMessage email) =>
+        @<div class="flex-grow-1" style="min-width:16rem">
+            <span class="text-muted small me-2">@email.SentUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+            @switch (email.AnalysisState)
+            {
+                case EmailAnalysisState.Pending:
+                    <span class="app-pill muted"><i class="bi bi-hourglass-split"></i>@Language.Translate("En attente d'analyse", "Waiting for analysis")</span>
+                    break;
+                case EmailAnalysisState.Failed:
+                    <span class="app-pill rejected"><i class="bi bi-exclamation-octagon"></i>@Language.Translate("Échec d'analyse", "Analysis failed")</span>
+                    break;
+                default:
+                    @if (email.EventType is { } eventType)
+                    {
+                        <Pill Style="PillStyle.For(eventType)" />
+                    }
+                    break;
+            }
+            <a href="" class="ms-1 text-body" @onclick="() => ToggleBodyAsync(email.Id)" @onclick:preventDefault="true"
+               title="@Language.Translate("Afficher le mail", "Show the email")">@(email.Subject ?? "(sans sujet)")</a>
+            <div class="small text-muted">
+                @(string.IsNullOrWhiteSpace(email.FromName) ? email.FromAddress : $"{email.FromName} <{email.FromAddress}>")
+                @if (email.ExtractedCompany is not null)
+                {
+                    <span> • @email.ExtractedCompany@(email.ExtractedPosition is null ? "" : " — " + email.ExtractedPosition)</span>
+                }
+            </div>
+            @if (email.AnalysisError is not null)
+            {
+                <div class="small text-danger">@email.AnalysisError</div>
+            }
+            else if (!string.IsNullOrWhiteSpace(email.AnalysisSummary))
+            {
+                <div class="small">@email.AnalysisSummary</div>
+            }
+        </div>;
+
+    private RenderFragment AssignControls(EmailMessage email) =>
+        @<text>
+            <select class="form-select form-select-sm" style="max-width:20rem" @bind="_assignChoice[email.Id]">
+                <option value="0">@Language.Translate("Choisir une candidature…", "Pick an application…")</option>
+                @foreach (var c in SortedCandidates(email))
+                {
+                    <option value="@c.Id">@c.Company — @(c.Position ?? "?")</option>
+                }
+            </select>
+            <button class="btn btn-sm btn-primary" disabled="@(Busy || _assignChoice.GetValueOrDefault(email.Id) == 0)"
+                    @onclick="() => LinkAsync(email.Id)">
+                @Language.Translate("Rattacher", "Assign")
+            </button>
+            <button class="btn btn-sm btn-outline-primary" disabled="@Busy" @onclick="() => CreateAsync(email.Id)">
+                @Language.Translate("Nouvelle candidature", "New application")
+            </button>
+        </text>;
+
+    private RenderFragment EmailBody(int emailId) =>
+        @<text>
+            @if (_openBodyId == emailId)
+            {
+                <div class="mt-2 p-2 border rounded bg-body">
+                    @if (_openBody is null)
+                    {
+                        <div class="text-muted small">@Language.Translate("Chargement…", "Loading…")</div>
+                    }
+                    else
+                    {
+                        @if (_openBody.LabelSyncError is not null)
+                        {
+                            <div class="alert alert-warning small py-1 mb-2">Gmail : @_openBody.LabelSyncError</div>
+                        }
+                        <pre class="small mb-0" style="white-space:pre-wrap;max-height:24rem;overflow:auto">@BodyPreview(_openBody)</pre>
+                    }
+                </div>
+            }
+        </text>;
+
+    // ---- Actions ----
+
+    private async Task RunNowAsync()
+    {
+        _running = true;
+        _error = null;
+        _run = null;
+        try
+        {
+            _run = await Pipeline.RunAsync();
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = ex.ToString(); }
+        finally { _running = false; }
+    }
+
+    private async Task FullRescanAsync()
+    {
+        _running = true;
+        _error = null;
+        _run = null;
+        try
+        {
+            await Ingestion.ResetCursorAsync();
+            _run = await Pipeline.RunAsync();
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = ex.ToString(); }
+        finally { _running = false; }
+    }
+
+    private Task ImportAsync(InputFileChangeEventArgs e) => RunBusyAsync(async () =>
+    {
+        _import = null;
+
+        // ZipArchive a besoin d'un flux positionnable : on copie l'upload en memoire.
+        await using Stream upload = e.File.OpenReadStream(MaxImportBytes);
+        using var buffer = new MemoryStream();
+        await upload.CopyToAsync(buffer);
+        buffer.Position = 0;
+
+        _import = await Import.ImportXlsxAsync(buffer);
+    });
+
+    private async Task ToggleApplicationAsync(int id)
+    {
+        if (_openApplicationId == id)
+        {
+            _openApplicationId = null;
+            _openEmails = null;
+            return;
+        }
+
+        _openApplicationId = id;
+        _openEmails = null;
+        _mergeTarget = 0;
+        _openEmails = await Applications.GetEmailsAsync(id);
+    }
+
+    private Task MergeAsync(int sourceId) => RunBusyAsync(async () =>
+    {
+        int targetId = _mergeTarget;
+        await Applications.MergeAsync(sourceId, targetId);
+
+        // La candidature ouverte n'existe plus : on deplie celle qui l'a absorbee.
+        _openApplicationId = targetId;
+        _mergeTarget = 0;
+    });
+
+    private async Task ToggleBodyAsync(int emailId)
+    {
+        if (_openBodyId == emailId)
+        {
+            _openBodyId = null;
+            _openBody = null;
+            return;
+        }
+
+        _openBodyId = emailId;
+        _openBody = null;
+        _openBody = await Messages.GetAsync(emailId);
+    }
+
+    private void ToggleUntracked() => _showUntracked = !_showUntracked;
+
+    private async Task SetStatusAsync(int id, object? value)
+    {
+        if (!Enum.TryParse(value?.ToString(), out JobApplicationStatus status))
+        {
+            return;
+        }
+
+        await RunBusyAsync(() => Applications.SetStatusAsync(id, status));
+    }
+
+    /// <summary>Candidatures de la meme entreprise en tete de liste.</summary>
+    private IEnumerable<ApplicationCandidate> SortedCandidates(EmailMessage email) =>
+        _candidates
+            .OrderByDescending(c => email.ExtractedCompany is not null && JobApplicationMatcher.SameCompany(c.Company, email.ExtractedCompany))
+            .ThenBy(c => c.Company);
+
+    private Task LinkAsync(int emailId) =>
+        RunBusyAsync(() => Applications.LinkEmailAsync(emailId, _assignChoice[emailId]));
+
+    private Task CreateAsync(int emailId) =>
+        RunBusyAsync(() => Applications.CreateFromEmailAsync(emailId));
+
+    private Task DismissAsync(int emailId) =>
+        RunBusyAsync(() => Applications.DismissReviewAsync(emailId));
+
+    private Task RetryAsync(int emailId) =>
+        RunBusyAsync(() => Messages.RetryAnalysisAsync(emailId));
+
+    private async Task RunBusyAsync(Func<Task> action)
+    {
+        _busy = true;
+        _error = null;
+        try
+        {
+            await action();
+            await LoadAsync();
+        }
+        catch (Exception ex) { _error = ex.ToString(); }
+        finally { _busy = false; }
+    }
+
+    private static string BodyPreview(EmailMessage message)
+    {
+        string body = EmailText.BodyOf(message);
+
+        if (body.Length == 0)
+        {
+            return "(aucun corps)";
+        }
+
+        return body.Length > 8000 ? body[..8000] + "\n…" : body;
+    }
+}
