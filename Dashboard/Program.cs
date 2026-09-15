@@ -76,11 +76,19 @@ builder.Services.AddScoped<IReminderSettingsService, ReminderSettingsService>();
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 
-// Recuperation des mails de candidature (lecture seule).
+// Suivi des candidatures : mails recuperes, analyses par Claude, rattaches, puis libelles dans Gmail.
 builder.Services.Configure<MailOptions>(builder.Configuration.GetSection("Mail"));
+builder.Services.Configure<AnthropicOptions>(builder.Configuration.GetSection("Anthropic"));
 builder.Services.AddScoped<IMailSource, ImapMailSource>();
 builder.Services.AddScoped<IMailIngestionService, MailIngestionService>();
 builder.Services.AddScoped<IEmailMessageService, EmailMessageService>();
+builder.Services.AddScoped<IMailLabelService, MailLabelService>();
+builder.Services.AddSingleton<IEmailClassifier, ClaudeEmailClassifier>();
+builder.Services.AddScoped<IEmailAnalysisService, EmailAnalysisService>();
+builder.Services.AddScoped<IJobApplicationService, JobApplicationService>();
+builder.Services.AddScoped<IApplicationImportService, ApplicationImportService>();
+builder.Services.AddScoped<IMailPipeline, MailPipeline>();
+builder.Services.AddHostedService<MailPipelineWorker>();
 builder.Services.AddHostedService<ReminderService>();
 
 var app = builder.Build();
@@ -184,37 +192,6 @@ app.MapRazorComponents<App>()
 app.MapGet("/", () => Results.Redirect("/cv"));
 
 
-
-// Declenchement manuel de la recuperation des mails. Deviendra un worker plus tard ;
-// pour l'instant c'est le moyen le plus direct de verifier la chaine de bout en bout.
-app.MapPost("/api/mail/sync", async (IMailIngestionService ingestion, CancellationToken ct) =>
-{
-    try
-    {
-        var result = await ingestion.SyncAsync(ct);
-        return Results.Ok(result);
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem(title: "Mail sync failed", detail: ex.Message);
-    }
-})
-.RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
-
-app.MapGet("/api/mail/messages", async (int take, IDbContextFactory<BlogContext> factory) =>
-{
-    take = (take <= 0 || take > 100) ? 25 : take;
-
-    await using var db = await factory.CreateDbContextAsync();
-    var items = await db.EmailMessages.AsNoTracking()
-        .OrderByDescending(m => m.SentUtc)
-        .Take(take)
-        .Select(m => new { m.Id, m.SentUtc, m.FromAddress, m.FromName, m.Subject, HasText = m.TextBody != null })
-        .ToListAsync();
-
-    return Results.Ok(items);
-})
-.RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
 app.MapGet("/media/{id:guid}", async (Guid id, IDbContextFactory<BlogContext> factory) =>
 {

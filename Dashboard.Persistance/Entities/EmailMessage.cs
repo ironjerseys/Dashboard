@@ -42,4 +42,48 @@ public class EmailMessage
     public string? HtmlBody { get; set; }
 
     public DateTime IngestedUtc { get; set; } = DateTime.UtcNow;
+
+    // ---- Analyse automatique ----
+
+    public EmailAnalysisState AnalysisState { get; set; } = EmailAnalysisState.Pending;
+
+    /// <summary>Tentatives facturables ou non ; plafonnees pour qu'un mail qui plante ne coute pas en boucle.</summary>
+    public int AnalysisAttempts { get; set; }
+
+    public DateTime? AnalyzedUtc { get; set; }
+
+    [MaxLength(1024)]
+    public string? AnalysisError { get; set; }
+
+    public EmailEventType? EventType { get; set; }
+
+    [MaxLength(256)]
+    public string? ExtractedCompany { get; set; }
+
+    [MaxLength(256)]
+    public string? ExtractedPosition { get; set; }
+
+    [MaxLength(256)]
+    public string? ExtractedLocation { get; set; }
+
+    [MaxLength(512)]
+    public string? AnalysisSummary { get; set; }
+
+    /// <summary>Le rattachement automatique a hesite (plusieurs candidatures possibles) : a trancher a la main.</summary>
+    public bool NeedsReview { get; set; }
+
+    public int? JobApplicationId { get; set; }
+    public JobApplication? JobApplication { get; set; }
+
+    // ---- Reflet dans Gmail ----
+
+    /// <summary>
+    /// Le mail a ete analyse mais le libelle Gmail n'est pas encore pose. Reste a true
+    /// tant que Gmail n'a pas accepte la modification : le passage suivant la retente.
+    /// </summary>
+    public bool LabelSyncPending { get; set; }
+
+    /// <summary>Derniere erreur rencontree en alignant les libelles Gmail.</summary>
+    [MaxLength(1024)]
+    public string? LabelSyncError { get; set; }
 }

@@ -6,9 +6,11 @@ namespace Dashboard.Business;
 
 public interface IEmailMessageService
 {
-    Task<List<EmailMessage>> GetRecentAsync(int take = 25, CancellationToken cancellationToken = default);
+    /// <summary>Le mail complet, corps compris.</summary>
     Task<EmailMessage?> GetAsync(int id, CancellationToken cancellationToken = default);
-    Task<int> CountAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Remet un mail en echec dans la file d'analyse. Action manuelle : elle peut couter un appel.</summary>
+    Task RetryAnalysisAsync(int id, CancellationToken cancellationToken = default);
 }
 
 public sealed class EmailMessageService : IEmailMessageService
@@ -20,31 +22,6 @@ public sealed class EmailMessageService : IEmailMessageService
         _dbContextFactory = dbContextFactory;
     }
 
-    public async Task<List<EmailMessage>> GetRecentAsync(int take = 25, CancellationToken cancellationToken = default)
-    {
-        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        // On ne remonte pas les corps dans la liste : ils peuvent peser lourd et l'ecran
-        // n'en a besoin qu'au moment ou on ouvre un mail.
-        return await dbContext.EmailMessages
-            .AsNoTracking()
-            .OrderByDescending(m => m.SentUtc)
-            .Take(take)
-            .Select(m => new EmailMessage
-            {
-                Id = m.Id,
-                MessageId = m.MessageId,
-                Uid = m.Uid,
-                Folder = m.Folder,
-                FromAddress = m.FromAddress,
-                FromName = m.FromName,
-                Subject = m.Subject,
-                SentUtc = m.SentUtc,
-                IngestedUtc = m.IngestedUtc
-            })
-            .ToListAsync(cancellationToken);
-    }
-
     public async Task<EmailMessage?> GetAsync(int id, CancellationToken cancellationToken = default)
     {
         await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
@@ -54,9 +31,16 @@ public sealed class EmailMessageService : IEmailMessageService
             .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
     }
 
-    public async Task<int> CountAsync(CancellationToken cancellationToken = default)
+    public async Task RetryAnalysisAsync(int id, CancellationToken cancellationToken = default)
     {
         await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-        return await dbContext.EmailMessages.CountAsync(cancellationToken);
+
+        await dbContext.EmailMessages
+            .Where(m => m.Id == id && m.AnalysisState == EmailAnalysisState.Failed)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(m => m.AnalysisState, EmailAnalysisState.Pending)
+                .SetProperty(m => m.AnalysisAttempts, 0)
+                .SetProperty(m => m.AnalysisError, (string?)null),
+                cancellationToken);
     }
 }

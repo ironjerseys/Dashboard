@@ -22,6 +22,8 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<ReminderSetting> ReminderSettings => Set<ReminderSetting>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
     public DbSet<MailboxSyncState> MailboxSyncStates => Set<MailboxSyncState>();
+    public DbSet<JobApplication> JobApplications => Set<JobApplication>();
+    public DbSet<AiUsageRecord> AiUsageRecords => Set<AiUsageRecord>();
 
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -67,6 +69,33 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             e.HasIndex(m => m.MessageId).IsUnique();
             e.HasIndex(m => m.SentUtc);
             e.HasIndex(m => m.FromAddress);
+
+            // Enums en texte plutot qu'en entier : la table reste lisible en SQL et l'ordre
+            // des enums peut changer sans corrompre les lignes.
+            e.Property(m => m.AnalysisState).HasConversion<string>().HasMaxLength(16);
+            e.Property(m => m.EventType).HasConversion<string>().HasMaxLength(32);
+            e.HasIndex(m => m.AnalysisState);
+            e.HasIndex(m => m.NeedsReview);
+            e.HasIndex(m => m.LabelSyncPending);
+
+            // Supprimer une candidature ne doit pas effacer les mails : ils redeviennent orphelins.
+            e.HasOne(m => m.JobApplication)
+                .WithMany(a => a.Emails)
+                .HasForeignKey(m => m.JobApplicationId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<JobApplication>(e =>
+        {
+            e.Property(a => a.Status).HasConversion<string>().HasMaxLength(16);
+            e.HasIndex(a => a.Company);
+            e.HasIndex(a => a.Status);
+        });
+
+        builder.Entity<AiUsageRecord>(e =>
+        {
+            e.Property(u => u.EstimatedCostUsd).HasPrecision(18, 6);
+            e.HasIndex(u => u.TimestampUtc);
         });
 
         builder.Entity<MailboxSyncState>()

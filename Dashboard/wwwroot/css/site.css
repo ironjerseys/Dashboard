@@ -602,6 +602,42 @@ a.stat-bar-item.accent:hover {
     }
 }
 
+button.stat-bar-item {
+    background: #fff;
+    border-top: none;
+    border-bottom: none;
+    border-left: none;
+    text-align: left;
+}
+
+button.stat-bar-item:not(.accent):hover {
+    background: rgba(0,0,0,.03);
+}
+
+button.stat-bar-item.selected {
+    box-shadow: inset 0 -3px 0 var(--bs-primary);
+}
+
+/* ── Candidatures : statut et type de mail, toujours icone + libelle ── */
+.app-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    font-size: .75rem;
+    font-weight: 600;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+
+.app-pill.applied    { background: rgba(108,117,125,.1); color: #495057; border-color: rgba(108,117,125,.25); }
+.app-pill.assessment { background: rgba(13,110,253,.08); color: #0a58ca; border-color: rgba(13,110,253,.25); }
+.app-pill.interview  { background: rgba(255,122,0,.1);   color: #b35600; border-color: rgba(255,122,0,.3); }
+.app-pill.offer      { background: rgba(25,135,84,.1);   color: #146c43; border-color: rgba(25,135,84,.25); }
+.app-pill.rejected   { background: rgba(220,53,69,.08);  color: #b02a37; border-color: rgba(220,53,69,.25); }
+.app-pill.muted      { background: transparent;          color: #6c757d; border-color: rgba(108,117,125,.25); }
+
 /* ════════════════════════════════════════════════
    Technical Questions — design produit
    ════════════════════════════════════════════════ */

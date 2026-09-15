@@ -11,7 +11,8 @@ public sealed record MailIngestionResult(
     int Duplicates,
     long UidValidity,
     long LastSeenUid,
-    bool CursorWasReset);
+    bool CursorWasReset,
+    int Remaining);
 
 public interface IMailIngestionService
 {
@@ -113,7 +114,8 @@ public sealed class MailIngestionService : IMailIngestionService
         }
 
         // Le curseur avance meme sur les doublons : ces UID ont bien ete examines.
-        long highestUid = batch.Count > 0 ? batch.Max(m => m.Uid) : (state?.LastSeenUid ?? 0);
+        // On prend le lot brut, pas le dedoublonne : la copie ecartee peut porter l'UID le plus haut.
+        long highestUid = fetch.Messages.Count > 0 ? fetch.Messages.Max(m => m.Uid) : (state?.LastSeenUid ?? 0);
 
         if (state is null)
         {
@@ -131,7 +133,8 @@ public sealed class MailIngestionService : IMailIngestionService
             Duplicates: batch.Count - toInsert.Count,
             UidValidity: fetch.UidValidity,
             LastSeenUid: state.LastSeenUid,
-            CursorWasReset: cursorWasReset);
+            CursorWasReset: cursorWasReset,
+            Remaining: fetch.Remaining);
 
         dbContext.Logs.Add(new Log
         {
@@ -139,7 +142,7 @@ public sealed class MailIngestionService : IMailIngestionService
             Source = nameof(MailIngestionService),
             Event = "Sync",
             Message = $"Folder={folder}; Fetched={result.Fetched}; Inserted={result.Inserted}; " +
-                      $"Duplicates={result.Duplicates}; LastSeenUid={result.LastSeenUid}; Reset={cursorWasReset}",
+                      $"Duplicates={result.Duplicates}; LastSeenUid={result.LastSeenUid}; Reset={cursorWasReset}; Remaining={result.Remaining}",
             TimestampUtc = DateTime.UtcNow
         });
 
