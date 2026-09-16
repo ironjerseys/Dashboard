@@ -14,15 +14,18 @@ public sealed record ApplicationRow(
     DateTime LastEventUtc,
     int EmailCount,
     string? JobUrl,
-    string? Notes);
+    string? Notes)
+{
+    public JobRegion Region { get; } = JobLocation.Resolve(Location);
+}
 
 public interface IJobApplicationService
 {
-    /// <param name="status">Null pour toutes.</param>
-    /// <param name="search">Filtre sur l'entreprise ou le poste.</param>
-    Task<List<ApplicationRow>> GetApplicationsAsync(JobApplicationStatus? status, string? search, CancellationToken cancellationToken = default);
-
-    Task<Dictionary<JobApplicationStatus, int>> CountByStatusAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Toutes les candidatures : quelques centaines au plus, la page filtre, trie et pagine en memoire
+    /// pour que les statistiques par region suivent les filtres sans requete de plus.
+    /// </summary>
+    Task<List<ApplicationRow>> GetApplicationsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Mails rattaches, du plus recent au plus ancien, sans les corps.</summary>
     Task<List<EmailMessage>> GetEmailsAsync(int applicationId, CancellationToken cancellationToken = default);
@@ -64,44 +67,16 @@ public sealed class JobApplicationService : IJobApplicationService
         _dbContextFactory = dbContextFactory;
     }
 
-    public async Task<List<ApplicationRow>> GetApplicationsAsync(
-        JobApplicationStatus? status,
-        string? search,
-        CancellationToken cancellationToken = default)
+    public async Task<List<ApplicationRow>> GetApplicationsAsync(CancellationToken cancellationToken = default)
     {
         await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-        IQueryable<JobApplication> query = dbContext.JobApplications.AsNoTracking();
-
-        if (status is not null)
-        {
-            query = query.Where(a => a.Status == status);
-        }
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            string term = search.Trim();
-            query = query.Where(a => a.Company.Contains(term) || (a.Position != null && a.Position.Contains(term)));
-        }
-
-        return await query
+        return await dbContext.JobApplications
+            .AsNoTracking()
             .OrderByDescending(a => a.LastEventUtc)
             .Select(a => new ApplicationRow(
                 a.Id, a.Company, a.Position, a.Location, a.Status, a.AppliedUtc, a.LastEventUtc, a.Emails.Count, a.JobUrl, a.Notes))
             .ToListAsync(cancellationToken);
-    }
-
-    public async Task<Dictionary<JobApplicationStatus, int>> CountByStatusAsync(CancellationToken cancellationToken = default)
-    {
-        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
-
-        var counts = await dbContext.JobApplications
-            .GroupBy(a => a.Status)
-            .Select(g => new { Status = g.Key, Count = g.Count() })
-            .ToListAsync(cancellationToken);
-
-        return Enum.GetValues<JobApplicationStatus>()
-            .ToDictionary(s => s, s => counts.FirstOrDefault(c => c.Status == s)?.Count ?? 0);
     }
 
     public async Task<List<EmailMessage>> GetEmailsAsync(int applicationId, CancellationToken cancellationToken = default)
