@@ -1,6 +1,7 @@
 ﻿@page "/applications"
 @page "/mail"
 
+@using System.Globalization
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
@@ -139,18 +140,27 @@
 }
 else
 {
+    @if (_province is not null)
+    {
+        <div class="mb-2 small">
+            <i class="bi bi-geo-alt me-1"></i>
+            @Language.Translate("Région", "Region") : <strong>@RegionLabel(_province, _city)</strong>
+            — <a href="" @onclick="() => SelectRegion(null, null)" @onclick:preventDefault="true">@Language.Translate("toutes les régions", "all regions")</a>
+        </div>
+    }
+
     <div class="stat-bar mb-4">
-        <button class="stat-bar-item accent" @onclick="() => FilterAsync(null)">
+        <button class="stat-bar-item accent" @onclick="() => Filter(null)">
             <i class="bi bi-briefcase stat-bar-icon"></i>
             <div>
-                <div class="stat-bar-num">@Total</div>
+                <div class="stat-bar-num">@RegionRows.Count</div>
                 <div class="stat-bar-label">@Language.Translate("Candidatures", "Applications")</div>
             </div>
         </button>
-        <button class="stat-bar-item @(_filter == OpenFilter ? "selected" : "")" @onclick="() => FilterAsync(OpenFilter)">
+        <button class="stat-bar-item @(_filter == OpenFilter ? "selected" : "")" @onclick="() => Filter(OpenFilter)">
             <i class="bi bi-hourglass-split stat-bar-icon"></i>
             <div>
-                <div class="stat-bar-num">@Open</div>
+                <div class="stat-bar-num">@RegionRows.Count(r => JobApplicationMatcher.IsOpen(r.Status))</div>
                 <div class="stat-bar-label">@Language.Translate("En cours", "In progress")</div>
             </div>
         </button>
@@ -158,15 +168,60 @@ else
         {
             var s = status;
             var style = PillStyle.For(s);
-            <button class="stat-bar-item @(_filter == (int)s ? "selected" : "")" @onclick="() => FilterAsync((int)s)">
+            <button class="stat-bar-item @(_filter == (int)s ? "selected" : "")" @onclick="() => Filter((int)s)">
                 <i class="bi @style.Icon stat-bar-icon"></i>
                 <div>
-                    <div class="stat-bar-num">@_counts.GetValueOrDefault(s)</div>
+                    <div class="stat-bar-num">@RegionRows.Count(r => r.Status == s)</div>
                     <div class="stat-bar-label">@Language.Translate(style.Fr, style.En)</div>
                 </div>
             </button>
         }
     </div>
+
+    @if (_all.Count > 0)
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-body-tertiary">
+                <i class="bi bi-geo-alt me-1"></i>@Language.Translate("Par région", "By region")
+                <span class="text-muted small ms-1">— @Language.Translate("clique une ligne pour filtrer", "click a row to filter")</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>@Language.Translate("Région", "Region")</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-end">@Language.Translate("En cours", "In progress")</th>
+                            <th class="text-end">@Language.Translate("Entretien", "Interview")</th>
+                            <th class="text-end">@Language.Translate("Offre", "Offer")</th>
+                            <th class="text-end">@Language.Translate("Refusée", "Rejected")</th>
+                            <th class="text-end" title="@Language.Translate("Part des candidatures qui ont reçu une réponse (test, entretien, offre ou refus)", "Share of applications that got an answer (assessment, interview, offer or rejection)")">
+                                @Language.Translate("Réponses", "Answered")
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var province in Provinces)
+                        {
+                            var code = province.Key;
+                            <tr role="button" class="@(_province == code && _city is null ? "table-active" : "")" @onclick="() => SelectRegion(code, null)">
+                                <td class="fw-semibold">@RegionLabel(code, null)</td>
+                                @RegionCells(province.ToList())
+                            </tr>
+                            @foreach (var city in Cities(province))
+                            {
+                                var cityKey = city.Key;
+                                <tr role="button" class="small @(_province == code && _city == cityKey ? "table-active" : "")" @onclick="() => SelectRegion(code, cityKey)">
+                                    <td class="ps-4 text-muted">@RegionLabel(code, cityKey)</td>
+                                    @RegionCells(city.ToList())
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
 
     @if (_review.Count > 0)
     {
@@ -199,20 +254,27 @@ else
 
     <div class="d-flex justify-content-between align-items-center gap-3 mb-3 flex-wrap">
         <div class="text-muted small">
-            @_rows.Count @Language.Translate("affichée(s)", "shown")
-            @if (_filter is not null)
+            @if (_rows.Count > 0)
             {
-                <span> — <a href="" @onclick="() => FilterAsync(null)" @onclick:preventDefault="true">@Language.Translate("tout afficher", "show all")</a></span>
+                <span>@((_page - 1) * PageSize + 1)–@Math.Min(_page * PageSize, _rows.Count) @Language.Translate("sur", "of") @_rows.Count</span>
+            }
+            else
+            {
+                <span>0 @Language.Translate("affichée", "shown")</span>
+            }
+            @if (_filter is not null || _province is not null || !string.IsNullOrWhiteSpace(_search))
+            {
+                <span> — <a href="" @onclick="ClearFilters" @onclick:preventDefault="true">@Language.Translate("tout afficher", "show all")</a></span>
             }
         </div>
-        <input class="form-control" style="max-width:18rem" placeholder="@Language.Translate("Entreprise ou poste…", "Company or position…")"
-               @bind="_search" @bind:event="oninput" @bind:after="LoadRowsAsync" />
+        <input class="form-control" style="max-width:18rem" placeholder="@Language.Translate("Entreprise, poste ou lieu…", "Company, position or location…")"
+               @bind="_search" @bind:event="oninput" @bind:after="ApplyView" />
     </div>
 
     @if (_rows.Count == 0)
     {
         <div class="alert alert-info">
-            @if (Total == 0)
+            @if (_all.Count == 0)
             {
                 @Language.Translate("Aucune candidature pour l'instant. Elles apparaîtront après l'analyse des mails.",
                                     "No applications yet. They will appear once emails are analyzed.")
@@ -225,27 +287,33 @@ else
     }
     else
     {
-        <div class="table-responsive mb-4">
+        <div class="table-responsive mb-3">
             <table class="table table-hover align-middle">
                 <thead>
                     <tr>
-                        <th>@Language.Translate("Entreprise", "Company")</th>
-                        <th>@Language.Translate("Poste", "Position")</th>
-                        <th>@Language.Translate("Lieu", "Location")</th>
-                        <th>@Language.Translate("Statut", "Status")</th>
-                        <th>@Language.Translate("Postulé le", "Applied")</th>
-                        <th>@Language.Translate("Dernière nouvelle", "Last update")</th>
-                        <th class="text-end">@Language.Translate("Mails", "Emails")</th>
+                        @SortHeader(SortColumn.Company, "Entreprise", "Company")
+                        @SortHeader(SortColumn.Position, "Poste", "Position")
+                        @SortHeader(SortColumn.Location, "Lieu", "Location")
+                        @SortHeader(SortColumn.Status, "Statut", "Status")
+                        @SortHeader(SortColumn.Applied, "Postulé le", "Applied")
+                        @SortHeader(SortColumn.LastEvent, "Dernière nouvelle", "Last update")
+                        @SortHeader(SortColumn.Emails, "Mails", "Emails", "text-end")
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var row in _rows)
+                    @foreach (var row in PageRows)
                     {
                         var id = row.Id;
                         <tr role="button" @onclick="() => ToggleApplicationAsync(id)">
                             <td class="fw-semibold">@row.Company</td>
                             <td>@(row.Position ?? "—")</td>
-                            <td class="text-muted">@(row.Location ?? "—")</td>
+                            <td class="text-muted">
+                                @(row.Location ?? "—")
+                                @if (row.Region.ProvinceCode is { } province)
+                                {
+                                    <span class="badge rounded-pill text-bg-light border ms-1">@province</span>
+                                }
+                            </td>
                             <td><Pill Style="PillStyle.For(row.Status)" /></td>
                             <td class="text-muted small">@(row.AppliedUtc?.ToLocalTime().ToString("dd/MM/yyyy") ?? "—")</td>
                             <td class="text-muted small">@row.LastEventUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
@@ -323,6 +391,33 @@ else
                 </tbody>
             </table>
         </div>
+
+        @if (PageCount > 1)
+        {
+            <nav class="mb-4">
+                <ul class="pagination pagination-sm flex-wrap mb-0">
+                    <li class="page-item @(_page == 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => GoToPage(_page - 1)">&laquo;</button>
+                    </li>
+                    @foreach (int? number in PageNumbers())
+                    {
+                        if (number is { } n)
+                        {
+                            <li class="page-item @(n == _page ? "active" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(n)">@n</button>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                    }
+                    <li class="page-item @(_page == PageCount ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => GoToPage(_page + 1)">&raquo;</button>
+                    </li>
+                </ul>
+            </nav>
+        }
     }
 
     <div class="card mb-4">
@@ -394,6 +489,13 @@ else
 
     private const long MaxImportBytes = 5 * 1024 * 1024;
 
+    private const int PageSize = 25;
+
+    /// <summary>Cle de region pour un lieu absent, hors Canada ou trop vague.</summary>
+    private const string UnknownProvince = "?";
+
+    private enum SortColumn { Company, Position, Location, Status, Applied, LastEvent, Emails }
+
     private bool _loading = true;
     private bool _busy;
     private bool _running;
@@ -404,7 +506,19 @@ else
 
     private int? _filter;
     private string? _search;
-    private Dictionary<JobApplicationStatus, int> _counts = new();
+    private List<ApplicationRow> _all = new();
+
+    /// <summary>Region choisie : code de province ou <see cref="UnknownProvince"/> ; null pour toutes.</summary>
+    private string? _province;
+
+    /// <summary>Agglomeration dans <see cref="_province"/> ; "" pour les lieux sans ville reconnue.</summary>
+    private string? _city;
+
+    private SortColumn _sort = SortColumn.LastEvent;
+    private bool _sortDescending = true;
+    private int _page = 1;
+
+    /// <summary>Candidatures filtrees et triees, toutes pages confondues.</summary>
     private List<ApplicationRow> _rows = new();
 
     private List<EmailMessage> _review = new();
@@ -423,18 +537,34 @@ else
 
     private bool Busy => _busy || _running || MailPipeline.IsRunning;
 
-    private int Total => _counts.Values.Sum();
+    /// <summary>Candidatures de la region choisie : base des compteurs du haut.</summary>
+    private List<ApplicationRow> RegionRows { get; set; } = new();
 
-    private int Open => _counts.Where(c => JobApplicationMatcher.IsOpen(c.Key)).Sum(c => c.Value);
+    private int PageCount => Math.Max(1, (int)Math.Ceiling(_rows.Count / (double)PageSize));
+
+    private IEnumerable<ApplicationRow> PageRows => _rows.Skip((_page - 1) * PageSize).Take(PageSize);
+
+    /// <summary>Provinces par volume, les lieux inconnus en dernier.</summary>
+    private IEnumerable<IGrouping<string, ApplicationRow>> Provinces =>
+        _all.GroupBy(r => r.Region.ProvinceCode ?? UnknownProvince)
+            .OrderBy(g => g.Key == UnknownProvince)
+            .ThenByDescending(g => g.Count());
+
+    private static IEnumerable<IGrouping<string, ApplicationRow>> Cities(IGrouping<string, ApplicationRow> province) =>
+        province.Key == UnknownProvince
+            ? []
+            : province.GroupBy(r => r.Region.City ?? "")
+                      .OrderBy(g => g.Key == "")
+                      .ThenByDescending(g => g.Count());
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
     private async Task LoadAsync()
     {
-        _loading = _counts.Count == 0;
+        _loading = _all.Count == 0;
         try
         {
-            _counts = await Applications.CountByStatusAsync();
+            _all = await Applications.GetApplicationsAsync();
             _review = await Applications.GetReviewQueueAsync();
             _untracked = await Applications.GetUntrackedAsync();
             _untrackedCount = _untracked.Count;
@@ -446,7 +576,7 @@ else
                 _assignChoice.TryAdd(email.Id, 0);
             }
 
-            await LoadRowsAsync();
+            ApplyView();
 
             if (_openApplicationId is { } openId)
             {
@@ -457,22 +587,156 @@ else
         finally { _loading = false; }
     }
 
-    private async Task LoadRowsAsync()
+    /// <summary>Recalcule region, filtres, tri et page a partir de <see cref="_all"/>.</summary>
+    private void ApplyView()
     {
-        var rows = await Applications.GetApplicationsAsync(
-            _filter is >= 0 ? (JobApplicationStatus)_filter.Value : null,
-            _search);
+        RegionRows = _all.Where(InRegion).ToList();
 
-        _rows = _filter == OpenFilter
-            ? rows.Where(r => JobApplicationMatcher.IsOpen(r.Status)).ToList()
-            : rows;
+        IEnumerable<ApplicationRow> rows = RegionRows;
+
+        if (_filter == OpenFilter)
+        {
+            rows = rows.Where(r => JobApplicationMatcher.IsOpen(r.Status));
+        }
+        else if (_filter is { } status)
+        {
+            rows = rows.Where(r => r.Status == (JobApplicationStatus)status);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_search))
+        {
+            string term = _search.Trim();
+            rows = rows.Where(r => Matches(r.Company, term) || Matches(r.Position, term) || Matches(r.Location, term));
+        }
+
+        _rows = Sort(rows).ToList();
+        _page = Math.Clamp(_page, 1, PageCount);
     }
 
-    private async Task FilterAsync(int? filter)
+    private bool InRegion(ApplicationRow row) =>
+        _province is null
+        || ((row.Region.ProvinceCode ?? UnknownProvince) == _province
+            && (_city is null || (row.Region.City ?? "") == _city));
+
+    /// <summary>Sans tenir compte de la casse ni des accents : "montreal" trouve "Montréal".</summary>
+    private static bool Matches(string? value, string term) =>
+        value is not null
+        && CultureInfo.InvariantCulture.CompareInfo.IndexOf(value, term, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace) >= 0;
+
+    private IEnumerable<ApplicationRow> Sort(IEnumerable<ApplicationRow> rows) => _sort switch
+    {
+        SortColumn.Company => By(rows, r => r.Company),
+        SortColumn.Position => By(rows, r => r.Position),
+        // Par province puis agglomeration : les candidatures d'une meme region se suivent.
+        SortColumn.Location => By(rows, r => r.Location is null ? null : $"{r.Region.ProvinceCode ?? "~"}|{r.Region.City ?? "~"}|{r.Location}"),
+        SortColumn.Status => By(rows, r => (int?)r.Status),
+        SortColumn.Applied => By(rows, r => r.AppliedUtc),
+        SortColumn.Emails => By(rows, r => (int?)r.EmailCount),
+        _ => By(rows, r => (DateTime?)r.LastEventUtc)
+    };
+
+    /// <summary>Valeurs manquantes toujours en fin de liste, quel que soit le sens ; a egalite, la plus recente d'abord.</summary>
+    private IEnumerable<ApplicationRow> By<T>(IEnumerable<ApplicationRow> rows, Func<ApplicationRow, T?> key)
+    {
+        IComparer<T?> comparer = typeof(T) == typeof(string)
+            ? (IComparer<T?>)StringComparer.Create(CultureInfo.CurrentCulture, CompareOptions.IgnoreCase | CompareOptions.IgnoreNonSpace)
+            : Comparer<T?>.Default;
+
+        IOrderedEnumerable<ApplicationRow> ordered = rows.OrderBy(r => key(r) is null);
+        ordered = _sortDescending ? ordered.ThenByDescending(key, comparer) : ordered.ThenBy(key, comparer);
+        return ordered.ThenByDescending(r => r.LastEventUtc);
+    }
+
+    private void SortBy(SortColumn column)
+    {
+        if (_sort == column)
+        {
+            _sortDescending = !_sortDescending;
+        }
+        else
+        {
+            _sort = column;
+            // Dates et nombres : le plus recent ou le plus grand d'abord ; texte : A a Z.
+            _sortDescending = column is SortColumn.Applied or SortColumn.LastEvent or SortColumn.Emails;
+        }
+
+        _page = 1;
+        _openApplicationId = null;
+        ApplyView();
+    }
+
+    private void Filter(int? filter)
     {
         _filter = _filter == filter ? null : filter;
         _openApplicationId = null;
-        await LoadRowsAsync();
+        _page = 1;
+        ApplyView();
+    }
+
+    private void SelectRegion(string? province, string? city)
+    {
+        bool same = _province == province && _city == city;
+        _province = same ? null : province;
+        _city = same ? null : city;
+        _openApplicationId = null;
+        _page = 1;
+        ApplyView();
+    }
+
+    private void ClearFilters()
+    {
+        _filter = null;
+        _province = null;
+        _city = null;
+        _search = null;
+        _openApplicationId = null;
+        _page = 1;
+        ApplyView();
+    }
+
+    private void GoToPage(int page)
+    {
+        _page = Math.Clamp(page, 1, PageCount);
+        _openApplicationId = null;
+    }
+
+    /// <summary>Premiere, derniere, et deux pages autour de la courante ; null pour une ellipse.</summary>
+    private IEnumerable<int?> PageNumbers()
+    {
+        int? previous = null;
+
+        for (int n = 1; n <= PageCount; n++)
+        {
+            if (n != 1 && n != PageCount && Math.Abs(n - _page) > 2)
+            {
+                continue;
+            }
+
+            if (previous is { } p && n - p > 1)
+            {
+                yield return null;
+            }
+
+            yield return n;
+            previous = n;
+        }
+    }
+
+    private string RegionLabel(string province, string? city)
+    {
+        if (province == UnknownProvince)
+        {
+            return Language.Translate("Non précisé ou hors Canada", "Unspecified or outside Canada");
+        }
+
+        string name = JobLocation.ProvinceNames[province];
+
+        return city switch
+        {
+            null => name,
+            "" => Language.Translate($"Ailleurs en {name}", $"Elsewhere in {name}"),
+            _ => city
+        };
     }
 
     // ---- Fragments reutilises par la file "a rattacher", l'historique d'une candidature et les mails non suivis ----
@@ -513,6 +777,25 @@ else
                 <div class="small">@email.AnalysisSummary</div>
             }
         </div>;
+
+    private RenderFragment SortHeader(SortColumn column, string fr, string en, string css = "") =>
+        @<th class="@css text-nowrap" role="button" @onclick="() => SortBy(column)" aria-sort="@(_sort != column ? "none" : _sortDescending ? "descending" : "ascending")">
+            @Language.Translate(fr, en)
+            @if (_sort == column)
+            {
+                <i class="bi @(_sortDescending ? "bi-caret-down-fill" : "bi-caret-up-fill") small ms-1"></i>
+            }
+        </th>;
+
+    private RenderFragment RegionCells(List<ApplicationRow> rows) =>
+        @<text>
+            <td class="text-end fw-semibold">@rows.Count</td>
+            <td class="text-end">@rows.Count(r => JobApplicationMatcher.IsOpen(r.Status))</td>
+            <td class="text-end">@rows.Count(r => r.Status == JobApplicationStatus.Interview)</td>
+            <td class="text-end">@rows.Count(r => r.Status == JobApplicationStatus.Offer)</td>
+            <td class="text-end">@rows.Count(r => r.Status == JobApplicationStatus.Rejected)</td>
+            <td class="text-end text-muted">@(((double)rows.Count(r => r.Status != JobApplicationStatus.Applied) / rows.Count).ToString("P0"))</td>
+        </text>;
 
     private RenderFragment AssignControls(EmailMessage email) =>
         @<text>

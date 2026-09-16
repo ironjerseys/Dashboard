@@ -55,6 +55,8 @@ public sealed class EmailAnalysisService : IEmailAnalysisService
     {
         await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
 
+        await RepairJobBoardEmailsAsync(dbContext, cancellationToken);
+
         if (!_options.IsConfigured)
         {
             int waiting = await CountPendingAsync(dbContext, cancellationToken);
@@ -92,6 +94,8 @@ public sealed class EmailAnalysisService : IEmailAnalysisService
                     cancellationToken);
 
                 RecordUsage(dbContext, usage, email.Id);
+
+                classification = JobBoardEmailParser.Refine(email, classification);
 
                 MatchDecision decision = await ApplyClassificationAsync(dbContext, email, classification, cancellationToken);
                 created += decision == MatchDecision.Create ? 1 : 0;
@@ -197,6 +201,75 @@ public sealed class EmailAnalysisService : IEmailAnalysisService
         return callsToday >= _options.MaxCallsPerDay
             ? $"Plafond du jour atteint ({callsToday} appels)."
             : null;
+    }
+
+    /// <summary>
+    /// Mails Indeed analyses avant <see cref="JobBoardEmailParser"/> : l'entreprise manquait ou etait "Indeed".
+    /// On la relit dans le corps, sans appel a Claude, et on corrige le rattachement. Idempotent.
+    /// </summary>
+    private static async Task RepairJobBoardEmailsAsync(BlogContext dbContext, CancellationToken cancellationToken)
+    {
+        List<EmailMessage> emails = await dbContext.EmailMessages
+            .Where(m => m.AnalysisState == EmailAnalysisState.Analyzed && m.FromAddress.EndsWith("indeed.com"))
+            .OrderBy(m => m.SentUtc).ThenBy(m => m.Id)
+            .ToListAsync(cancellationToken);
+
+        int repaired = 0;
+
+        foreach (EmailMessage email in emails)
+        {
+            if (JobBoardEmailParser.TryParse(email) is not { } facts
+                || (email.ExtractedCompany is not null && JobApplicationMatcher.SameCompany(email.ExtractedCompany, facts.Company)))
+            {
+                continue;
+            }
+
+            string? wrongCompany = email.ExtractedCompany;
+
+            if (email.JobApplicationId is { } applicationId)
+            {
+                // Rattache (souvent a la main, avec "Indeed Apply" comme entreprise) : on renomme la candidature.
+                JobApplication application = await dbContext.JobApplications.FirstAsync(a => a.Id == applicationId, cancellationToken);
+
+                if (application.Company.Contains("indeed", StringComparison.OrdinalIgnoreCase)
+                    || (wrongCompany is not null && JobApplicationMatcher.SameCompany(application.Company, wrongCompany)))
+                {
+                    application.Company = Truncate(facts.Company, 256)!;
+                }
+
+                email.ExtractedCompany = Truncate(facts.Company, 256);
+                email.ExtractedLocation = Truncate(facts.Location, 256) ?? email.ExtractedLocation;
+                application.Location ??= email.ExtractedLocation;
+            }
+            else
+            {
+                var classification = JobBoardEmailParser.Refine(email, new EmailClassification(
+                    email.EventType ?? EmailEventType.ApplicationReceived,
+                    email.ExtractedCompany,
+                    email.ExtractedPosition,
+                    email.ExtractedLocation,
+                    email.AnalysisSummary ?? ""));
+
+                await ApplyClassificationAsync(dbContext, email, classification, cancellationToken);
+            }
+
+            // Chaque correction est enregistree de suite : le rattachement suivant doit voir la candidature creee.
+            await dbContext.SaveChangesAsync(cancellationToken);
+            repaired++;
+        }
+
+        if (repaired > 0)
+        {
+            dbContext.Logs.Add(new Log
+            {
+                Level = "Info",
+                Source = nameof(EmailAnalysisService),
+                Event = "RepairJobBoard",
+                Message = $"Repaired={repaired}",
+                TimestampUtc = DateTime.UtcNow
+            });
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private static async Task<MatchDecision> ApplyClassificationAsync(
