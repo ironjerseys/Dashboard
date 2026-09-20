@@ -218,26 +218,43 @@ public sealed class EmailAnalysisService : IEmailAnalysisService
 
         foreach (EmailMessage email in emails)
         {
-            if (JobBoardEmailParser.TryParse(email) is not { } facts
-                || (email.ExtractedCompany is not null && JobApplicationMatcher.SameCompany(email.ExtractedCompany, facts.Company)))
+            if (JobBoardEmailParser.TryParse(email) is not { } facts)
             {
                 continue;
             }
 
             string? wrongCompany = email.ExtractedCompany;
 
+            bool companyWrong = wrongCompany is null || !JobApplicationMatcher.SameCompany(wrongCompany, facts.Company);
+
+            // Le lieu d'une confirmation Indeed n'est que dans le corps : quand Claude ne l'a pas lu,
+            // le parser le donne gratuitement. Reservee aux mails deja rattaches, cette reparation ne
+            // touche que des champs vides ; relancer le rattachement rouvrirait des decisions tranchees.
+            bool locationMissing = facts.Location is not null
+                                   && email.ExtractedLocation is null
+                                   && email.JobApplicationId is not null;
+
+            if (!companyWrong && !locationMissing)
+            {
+                continue;
+            }
+
             if (email.JobApplicationId is { } applicationId)
             {
                 // Rattache (souvent a la main, avec "Indeed Apply" comme entreprise) : on renomme la candidature.
                 JobApplication application = await dbContext.JobApplications.FirstAsync(a => a.Id == applicationId, cancellationToken);
 
-                if (application.Company.Contains("indeed", StringComparison.OrdinalIgnoreCase)
-                    || (wrongCompany is not null && JobApplicationMatcher.SameCompany(application.Company, wrongCompany)))
+                if (companyWrong)
                 {
-                    application.Company = Truncate(facts.Company, 256)!;
+                    if (application.Company.Contains("indeed", StringComparison.OrdinalIgnoreCase)
+                        || (wrongCompany is not null && JobApplicationMatcher.SameCompany(application.Company, wrongCompany)))
+                    {
+                        application.Company = Truncate(facts.Company, 256)!;
+                    }
+
+                    email.ExtractedCompany = Truncate(facts.Company, 256);
                 }
 
-                email.ExtractedCompany = Truncate(facts.Company, 256);
                 email.ExtractedLocation = Truncate(facts.Location, 256) ?? email.ExtractedLocation;
                 application.Location ??= email.ExtractedLocation;
             }

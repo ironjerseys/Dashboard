@@ -13,7 +13,7 @@ window.JobCharts = (function () {
         }
     }
 
-    function bar(id, labels, data, label) {
+    function bar(id, labels, data, label, colors) {
         destroy(id);
         const ctx = document.getElementById(id);
         if (!ctx) return;
@@ -24,7 +24,7 @@ window.JobCharts = (function () {
                 datasets: [{
                     label,
                     data,
-                    backgroundColor: COLORS.slice(0, data.length),
+                    backgroundColor: colors && colors.length ? colors : COLORS.slice(0, data.length),
                     borderRadius: 4,
                 }],
             },
@@ -32,12 +32,12 @@ window.JobCharts = (function () {
                 responsive: true,
                 indexAxis: "y",
                 plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true } },
+                scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
             },
         });
     }
 
-    function doughnut(id, labels, data) {
+    function doughnut(id, labels, data, colors) {
         destroy(id);
         const ctx = document.getElementById(id);
         if (!ctx) return;
@@ -47,7 +47,7 @@ window.JobCharts = (function () {
                 labels,
                 datasets: [{
                     data,
-                    backgroundColor: COLORS.slice(0, data.length),
+                    backgroundColor: colors && colors.length ? colors : COLORS.slice(0, data.length),
                     borderWidth: 2,
                 }],
             },
@@ -136,5 +136,36 @@ window.JobCharts = (function () {
         });
     }
 
-    return { bar, doughnut, line, multiLine, groupedBar };
+    /// Barres empilees horizontales : une pile par label, un segment par serie (ex. statut).
+    /// Chaque dataset porte sa propre couleur pour rester lisible d'un graphe a l'autre.
+    function stackedBar(id, labels, datasets) {
+        destroy(id);
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+        instances[id] = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels,
+                datasets: datasets.map((ds, i) => ({
+                    label: ds.label,
+                    data: ds.data,
+                    backgroundColor: ds.color || COLORS[i % COLORS.length],
+                    borderRadius: 3,
+                    barPercentage: 0.8,
+                })),
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: "y",
+                plugins: { legend: { position: "top" } },
+                scales: {
+                    x: { stacked: true, beginAtZero: true, ticks: { precision: 0 } },
+                    y: { stacked: true },
+                },
+            },
+        });
+    }
+
+    return { bar, doughnut, line, multiLine, groupedBar, stackedBar };
 })();
