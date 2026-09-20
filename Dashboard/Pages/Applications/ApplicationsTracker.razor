@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
 @using global::Dashboard.Persistance.Entities
 
 @attribute [Authorize(Roles = "Admin")]
@@ -15,10 +16,13 @@
 @inject IMailIngestionService Ingestion
 @inject IApplicationImportService Import
 @inject IMailPipeline Pipeline
+@inject IJSRuntime JS
 
 @rendermode RenderMode.InteractiveServer
 
 <PageTitle>@Language.Translate("Candidatures", "Applications")</PageTitle>
+
+<div class="applications-page">
 
 <div class="mb-4 d-flex justify-content-between align-items-start gap-3 flex-wrap">
     <div>
@@ -29,18 +33,29 @@
         </p>
     </div>
     <div class="text-end">
-        <button class="btn btn-primary" @onclick="RunNowAsync" disabled="@Busy">
-            @if (_running || MailPipeline.IsRunning)
-            {
-                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
-                @Language.Translate("Mise à jour…", "Updating…")
-            }
-            else
-            {
-                <i class="bi bi-arrow-repeat me-1"></i>
-                @Language.Translate("Mettre à jour maintenant", "Update now")
-            }
-        </button>
+        <div class="d-flex gap-2 flex-wrap justify-content-end">
+            <button class="btn btn-primary" @onclick="RunNowAsync" disabled="@Busy">
+                @if (_running || MailPipeline.IsRunning)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    @Language.Translate("Mise à jour…", "Updating…")
+                }
+                else
+                {
+                    <i class="bi bi-arrow-repeat me-1"></i>
+                    @Language.Translate("Mettre à jour maintenant", "Update now")
+                }
+            </button>
+            <button class="btn btn-outline-secondary" @onclick="FullRescanAsync" disabled="@Busy"
+                    title="@Language.Translate("Relit tout le libellé Gmail au lieu des seuls nouveaux mails. Les mails déjà en base ne sont ni dupliqués ni réanalysés.",
+                                               "Reads the whole Gmail label instead of new emails only. Stored emails are neither duplicated nor analyzed again.")">
+                <i class="bi bi-clock-history me-1"></i>@Language.Translate("Tout rebalayer", "Full rescan")
+            </button>
+            <label class="btn btn-outline-secondary mb-0 @(Busy ? "disabled" : "")">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i>@Language.Translate("Importer un Excel", "Import Excel")
+                <InputFile OnChange="ImportAsync" accept=".xlsx" class="d-none" disabled="@Busy" />
+            </label>
+        </div>
         @if (_spend is not null)
         {
             <div class="small text-muted mt-2">
@@ -140,85 +155,105 @@
 }
 else
 {
-    @if (_province is not null)
-    {
-        <div class="mb-2 small">
-            <i class="bi bi-geo-alt me-1"></i>
-            @Language.Translate("Région", "Region") : <strong>@RegionLabel(_province, _city)</strong>
-            — <a href="" @onclick="() => SelectRegion(null, null)" @onclick:preventDefault="true">@Language.Translate("toutes les régions", "all regions")</a>
-        </div>
-    }
-
-    <div class="stat-bar mb-4">
-        <button class="stat-bar-item accent" @onclick="() => Filter(null)">
-            <i class="bi bi-briefcase stat-bar-icon"></i>
-            <div>
-                <div class="stat-bar-num">@RegionRows.Count</div>
-                <div class="stat-bar-label">@Language.Translate("Candidatures", "Applications")</div>
-            </div>
-        </button>
-        <button class="stat-bar-item @(_filter == OpenFilter ? "selected" : "")" @onclick="() => Filter(OpenFilter)">
-            <i class="bi bi-hourglass-split stat-bar-icon"></i>
-            <div>
-                <div class="stat-bar-num">@RegionRows.Count(r => JobApplicationMatcher.IsOpen(r.Status))</div>
-                <div class="stat-bar-label">@Language.Translate("En cours", "In progress")</div>
-            </div>
-        </button>
-        @foreach (var status in new[] { JobApplicationStatus.Interview, JobApplicationStatus.Offer, JobApplicationStatus.Rejected })
-        {
-            var s = status;
-            var style = PillStyle.For(s);
-            <button class="stat-bar-item @(_filter == (int)s ? "selected" : "")" @onclick="() => Filter((int)s)">
-                <i class="bi @style.Icon stat-bar-icon"></i>
-                <div>
-                    <div class="stat-bar-num">@RegionRows.Count(r => r.Status == s)</div>
-                    <div class="stat-bar-label">@Language.Translate(style.Fr, style.En)</div>
-                </div>
-            </button>
-        }
-    </div>
-
     @if (_all.Count > 0)
     {
-        <div class="card mb-4">
-            <div class="card-header bg-body-tertiary">
-                <i class="bi bi-geo-alt me-1"></i>@Language.Translate("Par région", "By region")
-                <span class="text-muted small ms-1">— @Language.Translate("clique une ligne pour filtrer", "click a row to filter")</span>
+        <div class="stat-bar mb-4">
+            <button class="stat-bar-item accent" @onclick="() => Filter(null)">
+                <i class="bi bi-briefcase stat-bar-icon"></i>
+                <div>
+                    <div class="stat-bar-num">@_all.Count</div>
+                    <div class="stat-bar-label">@Language.Translate("Candidatures", "Applications")</div>
+                </div>
+            </button>
+            <button class="stat-bar-item @(_filter == OpenFilter ? "selected" : "")" @onclick="() => Filter(OpenFilter)">
+                <i class="bi bi-hourglass-split stat-bar-icon"></i>
+                <div>
+                    <div class="stat-bar-num">@_all.Count(r => JobApplicationMatcher.IsOpen(r.Status))</div>
+                    <div class="stat-bar-label">@Language.Translate("En cours", "In progress")</div>
+                </div>
+            </button>
+            @foreach (var status in new[] { JobApplicationStatus.Interview, JobApplicationStatus.Offer, JobApplicationStatus.Rejected })
+            {
+                var s = status;
+                var style = PillStyle.For(s);
+                <button class="stat-bar-item @(_filter == (int)s ? "selected" : "")" @onclick="() => Filter((int)s)">
+                    <i class="bi @style.Icon stat-bar-icon"></i>
+                    <div>
+                        <div class="stat-bar-num">@_all.Count(r => r.Status == s)</div>
+                        <div class="stat-bar-label">@Language.Translate(style.Fr, style.En)</div>
+                    </div>
+                </button>
+            }
+            <div class="stat-bar-item" title="@Language.Translate("Part des candidatures qui ont reçu une réponse (test, entretien, offre ou refus)",
+                                                                  "Share of applications that got an answer (assessment, interview, offer or rejection)")">
+                <i class="bi bi-reply stat-bar-icon"></i>
+                <div>
+                    <div class="stat-bar-num">@AnsweredRate</div>
+                    <div class="stat-bar-label">@Language.Translate("Réponses", "Answered")</div>
+                </div>
             </div>
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th>@Language.Translate("Région", "Region")</th>
-                            <th class="text-end">Total</th>
-                            <th class="text-end">@Language.Translate("En cours", "In progress")</th>
-                            <th class="text-end">@Language.Translate("Entretien", "Interview")</th>
-                            <th class="text-end">@Language.Translate("Offre", "Offer")</th>
-                            <th class="text-end">@Language.Translate("Refusée", "Rejected")</th>
-                            <th class="text-end" title="@Language.Translate("Part des candidatures qui ont reçu une réponse (test, entretien, offre ou refus)", "Share of applications that got an answer (assessment, interview, offer or rejection)")">
-                                @Language.Translate("Réponses", "Answered")
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var province in Provinces)
-                        {
-                            var code = province.Key;
-                            <tr role="button" class="@(_province == code && _city is null ? "table-active" : "")" @onclick="() => SelectRegion(code, null)">
-                                <td class="fw-semibold">@RegionLabel(code, null)</td>
-                                @RegionCells(province.ToList())
-                            </tr>
-                            @foreach (var city in Cities(province))
-                            {
-                                var cityKey = city.Key;
-                                <tr role="button" class="small @(_province == code && _city == cityKey ? "table-active" : "")" @onclick="() => SelectRegion(code, cityKey)">
-                                    <td class="ps-4 text-muted">@RegionLabel(code, cityKey)</td>
-                                    @RegionCells(city.ToList())
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </table>
+            <div class="stat-bar-item" title="@Language.Translate("Moitié des candidatures en cours attendent depuis plus longtemps que ça.",
+                                                                  "Half of the open applications have been waiting longer than this.")">
+                <i class="bi bi-hourglass stat-bar-icon"></i>
+                <div>
+                    <div class="stat-bar-num">@DayCount(MedianOpenAge)</div>
+                    <div class="stat-bar-label">@Language.Translate("En attente (médiane)", "Waiting (median)")</div>
+                </div>
+            </div>
+            <div class="stat-bar-item" title="@Language.Translate("Délai médian entre l'envoi et le refus : au-delà, une candidature sans nouvelle a peu de chances d'aboutir.",
+                                                                  "Median delay between applying and being rejected: past that, a silent application rarely goes anywhere.")">
+                <i class="bi bi-stopwatch stat-bar-icon"></i>
+                <div>
+                    <div class="stat-bar-num">@DayCount(MedianRejectionDelay)</div>
+                    <div class="stat-bar-label">@Language.Translate("Refus après (médiane)", "Rejected after (median)")</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-lg-7">
+                <div class="card h-100">
+                    <div class="card-header bg-body-tertiary">@Language.Translate("Par province et statut", "By province and status")</div>
+                    <div class="card-body" style="height: @($"{Math.Max(220, Provinces.Count() * 46 + 70)}px")">
+                        <canvas id="appProvinceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card h-100">
+                    <div class="card-header bg-body-tertiary">@Language.Translate("Répartition des statuts", "Status breakdown")</div>
+                    <div class="card-body d-flex align-items-center justify-content-center">
+                        <div style="width:100%;max-width:260px;">
+                            <canvas id="appStatusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-lg-7">
+                <div class="card h-100">
+                    <div class="card-header bg-body-tertiary">
+                        @Language.Translate("Candidatures en cours, par ancienneté", "Open applications, by age")
+                        <span class="text-muted small ms-1">
+                            — @Language.Translate("depuis l'envoi", "since applying")
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="appAgeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-5">
+                <div class="card h-100">
+                    <div class="card-header bg-body-tertiary">
+                        @Language.Translate("Délai de réponse (médiane, jours)", "Answer delay (median, days)")
+                    </div>
+                    <div class="card-body">
+                        <canvas id="appDelayChart"></canvas>
+                    </div>
+                </div>
             </div>
         </div>
     }
@@ -262,7 +297,7 @@ else
             {
                 <span>0 @Language.Translate("affichée", "shown")</span>
             }
-            @if (_filter is not null || _province is not null || !string.IsNullOrWhiteSpace(_search))
+            @if (_filter is not null || !string.IsNullOrWhiteSpace(_search))
             {
                 <span> — <a href="" @onclick="ClearFilters" @onclick:preventDefault="true">@Language.Translate("tout afficher", "show all")</a></span>
             }
@@ -297,6 +332,9 @@ else
                         @SortHeader(SortColumn.Status, "Statut", "Status")
                         @SortHeader(SortColumn.Applied, "Postulé le", "Applied")
                         @SortHeader(SortColumn.LastEvent, "Dernière nouvelle", "Last update")
+                        @SortHeader(SortColumn.Age, "Délai", "Time", "",
+                                    Language.Translate("En cours : depuis combien de temps elle attend. Terminée : délai jusqu'à la réponse.",
+                                                       "Open: how long it has been waiting. Closed: how long the answer took."))
                         @SortHeader(SortColumn.Emails, "Mails", "Emails", "text-end")
                     </tr>
                 </thead>
@@ -317,13 +355,14 @@ else
                             <td><Pill Style="PillStyle.For(row.Status)" /></td>
                             <td class="text-muted small">@(row.AppliedUtc?.ToLocalTime().ToString("dd/MM/yyyy") ?? "—")</td>
                             <td class="text-muted small">@row.LastEventUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                            <td class="small">@AgeCell(row)</td>
                             <td class="text-end text-muted">@row.EmailCount</td>
                         </tr>
 
                         @if (_openApplicationId == id)
                         {
                             <tr>
-                                <td colspan="7" class="bg-body-tertiary">
+                                <td colspan="8" class="bg-body-tertiary">
                                     <div class="d-flex align-items-center gap-3 mb-2 small flex-wrap">
                                         <div class="d-flex align-items-center gap-2">
                                             <span class="text-muted">@Language.Translate("Corriger le statut", "Fix status") :</span>
@@ -468,20 +507,9 @@ else
             }
         }
     </div>
-
-    <div class="d-flex align-items-center gap-3 flex-wrap small text-muted border-top pt-3">
-        <span>@Language.Translate("Outils", "Tools") :</span>
-        <button class="btn btn-sm btn-outline-secondary" @onclick="FullRescanAsync" disabled="@Busy"
-                title="@Language.Translate("Relit tout le libellé Gmail au lieu des seuls nouveaux mails. Les mails déjà en base ne sont ni dupliqués ni réanalysés.",
-                                           "Reads the whole Gmail label instead of new emails only. Stored emails are neither duplicated nor analyzed again.")">
-            <i class="bi bi-clock-history me-1"></i>@Language.Translate("Tout rebalayer", "Full rescan")
-        </button>
-        <label class="btn btn-sm btn-outline-secondary mb-0 @(Busy ? "disabled" : "")">
-            <i class="bi bi-file-earmark-spreadsheet me-1"></i>@Language.Translate("Importer un Excel", "Import Excel")
-            <InputFile OnChange="ImportAsync" accept=".xlsx" class="d-none" disabled="@Busy" />
-        </label>
-    </div>
 }
+
+</div>
 
 @code {
     /// <summary>Filtre "en cours" : pas un statut en base, mais Applied + Assessment + Interview.</summary>
@@ -494,7 +522,7 @@ else
     /// <summary>Cle de region pour un lieu absent, hors Canada ou trop vague.</summary>
     private const string UnknownProvince = "?";
 
-    private enum SortColumn { Company, Position, Location, Status, Applied, LastEvent, Emails }
+    private enum SortColumn { Company, Position, Location, Status, Applied, LastEvent, Age, Emails }
 
     private bool _loading = true;
     private bool _busy;
@@ -507,12 +535,6 @@ else
     private int? _filter;
     private string? _search;
     private List<ApplicationRow> _all = new();
-
-    /// <summary>Region choisie : code de province ou <see cref="UnknownProvince"/> ; null pour toutes.</summary>
-    private string? _province;
-
-    /// <summary>Agglomeration dans <see cref="_province"/> ; "" pour les lieux sans ville reconnue.</summary>
-    private string? _city;
 
     private SortColumn _sort = SortColumn.LastEvent;
     private bool _sortDescending = true;
@@ -535,10 +557,23 @@ else
     private int? _openBodyId;
     private EmailMessage? _openBody;
 
+    /// <summary>Les graphes sont redessines au prochain rendu : les donnees ont change.</summary>
+    private bool _chartsDirty;
+
     private bool Busy => _busy || _running || MailPipeline.IsRunning;
 
-    /// <summary>Candidatures de la region choisie : base des compteurs du haut.</summary>
-    private List<ApplicationRow> RegionRows { get; set; } = new();
+    /// <summary>Part des candidatures qui ont eu une réponse, quelle qu'elle soit.</summary>
+    private string AnsweredRate => _all.Count == 0
+        ? "—"
+        : ((double)_all.Count(r => r.Status != JobApplicationStatus.Applied) / _all.Count).ToString("P0");
+
+    /// <summary>Anciennete des candidatures encore ouvertes : la moitie attend depuis plus longtemps.</summary>
+    private int? MedianOpenAge =>
+        Median(_all.Where(r => JobApplicationMatcher.IsOpen(r.Status)).Select(AgeDays));
+
+    /// <summary>Delai entre l'envoi et le refus : le repere pour juger une candidature restee muette.</summary>
+    private int? MedianRejectionDelay =>
+        Median(_all.Where(r => r.Status == JobApplicationStatus.Rejected).Select(AgeDays));
 
     private int PageCount => Math.Max(1, (int)Math.Ceiling(_rows.Count / (double)PageSize));
 
@@ -550,14 +585,33 @@ else
             .OrderBy(g => g.Key == UnknownProvince)
             .ThenByDescending(g => g.Count());
 
-    private static IEnumerable<IGrouping<string, ApplicationRow>> Cities(IGrouping<string, ApplicationRow> province) =>
-        province.Key == UnknownProvince
-            ? []
-            : province.GroupBy(r => r.Region.City ?? "")
-                      .OrderBy(g => g.Key == "")
-                      .ThenByDescending(g => g.Count());
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        // Les libelles des graphes sont traduits : ils sont redessines au changement de langue.
+        Language.OnChange += MarkChartsDirty;
+    }
+
+    public override void Dispose()
+    {
+        Language.OnChange -= MarkChartsDirty;
+        base.Dispose();
+    }
+
+    private void MarkChartsDirty() => _chartsDirty = true;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_loading || _all.Count == 0 || !_chartsDirty)
+        {
+            return;
+        }
+
+        _chartsDirty = false;
+        await DrawChartsAsync();
+    }
 
     private async Task LoadAsync()
     {
@@ -577,6 +631,7 @@ else
             }
 
             ApplyView();
+            _chartsDirty = true;
 
             if (_openApplicationId is { } openId)
             {
@@ -587,12 +642,10 @@ else
         finally { _loading = false; }
     }
 
-    /// <summary>Recalcule region, filtres, tri et page a partir de <see cref="_all"/>.</summary>
+    /// <summary>Recalcule filtres, tri et page a partir de <see cref="_all"/>.</summary>
     private void ApplyView()
     {
-        RegionRows = _all.Where(InRegion).ToList();
-
-        IEnumerable<ApplicationRow> rows = RegionRows;
+        IEnumerable<ApplicationRow> rows = _all;
 
         if (_filter == OpenFilter)
         {
@@ -613,11 +666,6 @@ else
         _page = Math.Clamp(_page, 1, PageCount);
     }
 
-    private bool InRegion(ApplicationRow row) =>
-        _province is null
-        || ((row.Region.ProvinceCode ?? UnknownProvince) == _province
-            && (_city is null || (row.Region.City ?? "") == _city));
-
     /// <summary>Sans tenir compte de la casse ni des accents : "montreal" trouve "Montréal".</summary>
     private static bool Matches(string? value, string term) =>
         value is not null
@@ -631,6 +679,7 @@ else
         SortColumn.Location => By(rows, r => r.Location is null ? null : $"{r.Region.ProvinceCode ?? "~"}|{r.Region.City ?? "~"}|{r.Location}"),
         SortColumn.Status => By(rows, r => (int?)r.Status),
         SortColumn.Applied => By(rows, r => r.AppliedUtc),
+        SortColumn.Age => By(rows, r => AgeDays(r)),
         SortColumn.Emails => By(rows, r => (int?)r.EmailCount),
         _ => By(rows, r => (DateTime?)r.LastEventUtc)
     };
@@ -657,7 +706,7 @@ else
         {
             _sort = column;
             // Dates et nombres : le plus recent ou le plus grand d'abord ; texte : A a Z.
-            _sortDescending = column is SortColumn.Applied or SortColumn.LastEvent or SortColumn.Emails;
+            _sortDescending = column is SortColumn.Applied or SortColumn.LastEvent or SortColumn.Age or SortColumn.Emails;
         }
 
         _page = 1;
@@ -673,21 +722,9 @@ else
         ApplyView();
     }
 
-    private void SelectRegion(string? province, string? city)
-    {
-        bool same = _province == province && _city == city;
-        _province = same ? null : province;
-        _city = same ? null : city;
-        _openApplicationId = null;
-        _page = 1;
-        ApplyView();
-    }
-
     private void ClearFilters()
     {
         _filter = null;
-        _province = null;
-        _city = null;
         _search = null;
         _openApplicationId = null;
         _page = 1;
@@ -722,21 +759,143 @@ else
         }
     }
 
-    private string RegionLabel(string province, string? city)
+    private string ProvinceLabel(string province) =>
+        province == UnknownProvince
+            ? Language.Translate("Ailleurs / non précisé", "Elsewhere / unspecified")
+            : JobLocation.ProvinceNames[province];
+
+    // ---- Delais ----
+
+    /// <summary>
+    /// Jours ecoules : depuis l'envoi pour une candidature en cours, de l'envoi a la reponse pour une
+    /// candidature close. Null quand la date d'envoi manque et qu'aucun delai n'est donc calculable.
+    /// </summary>
+    private static int? AgeDays(ApplicationRow row)
     {
-        if (province == UnknownProvince)
+        if (JobApplicationMatcher.IsOpen(row.Status))
         {
-            return Language.Translate("Non précisé ou hors Canada", "Unspecified or outside Canada");
+            // Sans date d'envoi, la derniere nouvelle est le seul depart connu : l'age est alors minore.
+            DateTime start = row.AppliedUtc ?? row.LastEventUtc;
+            return (int)Math.Max(0, (DateTime.UtcNow - start).TotalDays);
         }
 
-        string name = JobLocation.ProvinceNames[province];
+        return row.AppliedUtc is { } applied
+            ? (int)Math.Max(0, (row.LastEventUtc - applied).TotalDays)
+            : null;
+    }
 
-        return city switch
+    /// <summary>Valeur du milieu, moyenne des deux valeurs centrales quand l'effectif est pair.</summary>
+    private static int? Median(IEnumerable<int?> values)
+    {
+        List<int> sorted = values.Where(v => v is not null).Select(v => v!.Value).Order().ToList();
+
+        return sorted.Count == 0
+            ? null
+            : (sorted[(sorted.Count - 1) / 2] + sorted[sorted.Count / 2]) / 2;
+    }
+
+    private string DayCount(int? days) =>
+        days is null ? "—" : $"{days} {Language.Translate("j", "d")}";
+
+    /// <summary>Tranches d'anciennete : la derniere marque les candidatures qui n'aboutiront sans doute jamais.</summary>
+    private static readonly (int MaxDays, string Fr, string En, string Color)[] AgeBuckets =
+    [
+        (7, "≤ 7 jours", "≤ 7 days", "#198754"),
+        (14, "8 – 14 jours", "8 – 14 days", "#6aa84f"),
+        (30, "15 – 30 jours", "15 – 30 days", "#0d6efd"),
+        (90, "1 – 3 mois", "1 – 3 months", "#ff7a00"),
+        (int.MaxValue, "> 3 mois", "> 3 months", "#dc3545")
+    ];
+
+    /// <summary>Pastille de delai : verte tant que la candidature est fraiche, rouge quand elle dort.</summary>
+    private RenderFragment AgeCell(ApplicationRow row) =>
+        @<text>
+            @if (AgeDays(row) is not { } days)
+            {
+                <span class="text-muted">—</span>
+            }
+            else if (JobApplicationMatcher.IsOpen(row.Status))
+            {
+                <span class="badge rounded-pill" style="background:@BucketOf(days).Color"
+                      title="@Language.Translate("En attente depuis l'envoi", "Waiting since it was sent")">
+                    @DayCount(days)
+                </span>
+            }
+            else
+            {
+                <span class="text-muted" title="@Language.Translate("Délai entre l'envoi et la réponse", "Delay between applying and the answer")">
+                    @DayCount(days)
+                </span>
+            }
+        </text>;
+
+    private static (int MaxDays, string Fr, string En, string Color) BucketOf(int days) =>
+        AgeBuckets.First(b => days <= b.MaxDays);
+
+    // ---- Graphes ----
+
+    /// <summary>Statuts dans l'ordre du parcours ; les couleurs sont celles des pastilles (.app-pill).</summary>
+    private static readonly (JobApplicationStatus Status, string Color)[] StatusColors =
+    [
+        (JobApplicationStatus.Applied, "#6c757d"),
+        (JobApplicationStatus.Assessment, "#0d6efd"),
+        (JobApplicationStatus.Interview, "#ff7a00"),
+        (JobApplicationStatus.Offer, "#198754"),
+        (JobApplicationStatus.Rejected, "#dc3545")
+    ];
+
+    private async Task DrawChartsAsync()
+    {
+        try
         {
-            null => name,
-            "" => Language.Translate($"Ailleurs en {name}", $"Elsewhere in {name}"),
-            _ => city
-        };
+            var provinces = Provinces.ToList();
+
+            await JS.InvokeVoidAsync("JobCharts.stackedBar",
+                "appProvinceChart",
+                provinces.Select(g => ProvinceLabel(g.Key)).ToArray(),
+                StatusColors.Select(s => new
+                {
+                    label = StatusLabel(s.Status),
+                    data = provinces.Select(g => g.Count(r => r.Status == s.Status)).ToArray(),
+                    color = s.Color
+                }).ToArray());
+
+            await JS.InvokeVoidAsync("JobCharts.doughnut",
+                "appStatusChart",
+                StatusColors.Select(s => StatusLabel(s.Status)).ToArray(),
+                StatusColors.Select(s => _all.Count(r => r.Status == s.Status)).ToArray(),
+                StatusColors.Select(s => s.Color).ToArray());
+
+            // Candidatures encore ouvertes, rangees par anciennete : les tranches hautes sont celles qui dorment.
+            var open = _all.Where(r => JobApplicationMatcher.IsOpen(r.Status)).Select(AgeDays).ToList();
+
+            await JS.InvokeVoidAsync("JobCharts.bar",
+                "appAgeChart",
+                AgeBuckets.Select(b => Language.Translate(b.Fr, b.En)).ToArray(),
+                AgeBuckets.Select(b => open.Count(d => d is { } days && BucketOf(days).MaxDays == b.MaxDays)).ToArray(),
+                Language.Translate("Candidatures en cours", "Open applications"),
+                AgeBuckets.Select(b => b.Color).ToArray());
+
+            // Delai median entre l'envoi et l'issue, pour les statuts qui marquent une reponse recue.
+            var outcomes = StatusColors.Where(s => s.Status != JobApplicationStatus.Applied).ToList();
+
+            await JS.InvokeVoidAsync("JobCharts.bar",
+                "appDelayChart",
+                outcomes.Select(s => $"{StatusLabel(s.Status)} ({_all.Count(r => r.Status == s.Status)})").ToArray(),
+                outcomes.Select(s => Median(_all.Where(r => r.Status == s.Status).Select(AgeDays)) ?? 0).ToArray(),
+                Language.Translate("Jours", "Days"),
+                outcomes.Select(s => s.Color).ToArray());
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error rendering application charts: {ex.Message}");
+        }
+    }
+
+    private string StatusLabel(JobApplicationStatus status)
+    {
+        var style = PillStyle.For(status);
+        return Language.Translate(style.Fr, style.En);
     }
 
     // ---- Fragments reutilises par la file "a rattacher", l'historique d'une candidature et les mails non suivis ----
@@ -778,24 +937,14 @@ else
             }
         </div>;
 
-    private RenderFragment SortHeader(SortColumn column, string fr, string en, string css = "") =>
-        @<th class="@css text-nowrap" role="button" @onclick="() => SortBy(column)" aria-sort="@(_sort != column ? "none" : _sortDescending ? "descending" : "ascending")">
+    private RenderFragment SortHeader(SortColumn column, string fr, string en, string css = "", string? title = null) =>
+        @<th class="@css text-nowrap" role="button" title="@title" @onclick="() => SortBy(column)" aria-sort="@(_sort != column ? "none" : _sortDescending ? "descending" : "ascending")">
             @Language.Translate(fr, en)
             @if (_sort == column)
             {
                 <i class="bi @(_sortDescending ? "bi-caret-down-fill" : "bi-caret-up-fill") small ms-1"></i>
             }
         </th>;
-
-    private RenderFragment RegionCells(List<ApplicationRow> rows) =>
-        @<text>
-            <td class="text-end fw-semibold">@rows.Count</td>
-            <td class="text-end">@rows.Count(r => JobApplicationMatcher.IsOpen(r.Status))</td>
-            <td class="text-end">@rows.Count(r => r.Status == JobApplicationStatus.Interview)</td>
-            <td class="text-end">@rows.Count(r => r.Status == JobApplicationStatus.Offer)</td>
-            <td class="text-end">@rows.Count(r => r.Status == JobApplicationStatus.Rejected)</td>
-            <td class="text-end text-muted">@(((double)rows.Count(r => r.Status != JobApplicationStatus.Applied) / rows.Count).ToString("P0"))</td>
-        </text>;
 
     private RenderFragment AssignControls(EmailMessage email) =>
         @<text>

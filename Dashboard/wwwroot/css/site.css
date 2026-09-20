@@ -24,6 +24,12 @@ body {
     padding-inline: 1rem
 }
 
+/* Le suivi des candidatures porte un tableau a huit colonnes : le gabarit commun l'obligerait
+   a defiler horizontalement. Seule cette page desserre la laisse, les autres n'y touchent pas. */
+body:has(.applications-page) .container {
+    max-width: 1400px;
+}
+
 a {
     text-decoration: none
 }

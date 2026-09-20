@@ -33,15 +33,26 @@ public static partial class JobBoardEmailParser
             .Where(b => !string.IsNullOrWhiteSpace(b))
             .Cast<string>();
 
+        // La partie texte donne souvent l'entreprise sans la ligne "Entreprise - Ville" : on continue
+        // jusqu'au corps qui porte aussi le lieu, en gardant le premier resultat comme repli.
+        JobBoardFacts? fallback = null;
+
         foreach (string body in bodies)
         {
-            if (TryParseIndeed(body) is { } facts)
+            if (TryParseIndeed(body) is not { } facts)
+            {
+                continue;
+            }
+
+            if (facts.Location is not null)
             {
                 return facts;
             }
+
+            fallback ??= facts;
         }
 
-        return null;
+        return fallback;
     }
 
     /// <summary>
