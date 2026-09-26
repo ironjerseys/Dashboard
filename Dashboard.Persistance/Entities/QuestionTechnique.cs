@@ -19,5 +19,6 @@ public class QuestionTechnique
     public int CorrectAnswer { get; set; }
     public string Explanation { get; set; } = string.Empty;
     public bool IsPublic { get; set; } = false;
+    public bool IsActive { get; set; } = true;
     public ICollection<Label> Labels { get; set; } = new List<Label>();
 }

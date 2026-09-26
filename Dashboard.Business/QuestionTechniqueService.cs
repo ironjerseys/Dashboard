@@ -7,10 +7,12 @@ namespace Dashboard.Business;
 public interface IDbQuizService
 {
     Task<List<QuestionTechnique>> GetQuestionsAsync(CancellationToken cancellationToken = default);
+    Task<List<QuestionTechnique>> GetActiveQuestionsAsync(CancellationToken cancellationToken = default);
     Task<QuestionTechnique?> GetAsync(int id, CancellationToken cancellationToken = default);
     Task<int> CreateAsync(QuestionTechnique quizQuestion, CancellationToken cancellationToken = default);
     Task<bool> UpdateAsync(QuestionTechnique quizQuestion, CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
+    Task<int> SetActiveAsync(IReadOnlyCollection<int> ids, bool isActive, CancellationToken cancellationToken = default);
 }
 
 public sealed class QuestionTechniqueService : IDbQuizService
@@ -29,6 +31,18 @@ public sealed class QuestionTechniqueService : IDbQuizService
         return await dbContext.QuizQuestions
             .AsNoTracking()
             .Include(q => q.Labels)
+            .OrderBy(question => question.Id)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<QuestionTechnique>> GetActiveQuestionsAsync(CancellationToken cancellationToken = default)
+    {
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.QuizQuestions
+            .AsNoTracking()
+            .Include(q => q.Labels)
+            .Where(question => question.IsActive)
             .OrderBy(question => question.Id)
             .ToListAsync(cancellationToken);
     }
@@ -92,5 +106,19 @@ public sealed class QuestionTechniqueService : IDbQuizService
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return true;
+    }
+
+    public async Task<int> SetActiveAsync(IReadOnlyCollection<int> ids, bool isActive, CancellationToken cancellationToken = default)
+    {
+        if (ids.Count == 0)
+        {
+            return 0;
+        }
+
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        return await dbContext.QuizQuestions
+            .Where(q => ids.Contains(q.Id))
+            .ExecuteUpdateAsync(setters => setters.SetProperty(q => q.IsActive, isActive), cancellationToken);
     }
 }

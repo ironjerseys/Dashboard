@@ -67,6 +67,7 @@ public class LeitnerService : ILeitnerService
 
         List<int> allQuestionIds = await dbContext.QuizQuestions
             .AsNoTracking()
+            .Where(question => question.IsActive)
             .Select(question => question.Id)
             .ToListAsync(cancellationToken);
 
@@ -118,7 +119,7 @@ public class LeitnerService : ILeitnerService
         List<LeitnerCard> dueCards = await dbContext.LeitnerCards
             .AsNoTracking()
             .Include(card => card.Question)
-            .Where(card => card.OwnerId == ownerId && card.NextDueDate <= dueOnOrBefore)
+            .Where(card => card.OwnerId == ownerId && card.NextDueDate <= dueOnOrBefore && card.Question!.IsActive)
             .OrderBy(card => card.Box)
             .ThenBy(card => card.NextDueDate)
             .ThenBy(card => card.Id)
@@ -151,7 +152,7 @@ public class LeitnerService : ILeitnerService
 
         int count = await dbContext.LeitnerCards
             .AsNoTracking()
-            .CountAsync(card => card.OwnerId == ownerId && card.NextDueDate <= dueOnOrBefore, cancellationToken);
+            .CountAsync(card => card.OwnerId == ownerId && card.NextDueDate <= dueOnOrBefore && card.Question!.IsActive, cancellationToken);
 
         return count;
     }

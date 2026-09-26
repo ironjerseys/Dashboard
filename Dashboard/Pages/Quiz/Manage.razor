@@ -31,8 +31,20 @@
     else
     {
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-            <span class="text-muted">@_questions.Count question(s)</span>
+            <span class="text-muted">
+                @_questions.Count question(s) &bull; @ActiveCount active &bull; @(_questions.Count - ActiveCount) inactive
+            </span>
             <button class="btn" @onclick="OpenCreateModal" disabled="@_busy">+ New question</button>
+        </div>
+
+        <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+            <input class="form-control" style="max-width:22rem" placeholder="Search question, answer or label…"
+                   @bind="_search" @bind:event="oninput" @bind:after="OnFilterChanged" />
+            <select class="form-select" style="max-width:10rem" @bind="_statusFilter" @bind:after="OnFilterChanged">
+                <option value="all">All</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+            </select>
         </div>
 
         @if (!string.IsNullOrWhiteSpace(_error))
@@ -44,13 +56,51 @@
         {
             <div class="text-muted">Loading…</div>
         }
-
-        @foreach (var question in _questions)
+        else if (_rows.Count == 0)
         {
-            <div class="card p-3 mb-3">
+            <div class="alert alert-info">No question matches.</div>
+        }
+        else
+        {
+            <div class="d-flex align-items-center flex-wrap gap-3 mb-3">
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="select-all"
+                           checked="@AllRowsSelected" @onchange="ToggleSelectAll" disabled="@_busy" />
+                    <label class="form-check-label" for="select-all">Select all (@_rows.Count)</label>
+                </div>
+                @if (_selected.Count > 0)
+                {
+                    <span class="text-muted small">@_selected.Count selected</span>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => SetSelectedActiveAsync(false)" disabled="@_busy">
+                        <i class="bi bi-toggle-off me-1"></i>Deactivate
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" @onclick="() => SetSelectedActiveAsync(true)" disabled="@_busy">
+                        <i class="bi bi-toggle-on me-1"></i>Activate
+                    </button>
+                    <a href="" class="small" @onclick="ClearSelection" @onclick:preventDefault="true">Clear selection</a>
+                }
+                <span class="text-muted small ms-auto">
+                    @((_page - 1) * PageSize + 1)–@Math.Min(_page * PageSize, _rows.Count) of @_rows.Count
+                </span>
+            </div>
+        }
+
+        @foreach (var question in PageRows)
+        {
+            <div class="card p-3 mb-3 @(question.IsActive ? "" : "opacity-50")" @key="question.Id">
                 <div class="d-flex justify-content-between gap-3 flex-wrap">
+                    <div class="form-check mb-0 flex-shrink-0">
+                        <input class="form-check-input" type="checkbox" title="Select"
+                               checked="@_selected.Contains(question.Id)"
+                               @onchange="e => ToggleSelected(question.Id, e.Value is true)"
+                               disabled="@_busy" />
+                    </div>
                     <div class="flex-grow-1 min-w-0">
                         <div class="fw-semibold mb-2">
+                            @if (!question.IsActive)
+                            {
+                                <span class="badge bg-secondary me-2">Inactive</span>
+                            }
                             @QuizRender.RenderQuestionText(question.QuestionText)
                         </div>
 
@@ -90,6 +140,12 @@
                     </div>
 
                     <div class="d-flex gap-2 align-items-start flex-shrink-0">
+                        <div class="form-check form-switch mb-0 mt-2" title="@(question.IsActive ? "Active — click to deactivate" : "Inactive — click to activate")">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   checked="@question.IsActive"
+                                   @onchange="e => SetActiveAsync(question, e.Value is true)"
+                                   disabled="@_busy" />
+                        </div>
                         <button class="btn" title="Edit"
                                 @onclick="() => OpenEditModal(question)"
                                 disabled="@_busy">
@@ -103,6 +159,33 @@
                     </div>
                 </div>
             </div>
+        }
+
+        @if (PageCount > 1)
+        {
+            <nav class="mb-4">
+                <ul class="pagination pagination-sm flex-wrap mb-0">
+                    <li class="page-item @(_page == 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => GoToPage(_page - 1)">&laquo;</button>
+                    </li>
+                    @foreach (int? number in PageNumbers())
+                    {
+                        if (number is { } n)
+                        {
+                            <li class="page-item @(n == _page ? "active" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(n)">@n</button>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                    }
+                    <li class="page-item @(_page == PageCount ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => GoToPage(_page + 1)">&raquo;</button>
+                    </li>
+                </ul>
+            </nav>
         }
 
         <QuizQuestionEditorModal IsOpen="_editorOpen"
@@ -126,11 +209,18 @@
 </div>
 
 @code {
+    private const int PageSize = 20;
+
     private bool _isAdmin;
 
     private bool _busy;
     private string? _error;
     private List<QuestionTechnique> _questions = new();
+    private List<QuestionTechnique> _rows = new();
+    private readonly HashSet<int> _selected = new();
+    private string? _search;
+    private string _statusFilter = "all";
+    private int _page = 1;
     private bool _editorOpen;
     private string _editorTitle = "";
     private string _editorSubmitLabel = "";
@@ -157,6 +247,112 @@
         try
         {
             _questions = await QuizService.GetQuestionsAsync();
+            _selected.IntersectWith(_questions.Select(q => q.Id));
+            ApplyView();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private int ActiveCount => _questions.Count(q => q.IsActive);
+    private int PageCount => Math.Max(1, (int)Math.Ceiling(_rows.Count / (double)PageSize));
+    private IEnumerable<QuestionTechnique> PageRows => _rows.Skip((_page - 1) * PageSize).Take(PageSize);
+    private bool AllRowsSelected => _rows.Count > 0 && _rows.All(q => _selected.Contains(q.Id));
+
+    private void ApplyView()
+    {
+        IEnumerable<QuestionTechnique> rows = _statusFilter switch
+        {
+            "active" => _questions.Where(q => q.IsActive),
+            "inactive" => _questions.Where(q => !q.IsActive),
+            _ => _questions
+        };
+
+        if (!string.IsNullOrWhiteSpace(_search))
+        {
+            string term = _search.Trim();
+            rows = rows.Where(q => MatchesSearch(q, term));
+        }
+
+        _rows = rows.ToList();
+        _page = Math.Clamp(_page, 1, PageCount);
+    }
+
+    private void OnFilterChanged()
+    {
+        _page = 1;
+        ApplyView();
+    }
+
+    private static bool MatchesSearch(QuestionTechnique q, string term) =>
+        new[] { q.QuestionText, q.Choice0, q.Choice1, q.Choice2, q.Choice3 }
+            .Any(text => QuizRender.ToPlainText(text).Contains(term, StringComparison.OrdinalIgnoreCase))
+        || q.Labels.Any(l => l.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+
+    private void GoToPage(int page) => _page = Math.Clamp(page, 1, PageCount);
+
+    /// <summary>Premiere, derniere, et deux pages autour de la courante ; null pour une ellipse.</summary>
+    private IEnumerable<int?> PageNumbers()
+    {
+        int? previous = null;
+
+        for (int n = 1; n <= PageCount; n++)
+        {
+            if (n != 1 && n != PageCount && Math.Abs(n - _page) > 2)
+            {
+                continue;
+            }
+
+            if (previous is { } p && n - p > 1)
+            {
+                yield return null;
+            }
+
+            yield return n;
+            previous = n;
+        }
+    }
+
+    private void ToggleSelected(int id, bool selected)
+    {
+        if (selected) _selected.Add(id);
+        else _selected.Remove(id);
+    }
+
+    // "Select all" porte sur tous les resultats filtres, toutes pages confondues.
+    private void ToggleSelectAll(ChangeEventArgs e)
+    {
+        if (e.Value is true) _selected.UnionWith(_rows.Select(q => q.Id));
+        else _selected.ExceptWith(_rows.Select(q => q.Id));
+    }
+
+    private void ClearSelection() => _selected.Clear();
+
+    private async Task SetActiveAsync(QuestionTechnique question, bool isActive)
+    {
+        _error = null;
+        try
+        {
+            _busy = true;
+            await QuizService.SetActiveAsync(new[] { question.Id }, isActive);
+            question.IsActive = isActive;
+            ApplyView();
+        }
+        catch (Exception ex) { _error = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private async Task SetSelectedActiveAsync(bool isActive)
+    {
+        _error = null;
+        try
+        {
+            _busy = true;
+            await QuizService.SetActiveAsync(_selected.ToList(), isActive);
+            foreach (var question in _questions.Where(q => _selected.Contains(q.Id)))
+                question.IsActive = isActive;
+            _selected.Clear();
+            ApplyView();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _busy = false; }
