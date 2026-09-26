@@ -245,7 +245,7 @@
         _error = null;
         try
         {
-            _allQuestions = await QuizService.GetQuestionsAsync();
+            _allQuestions = await QuizService.GetActiveQuestionsAsync();
             _sqlCount = (await SqlService.GetAllAsync()).Count;
             Restart();
 
