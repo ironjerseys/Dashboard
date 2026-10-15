@@ -67,6 +67,8 @@ builder.Services.AddScoped<IDbQuizService, QuestionTechniqueService>();
 builder.Services.AddScoped<ILeitnerService, LeitnerService>();
 builder.Services.AddScoped<IMediaLibraryService, MediaLibraryService>();
 builder.Services.AddScoped<IJobPostingService, JobPostingService>();
+builder.Services.Configure<ScraperOptions>(builder.Configuration.GetSection("Scraper"));
+builder.Services.AddHttpClient<ScraperTriggerService>();
 builder.Services.AddSingleton<CodeChallengeService>();
 builder.Services.AddScoped<ICodeChallengeReviewService, CodeChallengeReviewService>();
 builder.Services.AddScoped<ISqlChallengeService, SqlChallengeService>();

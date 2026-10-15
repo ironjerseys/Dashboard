@@ -5,7 +5,8 @@ namespace Dashboard.Business;
 
 public record JobCountItem(string Label, int Count);
 public record JobRoleCityItem(string Role, string City, int Count);
-public record JobRoleWeekItem(string Role, string WeekLabel, int Count);
+/// Offres inserees par un run de scraping (regroupe par jour), pour un couple rôle × ville.
+public record JobRunItem(string Role, string City, DateTime RunDate, int Count);
 
 public class JobStats
 {
@@ -15,9 +16,8 @@ public class JobStats
     public List<JobCountItem> ByRole { get; set; } = [];
     public List<JobCountItem> ByCity { get; set; } = [];
     public List<JobCountItem> BySite { get; set; } = [];
-    public List<JobCountItem> ByWeek { get; set; } = [];
     public List<JobRoleCityItem> ByRoleCity { get; set; } = [];
-    public List<JobRoleWeekItem> ByRoleWeek { get; set; } = [];
+    public List<JobRunItem> ByRun { get; set; } = [];
 }
 
 public interface IJobPostingService
@@ -62,41 +62,11 @@ public sealed class JobPostingService : IJobPostingService
             .OrderByDescending(x => x.Count)
             .ToListAsync(ct);
 
-        // Regroupement par semaine (lundi de chaque semaine de scraping)
-        var byWeek = await jobs
-            .GroupBy(j => new
-            {
-                Year = j.ScrapedAt.Year,
-                // Numéro de semaine ISO approximé : jour de l'année / 7
-                Week = (j.ScrapedAt.DayOfYear - 1) / 7
-            })
-            .Select(g => new
-            {
-                g.Key.Year,
-                g.Key.Week,
-                Count = g.Count(),
-                MinDate = g.Min(j => j.ScrapedAt)
-            })
-            .OrderBy(x => x.Year).ThenBy(x => x.Week)
-            .ToListAsync(ct);
-
-        // Regroupement par rôle et par semaine
-        var byRoleWeek = await jobs
-            .GroupBy(j => new
-            {
-                j.SearchRole,
-                Year = j.ScrapedAt.Year,
-                Week = (j.ScrapedAt.DayOfYear - 1) / 7
-            })
-            .Select(g => new
-            {
-                Role = g.Key.SearchRole,
-                g.Key.Year,
-                g.Key.Week,
-                Count = g.Count(),
-                MinDate = g.Min(j => j.ScrapedAt)
-            })
-            .OrderBy(x => x.Year).ThenBy(x => x.Week)
+        // Chaque run insere ses offres avec le meme ScrapedAt : on regroupe par jour de run.
+        var byRun = await jobs
+            .GroupBy(j => new { j.SearchRole, j.SearchCity, RunDate = j.ScrapedAt.Date })
+            .Select(g => new { g.Key.SearchRole, g.Key.SearchCity, g.Key.RunDate, Count = g.Count() })
+            .OrderBy(x => x.RunDate)
             .ToListAsync(ct);
 
         var byRoleCity = await jobs
@@ -112,11 +82,8 @@ public sealed class JobPostingService : IJobPostingService
             ByRole = byRole.Select(x => new JobCountItem(x.Label, x.Count)).ToList(),
             ByCity = byCity.Select(x => new JobCountItem(x.Label, x.Count)).ToList(),
             BySite = bySite.Select(x => new JobCountItem(x.Label, x.Count)).ToList(),
-            ByWeek = byWeek
-                .Select(x => new JobCountItem(x.MinDate.ToString("dd/MM/yy"), x.Count))
-                .ToList(),
             ByRoleCity = byRoleCity.Select(x => new JobRoleCityItem(x.Role, x.City, x.Count)).ToList(),
-            ByRoleWeek = byRoleWeek.Select(x => new JobRoleWeekItem(x.Role, x.MinDate.ToString("dd/MM/yy"), x.Count)).ToList(),
+            ByRun = byRun.Select(x => new JobRunItem(x.SearchRole, x.SearchCity, x.RunDate, x.Count)).ToList(),
         };
     }
 }
