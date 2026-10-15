@@ -12,6 +12,8 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
       - ConnectionStrings__DefaultConnection=${DB_CONNECTION}
+      - Scraper__TriggerUrl=http://jobspy:8000
+      - Scraper__TriggerToken=${SCRAPER_TRIGGER_TOKEN}
     depends_on:
       - sql
     ports:
@@ -41,6 +43,7 @@ services:
       - MSSQL_USER=sa
       - MSSQL_PASSWORD=${SA_PASSWORD}
       - MSSQL_DATABASE=DashboardDb
+      - SCRAPER_TRIGGER_TOKEN=${SCRAPER_TRIGGER_TOKEN}
     depends_on:
       - sql
     restart: unless-stopped

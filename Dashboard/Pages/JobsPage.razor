@@ -1,17 +1,44 @@
 @page "/job-data"
 
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
 
 @inherits LocalizedComponentBase
 @inject IJobPostingService JobService
+@inject ScraperTriggerService Scraper
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
 
 @rendermode RenderMode.InteractiveServer
 
-<div class="mb-4">
-    <h1 class="mb-1">@Language.Translate("Offres d'emploi", "Job Listings")</h1>
-    <p class="text-muted mb-0">@Language.Translate("Aperçu du marché, actualisé chaque semaine.", "Live market overview, refreshed weekly.")</p>
+<div class="mb-4 d-flex flex-wrap align-items-start justify-content-between gap-3">
+    <div>
+        <h1 class="mb-1">@Language.Translate("Offres d'emploi", "Job Listings")</h1>
+        <p class="text-muted mb-0">@Language.Translate("Aperçu du marché, actualisé chaque semaine.", "Live market overview, refreshed weekly.")</p>
+    </div>
+
+    @if (_isAdmin)
+    {
+        <div class="text-end">
+            <button class="btn btn-primary" @onclick="RunScraperAsync" disabled="@(_scraperRunning || _scraperBusy)">
+                @if (_scraperRunning)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    @Language.Translate("Scraping en cours…", "Scraping…")
+                }
+                else
+                {
+                    <i class="bi bi-play-fill me-1"></i>
+                    @Language.Translate("Lancer le scraper", "Run scraper")
+                }
+            </button>
+            @if (_scraperMessage is not null)
+            {
+                <div class="small text-muted mt-1">@_scraperMessage</div>
+            }
+        </div>
+    }
 </div>
 
     @if (_error is not null)
@@ -67,7 +94,68 @@
             </div>
         </div>
 
-        <!-- Charts row 1 -->
+        <!-- Row 1 : évolution par rôle -->
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">@Language.Translate("Évolution (par run de scraping)", "Trend (by scraping run)")</div>
+                    <div class="card-body" style="height:340px;">
+                        <canvas id="weekChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 2 : évolution par ville -->
+        <div class="row g-4 mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">@Language.Translate("Évolution par ville (par run de scraping)", "Trend by city (by scraping run)")</div>
+                    <div class="card-body">
+                        <!-- Filtres : ne s'appliquent qu'à ce graphe -->
+                        <div class="mb-3">
+                            <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                <strong class="me-2" style="min-width:4rem;">@Language.Translate("Rôles", "Roles")</strong>
+                                @foreach (var role in _roles)
+                                {
+                                    var id = $"role-{_roles.IndexOf(role)}";
+                                    <div class="form-check form-check-inline mb-0">
+                                        <input class="form-check-input" type="checkbox" id="@id"
+                                               checked="@_selectedRoles.Contains(role)"
+                                               @onchange="e => ToggleAsync(_selectedRoles, role, (bool)e.Value!)" />
+                                        <label class="form-check-label" for="@id">@role</label>
+                                    </div>
+                                }
+                                <button class="btn btn-link btn-sm p-0 ms-auto" @onclick="() => SetAllAsync(_selectedRoles, _roles, true)">@Language.Translate("Tous", "All")</button>
+                                <span class="text-muted">/</span>
+                                <button class="btn btn-link btn-sm p-0" @onclick="() => SetAllAsync(_selectedRoles, _roles, false)">@Language.Translate("Aucun", "None")</button>
+                            </div>
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <strong class="me-2" style="min-width:4rem;">@Language.Translate("Villes", "Cities")</strong>
+                                @foreach (var city in _cities)
+                                {
+                                    var id = $"city-{_cities.IndexOf(city)}";
+                                    <div class="form-check form-check-inline mb-0">
+                                        <input class="form-check-input" type="checkbox" id="@id"
+                                               checked="@_selectedCities.Contains(city)"
+                                               @onchange="e => ToggleAsync(_selectedCities, city, (bool)e.Value!)" />
+                                        <label class="form-check-label" for="@id">@city</label>
+                                    </div>
+                                }
+                                <button class="btn btn-link btn-sm p-0 ms-auto" @onclick="() => SetAllAsync(_selectedCities, _cities, true)">@Language.Translate("Toutes", "All")</button>
+                                <span class="text-muted">/</span>
+                                <button class="btn btn-link btn-sm p-0" @onclick="() => SetAllAsync(_selectedCities, _cities, false)">@Language.Translate("Aucune", "None")</button>
+                            </div>
+                        </div>
+                        <div style="height:340px;">
+                            <canvas id="cityTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Row 3 -->
         <div class="row g-4 mb-4">
             <div class="col-md-6">
                 <div class="card h-100">
@@ -87,8 +175,8 @@
             </div>
         </div>
 
-        <!-- Charts row 2 -->
-        <div class="row g-4 mb-4">
+        <!-- Row 4 -->
+        <div class="row g-4">
             <div class="col-md-4">
                 <div class="card h-100">
                     <div class="card-header">@Language.Translate("Répartition par site", "Distribution by source")</div>
@@ -101,18 +189,6 @@
             </div>
             <div class="col-md-8">
                 <div class="card h-100">
-                    <div class="card-header">@Language.Translate("Évolution (par run de scraping)", "Trend (by scraping run)")</div>
-                    <div class="card-body">
-                        <canvas id="weekChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Charts row 3 : rôle × ville -->
-        <div class="row g-4">
-            <div class="col-12">
-                <div class="card">
                     <div class="card-header">@Language.Translate("Offres par rôle et par ville", "Listings by role and city")</div>
                     <div class="card-body" style="height: @($"{Math.Max(280, _stats.ByCity.Count * _stats.ByRole.Count * 22 + 60)}px")">
                         <canvas id="roleCityChart"></canvas>
@@ -125,10 +201,25 @@
 
 
 @code {
+    // Même palette que jobcharts.js : une couleur fixe par rôle / ville, stable quand on filtre.
+    private static readonly string[] Palette =
+        ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac"];
+
     private bool _busy;
     private string? _error;
     private JobStats? _stats;
     private bool _chartsDrawn;
+
+    private List<string> _roles = [];
+    private List<string> _cities = [];
+    private readonly HashSet<string> _selectedRoles = [];
+    private readonly HashSet<string> _selectedCities = [];
+
+    private bool _isAdmin;
+    private bool _scraperRunning;
+    private bool _scraperBusy;
+    private string? _scraperMessage;
+    private CancellationTokenSource? _pollCts;
 
     private int RemotePct => _stats is { TotalCount: > 0 }
         ? (int)Math.Round(_stats.RemoteCount * 100.0 / _stats.TotalCount)
@@ -145,10 +236,29 @@
     public override void Dispose()
     {
         Language.OnChange -= OnLangChange;
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
         base.Dispose();
     }
 
-    protected override async Task OnInitializedAsync() => await ReloadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _isAdmin = auth.User.IsInRole("Admin");
+
+        await ReloadAsync();
+
+        if (_isAdmin)
+        {
+            var status = await Scraper.GetStatusAsync();
+            if (status is { Running: true })
+            {
+                _scraperRunning = true;
+                _scraperMessage = StartedMessage(status);
+                StartPolling();
+            }
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -169,6 +279,14 @@
         try
         {
             _stats = await JobService.GetStatsAsync();
+
+            // Les nouveaux rôles / villes (ex. après un run) sont cochés par défaut ; les choix existants sont conservés.
+            var newRoles = _stats.ByRole.Select(x => x.Label).Except(_roles);
+            var newCities = _stats.ByCity.Select(x => x.Label).Except(_cities);
+            _selectedRoles.UnionWith(newRoles);
+            _selectedCities.UnionWith(newCities);
+            _roles = _stats.ByRole.Select(x => x.Label).OrderBy(x => x).ToList();
+            _cities = _stats.ByCity.Select(x => x.Label).OrderBy(x => x).ToList();
         }
         catch (Exception ex)
         {
@@ -180,45 +298,125 @@
         }
     }
 
+    // ----- Filtres -----
+
+    private async Task ToggleAsync(HashSet<string> set, string value, bool selected)
+    {
+        if (selected) set.Add(value); else set.Remove(value);
+        await DrawCityTrendChartAsync();
+    }
+
+    private async Task SetAllAsync(HashSet<string> set, List<string> all, bool selected)
+    {
+        set.Clear();
+        if (selected) set.UnionWith(all);
+        await DrawCityTrendChartAsync();
+    }
+
+    // ----- Scraper -----
+
+    private async Task RunScraperAsync()
+    {
+        // Le bouton n'est rendu que pour un Admin, mais on revérifie côté serveur.
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (!auth.User.IsInRole("Admin")) return;
+
+        _scraperBusy = true;
+        _scraperMessage = null;
+        try
+        {
+            var result = await Scraper.StartAsync();
+            _scraperRunning = true;
+            _scraperMessage = result == ScraperStartResult.AlreadyRunning
+                ? Language.Translate("Un scraping est déjà en cours.", "A scrape is already running.")
+                : Language.Translate("Scraping lancé. Ça peut prendre un moment…", "Scrape started. This can take a while…");
+            StartPolling();
+        }
+        catch (Exception ex)
+        {
+            _scraperMessage = Language.Translate("Impossible de joindre le scraper : ", "Could not reach the scraper: ") + ex.Message;
+        }
+        finally
+        {
+            _scraperBusy = false;
+        }
+    }
+
+    private void StartPolling()
+    {
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        _pollCts = new CancellationTokenSource();
+        _ = PollAsync(_pollCts.Token);
+    }
+
+    private async Task PollAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(20));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                var status = await Scraper.GetStatusAsync(ct);
+                if (status is null || status.Running) continue;
+
+                await InvokeAsync(async () =>
+                {
+                    _scraperRunning = false;
+                    _scraperMessage = status.ExitCode == 0
+                        ? Language.Translate("Scraping terminé.", "Scrape finished.")
+                        : Language.Translate($"Scraping terminé avec une erreur (code {status.ExitCode}).", $"Scrape finished with an error (code {status.ExitCode}).");
+                    await ReloadAsync();
+                    StateHasChanged();
+                });
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Page fermée.
+        }
+    }
+
+    private string StartedMessage(ScraperStatus status) =>
+        Language.Translate("Scraping en cours depuis ", "Scrape running since ")
+        + (status.StartedAt?.ToLocalTime().ToString("HH:mm") ?? "?");
+
+    // ----- Graphes -----
+
+    private string RoleColor(string role) => Palette[Math.Max(0, _roles.IndexOf(role)) % Palette.Length];
+    private string CityColor(string city) => Palette[Math.Max(0, _cities.IndexOf(city)) % Palette.Length];
+
     private async Task DrawChartsAsync()
     {
         if (_stats is null) return;
 
         try
         {
+            await DrawRoleTrendChartAsync();
+            await DrawCityTrendChartAsync();
+
             await JS.InvokeVoidAsync("JobCharts.bar",
                 "roleChart",
                 _stats.ByRole.Select(x => x.Label).ToArray(),
                 _stats.ByRole.Select(x => x.Count).ToArray(),
-                Language.Translate("Offres", "Listings"));
+                Language.Translate("Offres", "Listings"),
+                _stats.ByRole.Select(x => RoleColor(x.Label)).ToArray());
 
             await JS.InvokeVoidAsync("JobCharts.bar",
                 "cityChart",
                 _stats.ByCity.Select(x => x.Label).ToArray(),
                 _stats.ByCity.Select(x => x.Count).ToArray(),
-                Language.Translate("Offres", "Listings"));
+                Language.Translate("Offres", "Listings"),
+                _stats.ByCity.Select(x => CityColor(x.Label)).ToArray());
 
             await JS.InvokeVoidAsync("JobCharts.doughnut",
                 "siteChart",
                 _stats.BySite.Select(x => x.Label).ToArray(),
                 _stats.BySite.Select(x => x.Count).ToArray());
 
-            var weeks = _stats.ByWeek.Select(x => x.Label).Distinct().ToList();
-            var roles = _stats.ByRole.Select(x => x.Label).Distinct().ToList();
-
-            var weekLookup = _stats.ByRoleWeek
-                .GroupBy(x => (x.Role, x.WeekLabel))
-                .ToDictionary(g => g.Key, g => g.Sum(x => x.Count));
-
-            var weekDatasets = roles.Select(role => new
-            {
-                label = role,
-                data = weeks.Select(w => weekLookup.TryGetValue((role, w), out var c) ? c : 0).ToArray()
-            }).ToArray();
-
-            await JS.InvokeVoidAsync("JobCharts.multiLine", "weekChart", weeks.ToArray(), weekDatasets);
-
-            var cities = _stats.ByCity.Select(x => x.Label).Distinct().ToList();
+            var roles = _stats.ByRole.Select(x => x.Label).ToList();
+            var cities = _stats.ByCity.Select(x => x.Label).ToList();
             var lookup = _stats.ByRoleCity
                 .GroupBy(x => (x.Role, x.City))
                 .ToDictionary(g => g.Key, g => g.Sum(x => x.Count));
@@ -226,6 +424,7 @@
             var datasets = roles.Select(role => new
             {
                 label = role,
+                color = RoleColor(role),
                 data = cities.Select(city => lookup.TryGetValue((role, city), out var c) ? c : 0).ToArray()
             }).ToArray();
 
@@ -234,6 +433,54 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Error rendering job charts: {ex.Message}");
+        }
+    }
+
+    private List<DateTime> Runs() => _stats!.ByRun.Select(x => x.RunDate).Distinct().OrderBy(d => d).ToList();
+
+    /// Évolution par rôle, toutes villes confondues (non filtrée).
+    private async Task DrawRoleTrendChartAsync()
+    {
+        if (_stats is null) return;
+
+        var runs = Runs();
+        var byRole = _stats.ByRun.GroupBy(x => (x.Role, x.RunDate)).ToDictionary(g => g.Key, g => g.Sum(x => x.Count));
+        var datasets = _roles.Select(role => new
+        {
+            label = role,
+            color = RoleColor(role),
+            data = runs.Select(d => byRole.TryGetValue((role, d), out var c) ? c : 0).ToArray()
+        }).ToArray();
+
+        await JS.InvokeVoidAsync("JobCharts.multiLine", "weekChart", runs.Select(d => d.ToString("dd/MM/yy")).ToArray(), datasets);
+    }
+
+    /// Évolution par ville : une courbe par ville cochée, sommée sur les rôles cochés.
+    private async Task DrawCityTrendChartAsync()
+    {
+        if (_stats is null) return;
+
+        var runs = Runs();
+        var labels = runs.Select(d => d.ToString("dd/MM/yy")).ToArray();
+        var filtered = _stats.ByRun
+            .Where(x => _selectedRoles.Contains(x.Role) && _selectedCities.Contains(x.City))
+            .ToList();
+
+        var byCity = filtered.GroupBy(x => (x.City, x.RunDate)).ToDictionary(g => g.Key, g => g.Sum(x => x.Count));
+        var cityDatasets = _cities.Where(_selectedCities.Contains).Select(city => new
+        {
+            label = city,
+            color = CityColor(city),
+            data = runs.Select(d => byCity.TryGetValue((city, d), out var c) ? c : 0).ToArray()
+        }).ToArray();
+
+        try
+        {
+            await JS.InvokeVoidAsync("JobCharts.multiLine", "cityTrendChart", labels, cityDatasets);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error rendering city trend chart: {ex.Message}");
         }
     }
 }

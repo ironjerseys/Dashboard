@@ -26,6 +26,21 @@ ROLES = [
         "google_suffix": "GRC Governance Risk Compliance cybersecurity jobs near",
         "label": "grc",
     },
+    {
+        "search_term": "Business analyst",
+        "google_suffix": "Business analyst jobs near",
+        "label": "business_analyst",
+    },
+    {
+        "search_term": "Analyste fonctionnel",
+        "google_suffix": "Analyste fonctionnel emploi",
+        "label": "analyste_fonctionnel",
+    },
+    {
+        "search_term": "Support applicatif",
+        "google_suffix": "Support applicatif emploi",
+        "label": "support_applicatif",
+    },
 ]
 
 LOCATIONS = [
