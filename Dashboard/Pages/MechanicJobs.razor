@@ -1,0 +1,647 @@
+@page "/apprenti-mecanicien"
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+
+@attribute [Authorize]
+@inherits LocalizedComponentBase
+@inject IMechanicJobService Postings
+@inject ScraperTriggerService Scraper
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>@Language.Translate("Apprenti mécanicien", "Apprentice mechanic")</PageTitle>
+
+<div class="mb-4 d-flex flex-wrap align-items-start justify-content-between gap-3">
+    <div>
+        <h1 class="mb-1">@Language.Translate("Apprenti mécanicien — Québec", "Apprentice mechanic — Québec")</h1>
+        <p class="text-muted mb-0">
+            @Language.Translate("Guichet-Emplois, Québec emploi et Indeed, toutes villes confondues. Actualisé chaque mercredi.",
+                                "Job Bank, Québec emploi and Indeed, all cities. Refreshed every Wednesday.")
+        </p>
+    </div>
+
+    <div class="text-end">
+        <button class="btn btn-primary" @onclick="RunScraperAsync" disabled="@(_scraperRunning || _scraperBusy)">
+            @if (_scraperRunning)
+            {
+                <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                @Language.Translate("Scraping en cours…", "Scraping…")
+            }
+            else
+            {
+                <i class="bi bi-play-fill me-1"></i>
+                @Language.Translate("Lancer le scraper", "Run scraper")
+            }
+        </button>
+        @if (_scraperMessage is not null)
+        {
+            <div class="small text-muted mt-1">@_scraperMessage</div>
+        }
+    </div>
+</div>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else if (_list is null)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
+}
+else if (_list.Jobs.Count == 0)
+{
+    <div class="alert alert-info">
+        @Language.Translate("Aucune offre en base. Le scraper tourne tous les mercredis à 7h (heure de Montréal), ou lancez-le avec le bouton ci-dessus.",
+                            "No listings yet. The scraper runs every Wednesday at 7 AM (Montréal time), or start it with the button above.")
+    </div>
+}
+else
+{
+    <div class="stat-bar mb-4">
+        <div class="stat-bar-item accent">
+            <i class="bi bi-wrench-adjustable stat-bar-icon"></i>
+            <div>
+                <div class="stat-bar-num">@Filtered.Count.ToString("N0")</div>
+                <div class="stat-bar-label">@Language.Translate("Offres (filtrées)", "Listings (filtered)")</div>
+            </div>
+        </div>
+        <div class="stat-bar-item">
+            <i class="bi bi-building stat-bar-icon"></i>
+            <div>
+                <div class="stat-bar-num">@Employers.Count.ToString("N0")</div>
+                <div class="stat-bar-label">@Language.Translate("Employeurs", "Employers")</div>
+            </div>
+        </div>
+        <div class="stat-bar-item">
+            <i class="bi bi-geo-alt stat-bar-icon"></i>
+            <div>
+                <div class="stat-bar-num">@Filtered.Select(j => j.City).Where(c => c is not null).Distinct().Count()</div>
+                <div class="stat-bar-label">@Language.Translate("Villes", "Cities")</div>
+            </div>
+        </div>
+        <div class="stat-bar-item">
+            <i class="bi bi-clock-history stat-bar-icon"></i>
+            <div>
+                <div class="stat-bar-num" style="font-size:1.15rem;">@(_list.LastScrapeAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</div>
+                <div class="stat-bar-label">@Language.Translate("Dernier scraping", "Last scrape")</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label small mb-1">@Language.Translate("Recherche", "Search")</label>
+                    <input class="form-control form-control-sm" placeholder="@Language.Translate("Titre, employeur, ville…", "Title, employer, city…")"
+                           @bind="Search" @bind:event="oninput" />
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small mb-1">@Language.Translate("Ville", "City")</label>
+                    <select class="form-select form-select-sm" @bind="City">
+                        <option value="">@Language.Translate("Toutes", "All")</option>
+                        @foreach (var (city, count) in CityOptions)
+                        {
+                            <option value="@city">@city (@count)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small mb-1">@Language.Translate("Type", "Type")</label>
+                    <select class="form-select form-select-sm" @bind="Category">
+                        <option value="">@Language.Translate("Tous", "All")</option>
+                        @foreach (var category in Enum.GetValues<MechanicCategory>())
+                        {
+                            <option value="@category">@CategoryLabel(category)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small mb-1">@Language.Translate("Publiée depuis", "Posted within")</label>
+                    <select class="form-select form-select-sm" @bind="PostedWithinDays">
+                        <option value="0">@Language.Translate("Toujours", "Any time")</option>
+                        <option value="7">7 @Language.Translate("jours", "days")</option>
+                        <option value="30">30 @Language.Translate("jours", "days")</option>
+                        <option value="90">90 @Language.Translate("jours", "days")</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <button class="btn btn-sm btn-outline-secondary w-100" @onclick="ResetFilters">
+                        <i class="bi bi-x-circle me-1"></i>@Language.Translate("Réinitialiser", "Reset")
+                    </button>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
+                @foreach (var source in Sources)
+                {
+                    var id = $"src-{source}";
+                    <div class="form-check form-check-inline mb-0">
+                        <input class="form-check-input" type="checkbox" id="@id"
+                               checked="@(!_hiddenSources.Contains(source))"
+                               @onchange="e => ToggleSource(source, (bool)e.Value!)" />
+                        <label class="form-check-label" for="@id">
+                            @SourceLabel(source) <span class="text-muted small">(@_list.Jobs.Count(j => j.Source == source))</span>
+                        </label>
+                    </div>
+                }
+                <span class="vr d-none d-md-inline"></span>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="apprenticeOnly" @bind="ApprenticeOnly" />
+                    <label class="form-check-label" for="apprenticeOnly"
+                           title="@Language.Translate("Titre contenant apprenti, aide-mécanicien, stagiaire…", "Title mentions apprentice, helper, intern…")">
+                        @Language.Translate("Apprenti / aide seulement", "Apprentice / helper only")
+                    </label>
+                </div>
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="activeOnly" @bind="ActiveOnly" />
+                    <label class="form-check-label" for="activeOnly"
+                           title="@Language.Translate("Vue au dernier scraping et non expirée", "Seen in the last scrape and not expired")">
+                        @Language.Translate("En ligne seulement", "Still online only")
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <button class="nav-link @(_view == View.Listings ? "active" : "")" @onclick="() => _view = View.Listings">
+                <i class="bi bi-list-ul me-1"></i>@Language.Translate("Offres", "Listings") <span class="badge text-bg-secondary">@Filtered.Count</span>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(_view == View.Employers ? "active" : "")" @onclick="() => _view = View.Employers">
+                <i class="bi bi-building me-1"></i>@Language.Translate("Qui embauche ?", "Who is hiring?") <span class="badge text-bg-secondary">@Employers.Count</span>
+            </button>
+        </li>
+    </ul>
+
+    @if (_view == View.Listings)
+    {
+        @if (_company is not null)
+        {
+            <div class="alert alert-secondary py-2 d-flex align-items-center gap-2">
+                <span>@Language.Translate("Employeur :", "Employer:") <strong>@_company</strong></span>
+                <button class="btn btn-sm btn-link ms-auto p-0" @onclick="() => SetCompany(null)">@Language.Translate("Retirer", "Clear")</button>
+            </div>
+        }
+
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        @SortHeader(SortColumn.Date, "Date", "Date")
+                        @SortHeader(SortColumn.Title, "Poste", "Position")
+                        @SortHeader(SortColumn.Company, "Employeur", "Employer")
+                        @SortHeader(SortColumn.City, "Ville", "City")
+                        @SortHeader(SortColumn.Category, "Type", "Type", "d-none d-lg-table-cell")
+                        <th class="d-none d-lg-table-cell">@Language.Translate("Salaire", "Salary")</th>
+                        @SortHeader(SortColumn.Source, "Source", "Source")
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var job in PageOfJobs)
+                    {
+                        <tr class="@(job.IsActive ? "" : "text-muted")">
+                            <td class="text-nowrap small" title="@DateTitle(job)">
+                                @job.SortDate.ToString("dd/MM/yy")
+                                @if (job.DatePosted is null)
+                                {
+                                    <span class="text-muted">*</span>
+                                }
+                            </td>
+                            <td>
+                                <a href="@job.Url" target="_blank" rel="noopener noreferrer">@job.Title</a>
+                                @if (job.IsApprentice)
+                                {
+                                    <span class="badge text-bg-success ms-1">@Language.Translate("Apprenti", "Apprentice")</span>
+                                }
+                                @if (!job.IsActive)
+                                {
+                                    <span class="badge text-bg-light border ms-1">@Language.Translate("Retirée", "Gone")</span>
+                                }
+                            </td>
+                            <td><button class="btn btn-link btn-sm p-0 text-start" @onclick="() => SetCompany(job.Company)">@job.Company</button></td>
+                            <td class="small">@job.City</td>
+                            <td class="small d-none d-lg-table-cell">@CategoryLabel(job.Category)</td>
+                            <td class="small d-none d-lg-table-cell">@job.Salary</td>
+                            <td class="small text-nowrap">@SourceLabel(job.Source)</td>
+                        </tr>
+                    }
+                    @if (Filtered.Count == 0)
+                    {
+                        <tr><td colspan="7" class="text-center text-muted py-4">@Language.Translate("Aucune offre ne correspond aux filtres.", "No listing matches the filters.")</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="small text-muted">
+            * @Language.Translate("Québec emploi ne donne pas la date de publication : date de première détection.",
+                                  "Québec emploi does not give the posting date: first-seen date shown instead.")
+        </p>
+
+        @if (PageCount > 1)
+        {
+            <nav class="mb-4">
+                <ul class="pagination pagination-sm flex-wrap mb-0">
+                    <li class="page-item @(_page == 1 ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => GoToPage(_page - 1)">&laquo;</button>
+                    </li>
+                    @foreach (int? number in PageNumbers())
+                    {
+                        if (number is { } n)
+                        {
+                            <li class="page-item @(n == _page ? "active" : "")">
+                                <button class="page-link" @onclick="() => GoToPage(n)">@n</button>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="page-item disabled"><span class="page-link">…</span></li>
+                        }
+                    }
+                    <li class="page-item @(_page == PageCount ? "disabled" : "")">
+                        <button class="page-link" @onclick="() => GoToPage(_page + 1)">&raquo;</button>
+                    </li>
+                </ul>
+            </nav>
+        }
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle">
+                <thead>
+                    <tr>
+                        @EmployerSortHeader(EmployerSort.Name, "Employeur", "Employer")
+                        @EmployerSortHeader(EmployerSort.Count, "Offres", "Listings")
+                        <th>@Language.Translate("Villes", "Cities")</th>
+                        <th class="d-none d-lg-table-cell">@Language.Translate("Sources", "Sources")</th>
+                        @EmployerSortHeader(EmployerSort.Latest, "Dernière offre", "Latest listing")
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var employer in SortedEmployers)
+                    {
+                        <tr>
+                            <td>
+                                <button class="btn btn-link btn-sm p-0 text-start" @onclick="() => { SetCompany(employer.Name); _view = View.Listings; }">@employer.Name</button>
+                                @if (employer.Apprentice > 0)
+                                {
+                                    <span class="badge text-bg-success ms-1">@employer.Apprentice @Language.Translate("apprenti", "apprentice")</span>
+                                }
+                            </td>
+                            <td>@employer.Count</td>
+                            <td class="small">@string.Join(", ", employer.Cities)</td>
+                            <td class="small d-none d-lg-table-cell">@string.Join(", ", employer.Sources.Select(SourceLabel))</td>
+                            <td class="small text-nowrap">@employer.Latest.ToString("dd/MM/yy")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+}
+
+@code {
+    private const int PageSize = 50;
+
+    private enum View { Listings, Employers }
+    private enum SortColumn { Date, Title, Company, City, Category, Source }
+    private enum EmployerSort { Name, Count, Latest }
+
+    private record Employer(string Name, int Count, int Apprentice, List<string> Cities, List<string> Sources, DateTime Latest);
+
+    private MechanicJobList? _list;
+    private string? _error;
+    private View _view = View.Listings;
+
+    // Filtres
+    private string _search = "";
+    private string _city = "";
+    private string _category = "";
+    private int _postedWithinDays;
+    private bool _apprenticeOnly;
+    private bool _activeOnly = true;
+    private string? _company;
+    private readonly HashSet<string> _hiddenSources = [];
+
+    private SortColumn _sort = SortColumn.Date;
+    private bool _sortDescending = true;
+    private EmployerSort _employerSort = EmployerSort.Count;
+    private bool _employerSortDescending = true;
+    private int _page = 1;
+
+    // Calculs mis en cache : recalcules a chaque changement de filtre, pas a chaque rendu.
+    private List<MechanicJobItem> _filtered = [];
+    private List<Employer> _employers = [];
+
+    // Scraper
+    private bool _scraperRunning;
+    private bool _scraperBusy;
+    private string? _scraperMessage;
+    private CancellationTokenSource? _pollCts;
+
+    private string Search { get => _search; set { _search = value; Refilter(); } }
+    private string City { get => _city; set { _city = value; Refilter(); } }
+    private string Category { get => _category; set { _category = value; Refilter(); } }
+    private int PostedWithinDays { get => _postedWithinDays; set { _postedWithinDays = value; Refilter(); } }
+    private bool ApprenticeOnly { get => _apprenticeOnly; set { _apprenticeOnly = value; Refilter(); } }
+    private bool ActiveOnly { get => _activeOnly; set { _activeOnly = value; Refilter(); } }
+
+    private List<MechanicJobItem> Filtered => _filtered;
+    private List<Employer> Employers => _employers;
+
+    private IEnumerable<string> Sources => _list!.Jobs.Select(j => j.Source).Distinct().Order();
+
+    private IEnumerable<(string City, int Count)> CityOptions => (_list?.Jobs ?? [])
+        .Where(j => !string.IsNullOrWhiteSpace(j.City) && (!_activeOnly || j.IsActive))
+        .GroupBy(j => j.City!)
+        .Select(g => (g.Key, g.Count()))
+        .OrderBy(x => x.Key);
+
+    private int PageCount => Math.Max(1, (int)Math.Ceiling(_filtered.Count / (double)PageSize));
+    private IEnumerable<MechanicJobItem> PageOfJobs => _filtered.Skip((_page - 1) * PageSize).Take(PageSize);
+
+    private IEnumerable<Employer> SortedEmployers => (_employerSort, _employerSortDescending) switch
+    {
+        (EmployerSort.Name, false) => _employers.OrderBy(e => e.Name, StringComparer.CurrentCultureIgnoreCase),
+        (EmployerSort.Name, true) => _employers.OrderByDescending(e => e.Name, StringComparer.CurrentCultureIgnoreCase),
+        (EmployerSort.Latest, false) => _employers.OrderBy(e => e.Latest),
+        (EmployerSort.Latest, true) => _employers.OrderByDescending(e => e.Latest),
+        (_, false) => _employers.OrderBy(e => e.Count).ThenBy(e => e.Name),
+        _ => _employers.OrderByDescending(e => e.Count).ThenByDescending(e => e.Latest),
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+
+        var status = await Scraper.GetStatusAsync(ScraperJobs.Mechanics);
+        if (status is { Running: true })
+        {
+            _scraperRunning = true;
+            _scraperMessage = Language.Translate("Scraping en cours depuis ", "Scrape running since ")
+                              + (status.StartedAt?.ToLocalTime().ToString("HH:mm") ?? "?");
+            StartPolling();
+        }
+    }
+
+    public override void Dispose()
+    {
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        base.Dispose();
+    }
+
+    private async Task ReloadAsync()
+    {
+        try
+        {
+            _error = null;
+            _list = await Postings.GetAllAsync();
+            Refilter();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    // ----- Filtres et tri -----
+
+    private void Refilter()
+    {
+        if (_list is null) return;
+
+        var search = MechanicJobService.Normalize(_search.Trim());
+        var since = _postedWithinDays > 0 ? DateTime.UtcNow.Date.AddDays(-_postedWithinDays) : (DateTime?)null;
+        var category = Enum.TryParse<MechanicCategory>(_category, out var c) ? c : (MechanicCategory?)null;
+
+        var jobs = _list.Jobs.Where(j =>
+            !_hiddenSources.Contains(j.Source)
+            && (!_activeOnly || j.IsActive)
+            && (!_apprenticeOnly || j.IsApprentice)
+            && (_city == "" || j.City == _city)
+            && (category is null || j.Category == category)
+            && (since is null || j.SortDate >= since)
+            && (search == "" || MechanicJobService.Normalize($"{j.Title} {j.Company} {j.City}").Contains(search)));
+
+        // L'onglet "Qui embauche ?" ignore le filtre employeur (sinon il n'y aurait qu'une ligne).
+        var withoutCompany = jobs.ToList();
+
+        _employers = withoutCompany
+            .GroupBy(j => MechanicJobService.Normalize(j.Company))
+            .Select(g => new Employer(
+                g.GroupBy(j => j.Company).OrderByDescending(x => x.Count()).First().Key,
+                g.Count(),
+                g.Count(j => j.IsApprentice),
+                g.Select(j => j.City).OfType<string>().Distinct().Order().ToList(),
+                g.Select(j => j.Source).Distinct().Order().ToList(),
+                g.Max(j => j.SortDate)))
+            .ToList();
+
+        var listed = _company is null
+            ? withoutCompany
+            : withoutCompany.Where(j => MechanicJobService.Normalize(j.Company) == MechanicJobService.Normalize(_company)).ToList();
+
+        _filtered = Sort(listed).ToList();
+        _page = 1;
+    }
+
+    private IEnumerable<MechanicJobItem> Sort(IEnumerable<MechanicJobItem> jobs)
+    {
+        var ordered = _sort switch
+        {
+            SortColumn.Title => jobs.OrderBy(j => j.Title, StringComparer.CurrentCultureIgnoreCase),
+            SortColumn.Company => jobs.OrderBy(j => j.Company, StringComparer.CurrentCultureIgnoreCase),
+            SortColumn.City => jobs.OrderBy(j => j.City ?? "", StringComparer.CurrentCultureIgnoreCase),
+            SortColumn.Category => jobs.OrderBy(j => CategoryLabel(j.Category)),
+            SortColumn.Source => jobs.OrderBy(j => j.Source),
+            _ => jobs.OrderBy(j => j.SortDate),
+        };
+        var result = ordered.ThenByDescending(j => j.SortDate).AsEnumerable();
+        return _sortDescending ? result.Reverse() : result;
+    }
+
+    private void SortBy(SortColumn column)
+    {
+        if (_sort == column)
+        {
+            _sortDescending = !_sortDescending;
+        }
+        else
+        {
+            _sort = column;
+            _sortDescending = column == SortColumn.Date;
+        }
+        Refilter();
+    }
+
+    private void SortEmployersBy(EmployerSort column)
+    {
+        if (_employerSort == column)
+        {
+            _employerSortDescending = !_employerSortDescending;
+        }
+        else
+        {
+            _employerSort = column;
+            _employerSortDescending = column != EmployerSort.Name;
+        }
+    }
+
+    private void ToggleSource(string source, bool visible)
+    {
+        if (visible) _hiddenSources.Remove(source); else _hiddenSources.Add(source);
+        Refilter();
+    }
+
+    private void SetCompany(string? company)
+    {
+        _company = company;
+        Refilter();
+    }
+
+    private void ResetFilters()
+    {
+        _search = "";
+        _city = "";
+        _category = "";
+        _postedWithinDays = 0;
+        _apprenticeOnly = false;
+        _activeOnly = true;
+        _company = null;
+        _hiddenSources.Clear();
+        Refilter();
+    }
+
+    private void GoToPage(int page) => _page = Math.Clamp(page, 1, PageCount);
+
+    /// <summary>Premiere, derniere, et deux pages autour de la courante ; null pour une ellipse.</summary>
+    private IEnumerable<int?> PageNumbers()
+    {
+        int? previous = null;
+        for (int n = 1; n <= PageCount; n++)
+        {
+            if (n != 1 && n != PageCount && Math.Abs(n - _page) > 2) continue;
+            if (previous is { } p && n - p > 1) yield return null;
+            yield return n;
+            previous = n;
+        }
+    }
+
+    // ----- Affichage -----
+
+    private string CategoryLabel(MechanicCategory category) => category switch
+    {
+        MechanicCategory.Automobile => Language.Translate("Automobile", "Automotive"),
+        MechanicCategory.HeavyTruck => Language.Translate("Camion / poids lourd", "Truck / heavy duty"),
+        MechanicCategory.HeavyEquipment => Language.Translate("Équipement lourd", "Heavy equipment"),
+        MechanicCategory.Industrial => Language.Translate("Industriel / chantier", "Industrial / millwright"),
+        MechanicCategory.SmallEngine => Language.Translate("Petits moteurs / récréatif", "Small engines / recreational"),
+        _ => Language.Translate("Autre", "Other"),
+    };
+
+    private static string SourceLabel(string source) => source switch
+    {
+        "guichet-emplois" => "Guichet-Emplois",
+        "quebec-emploi" => "Québec emploi",
+        "indeed" => "Indeed",
+        _ => source,
+    };
+
+    private string DateTitle(MechanicJobItem job) =>
+        (job.DatePosted is null ? "" : Language.Translate("Publiée le ", "Posted ") + job.DatePosted.Value.ToString("dd/MM/yyyy") + " · ")
+        + Language.Translate("Vue la première fois le ", "First seen ") + job.FirstSeenAt.ToLocalTime().ToString("dd/MM/yyyy")
+        + (job.ExpiresAt is null ? "" : " · " + Language.Translate("Expire le ", "Expires ") + job.ExpiresAt.Value.ToString("dd/MM/yyyy"));
+
+    private RenderFragment SortHeader(SortColumn column, string fr, string en, string css = "") =>
+        @<th class="@css text-nowrap" role="button" @onclick="() => SortBy(column)" aria-sort="@(_sort != column ? "none" : _sortDescending ? "descending" : "ascending")">
+            @Language.Translate(fr, en)
+            @if (_sort == column)
+            {
+                <i class="bi @(_sortDescending ? "bi-caret-down-fill" : "bi-caret-up-fill") small ms-1"></i>
+            }
+        </th>;
+
+    private RenderFragment EmployerSortHeader(EmployerSort column, string fr, string en) =>
+        @<th class="text-nowrap" role="button" @onclick="() => SortEmployersBy(column)" aria-sort="@(_employerSort != column ? "none" : _employerSortDescending ? "descending" : "ascending")">
+            @Language.Translate(fr, en)
+            @if (_employerSort == column)
+            {
+                <i class="bi @(_employerSortDescending ? "bi-caret-down-fill" : "bi-caret-up-fill") small ms-1"></i>
+            }
+        </th>;
+
+    // ----- Scraper -----
+
+    private async Task RunScraperAsync()
+    {
+        // La page exige deja d'etre connecte, mais on reverifie cote serveur avant d'appeler le container.
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (auth.User.Identity?.IsAuthenticated != true) return;
+
+        _scraperBusy = true;
+        _scraperMessage = null;
+        try
+        {
+            var result = await Scraper.StartAsync(ScraperJobs.Mechanics);
+            _scraperRunning = true;
+            _scraperMessage = result == ScraperStartResult.AlreadyRunning
+                ? Language.Translate("Un scraping est déjà en cours.", "A scrape is already running.")
+                : Language.Translate("Scraping lancé, quelques minutes…", "Scrape started, a few minutes…");
+            StartPolling();
+        }
+        catch (Exception ex)
+        {
+            _scraperMessage = Language.Translate("Impossible de joindre le scraper : ", "Could not reach the scraper: ") + ex.Message;
+        }
+        finally
+        {
+            _scraperBusy = false;
+        }
+    }
+
+    private void StartPolling()
+    {
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        _pollCts = new CancellationTokenSource();
+        _ = PollAsync(_pollCts.Token);
+    }
+
+    private async Task PollAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(ct))
+            {
+                var status = await Scraper.GetStatusAsync(ScraperJobs.Mechanics, ct);
+                if (status is null || status.Running) continue;
+
+                await InvokeAsync(async () =>
+                {
+                    _scraperRunning = false;
+                    _scraperMessage = status.ExitCode == 0
+                        ? Language.Translate("Scraping terminé.", "Scrape finished.")
+                        : Language.Translate($"Scraping terminé avec une erreur (code {status.ExitCode}).", $"Scrape finished with an error (code {status.ExitCode}).");
+                    await ReloadAsync();
+                    StateHasChanged();
+                });
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Page fermee.
+        }
+    }
+}

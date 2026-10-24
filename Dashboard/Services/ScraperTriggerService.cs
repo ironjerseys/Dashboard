@@ -17,7 +17,17 @@ public record ScraperStatus(bool Running, DateTime? StartedAt, DateTime? Finishe
 
 public enum ScraperStartResult { Started, AlreadyRunning }
 
-/// Lance le scraper jobspy a la demande, en plus du run planifie du dimanche.
+/// Scripts que le container jobspy sait lancer (cf. SCRIPTS dans trigger_server.py).
+public static class ScraperJobs
+{
+    /// Offres tech (page Job Data), planifie le dimanche.
+    public const string Jobs = "jobs";
+
+    /// Apprenti mecanicien au Quebec, planifie le mercredi.
+    public const string Mechanics = "mechanics";
+}
+
+/// Lance les scrapers jobspy a la demande, en plus de leurs runs planifies.
 public sealed class ScraperTriggerService
 {
     private readonly HttpClient _http;
@@ -31,11 +41,15 @@ public sealed class ScraperTriggerService
             _http.DefaultRequestHeaders.Add("X-Trigger-Token", options.Value.TriggerToken);
     }
 
-    public async Task<ScraperStatus?> GetStatusAsync(CancellationToken ct = default)
+    public Task<ScraperStatus?> GetStatusAsync(CancellationToken ct = default) => GetStatusAsync(ScraperJobs.Jobs, ct);
+
+    public Task<ScraperStartResult> StartAsync(CancellationToken ct = default) => StartAsync(ScraperJobs.Jobs, ct);
+
+    public async Task<ScraperStatus?> GetStatusAsync(string job, CancellationToken ct = default)
     {
         try
         {
-            return await _http.GetFromJsonAsync<ScraperStatus>("status", ct);
+            return await _http.GetFromJsonAsync<ScraperStatus>($"status?job={Uri.EscapeDataString(job)}", ct);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -43,9 +57,9 @@ public sealed class ScraperTriggerService
         }
     }
 
-    public async Task<ScraperStartResult> StartAsync(CancellationToken ct = default)
+    public async Task<ScraperStartResult> StartAsync(string job, CancellationToken ct = default)
     {
-        using var response = await _http.PostAsync("run", null, ct);
+        using var response = await _http.PostAsync($"run?job={Uri.EscapeDataString(job)}", null, ct);
         if (response.StatusCode == HttpStatusCode.Conflict)
             return ScraperStartResult.AlreadyRunning;
 

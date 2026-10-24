@@ -1,2 +1,4 @@
 # Tous les dimanches à 3h UTC
 0 3 * * 0 python /app/scrape_jobs.py >> /proc/1/fd/1 2>&1
+# Apprenti mécanicien (Québec) : tous les mercredis à 11h UTC (7h heure de Montréal)
+0 11 * * 3 python /app/scrape_mechanics.py >> /proc/1/fd/1 2>&1
