@@ -19,6 +19,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<SqlChallenge> SqlChallenges => Set<SqlChallenge>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<JobPosting> JobPostings => Set<JobPosting>();
+    public DbSet<MechanicJobPosting> MechanicJobPostings => Set<MechanicJobPosting>();
     public DbSet<ReminderSetting> ReminderSettings => Set<ReminderSetting>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
     public DbSet<MailboxSyncState> MailboxSyncStates => Set<MailboxSyncState>();
@@ -122,6 +123,21 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             e.Property(j => j.SearchCity).HasMaxLength(128);
             e.Property(j => j.MinAmount).HasColumnType("decimal(18,2)");
             e.Property(j => j.MaxAmount).HasColumnType("decimal(18,2)");
+        });
+
+        builder.Entity<MechanicJobPosting>(e =>
+        {
+            // 800 caracteres : reste sous la limite de 1700 octets d'une cle d'index SQL Server.
+            e.HasIndex(j => j.Url).IsUnique();
+            e.HasIndex(j => j.LastSeenAt);
+            e.Property(j => j.Source).HasMaxLength(32);
+            e.Property(j => j.ExternalId).HasMaxLength(64);
+            e.Property(j => j.Url).HasMaxLength(800);
+            e.Property(j => j.Title).HasMaxLength(512);
+            e.Property(j => j.Company).HasMaxLength(256);
+            e.Property(j => j.City).HasMaxLength(128);
+            e.Property(j => j.Salary).HasMaxLength(128);
+            e.Property(j => j.SearchTerm).HasMaxLength(128);
         });
     }
 }

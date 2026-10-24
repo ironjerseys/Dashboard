@@ -16,7 +16,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Code source
-COPY scrape_jobs.py trigger_server.py start.sh ./
+COPY scrape_jobs.py scrape_mechanics.py trigger_server.py start.sh ./
 COPY jobspy/ ./jobspy/
 
 COPY crontab /app/crontab
