@@ -38,11 +38,19 @@ window.JobCharts = (function () {
     }
 
     function doughnut(id, labels, data, colors) {
+        circular("doughnut", id, labels, data, colors);
+    }
+
+    function pie(id, labels, data, colors) {
+        circular("pie", id, labels, data, colors);
+    }
+
+    function circular(type, id, labels, data, colors) {
         destroy(id);
         const ctx = document.getElementById(id);
         if (!ctx) return;
         instances[id] = new Chart(ctx, {
-            type: "doughnut",
+            type,
             data: {
                 labels,
                 datasets: [{
@@ -168,5 +176,5 @@ window.JobCharts = (function () {
         });
     }
 
-    return { bar, doughnut, line, multiLine, groupedBar, stackedBar };
+    return { bar, doughnut, pie, line, multiLine, groupedBar, stackedBar };
 })();

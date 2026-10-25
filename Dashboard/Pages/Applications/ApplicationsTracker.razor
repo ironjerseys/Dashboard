@@ -211,20 +211,39 @@ else
         </div>
 
         <div class="row g-4 mb-4">
-            <div class="col-lg-7">
-                <div class="card h-100">
-                    <div class="card-header bg-body-tertiary">@Language.Translate("Par province et statut", "By province and status")</div>
-                    <div class="card-body" style="height: @($"{Math.Max(220, Provinces.Count() * 46 + 70)}px")">
-                        <canvas id="appProvinceChart"></canvas>
+            @foreach (bool technical in new[] { true, false })
+            {
+                <div class="col-lg-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-body-tertiary">
+                            @Language.Translate("Par province et statut", "By province and status")
+                            <span class="text-muted small ms-1">— @RoleLabel(technical)</span>
+                        </div>
+                        <div class="card-body" style="height: @($"{Math.Max(220, ProvinceRowCount * 46 + 70)}px")">
+                            <canvas id="@ProvinceChartId(technical)"></canvas>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-lg-5">
+            }
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-lg-6">
                 <div class="card h-100">
                     <div class="card-header bg-body-tertiary">@Language.Translate("Répartition des statuts", "Status breakdown")</div>
                     <div class="card-body d-flex align-items-center justify-content-center">
                         <div style="width:100%;max-width:260px;">
                             <canvas id="appStatusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header bg-body-tertiary">@Language.Translate("Postes techniques ou non", "Technical vs non-technical roles")</div>
+                    <div class="card-body d-flex align-items-center justify-content-center">
+                        <div style="width:100%;max-width:260px;">
+                            <canvas id="appRoleChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -580,10 +599,20 @@ else
     private IEnumerable<ApplicationRow> PageRows => _rows.Skip((_page - 1) * PageSize).Take(PageSize);
 
     /// <summary>Provinces par volume, les lieux inconnus en dernier.</summary>
-    private IEnumerable<IGrouping<string, ApplicationRow>> Provinces =>
-        _all.GroupBy(r => r.Region.ProvinceCode ?? UnknownProvince)
+    private static IEnumerable<IGrouping<string, ApplicationRow>> Provinces(IEnumerable<ApplicationRow> rows) =>
+        rows.GroupBy(r => r.Region.ProvinceCode ?? UnknownProvince)
             .OrderBy(g => g.Key == UnknownProvince)
             .ThenByDescending(g => g.Count());
+
+    /// <summary>Hauteur commune aux deux graphes par province : celle du plus long, pour qu'ils restent alignes.</summary>
+    private int ProvinceRowCount =>
+        Math.Max(Provinces(_all.Where(r => r.IsTechnical)).Count(), Provinces(_all.Where(r => !r.IsTechnical)).Count());
+
+    private static string ProvinceChartId(bool technical) => technical ? "appProvinceTechChart" : "appProvinceNonTechChart";
+
+    private string RoleLabel(bool technical) => technical
+        ? Language.Translate("Postes techniques", "Technical roles")
+        : Language.Translate("Postes non techniques", "Non-technical roles");
 
     protected override void OnInitialized()
     {
@@ -848,23 +877,32 @@ else
     {
         try
         {
-            var provinces = Provinces.ToList();
+            foreach (bool technical in new[] { true, false })
+            {
+                var provinces = Provinces(_all.Where(r => r.IsTechnical == technical)).ToList();
 
-            await JS.InvokeVoidAsync("JobCharts.stackedBar",
-                "appProvinceChart",
-                provinces.Select(g => ProvinceLabel(g.Key)).ToArray(),
-                StatusColors.Select(s => new
-                {
-                    label = StatusLabel(s.Status),
-                    data = provinces.Select(g => g.Count(r => r.Status == s.Status)).ToArray(),
-                    color = s.Color
-                }).ToArray());
+                await JS.InvokeVoidAsync("JobCharts.stackedBar",
+                    ProvinceChartId(technical),
+                    provinces.Select(g => ProvinceLabel(g.Key)).ToArray(),
+                    StatusColors.Select(s => new
+                    {
+                        label = StatusLabel(s.Status),
+                        data = provinces.Select(g => g.Count(r => r.Status == s.Status)).ToArray(),
+                        color = s.Color
+                    }).ToArray());
+            }
 
             await JS.InvokeVoidAsync("JobCharts.doughnut",
                 "appStatusChart",
                 StatusColors.Select(s => StatusLabel(s.Status)).ToArray(),
                 StatusColors.Select(s => _all.Count(r => r.Status == s.Status)).ToArray(),
                 StatusColors.Select(s => s.Color).ToArray());
+
+            await JS.InvokeVoidAsync("JobCharts.pie",
+                "appRoleChart",
+                new[] { RoleLabel(true), RoleLabel(false) },
+                new[] { _all.Count(r => r.IsTechnical), _all.Count(r => !r.IsTechnical) },
+                new[] { "#0d6efd", "#ff7a00" });
 
             // Candidatures encore ouvertes, rangees par anciennete : les tranches hautes sont celles qui dorment.
             var open = _all.Where(r => JobApplicationMatcher.IsOpen(r.Status)).Select(AgeDays).ToList();
