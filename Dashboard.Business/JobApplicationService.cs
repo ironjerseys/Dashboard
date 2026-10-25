@@ -17,6 +17,8 @@ public sealed record ApplicationRow(
     string? Notes)
 {
     public JobRegion Region { get; } = JobLocation.Resolve(Location);
+
+    public bool IsTechnical { get; } = JobRole.IsTechnical(Position);
 }
 
 public interface IJobApplicationService
