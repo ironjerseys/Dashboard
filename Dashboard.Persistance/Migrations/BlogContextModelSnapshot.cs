@@ -99,10 +99,15 @@ namespace Dashboard.Migrations
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int?>("SqlChallengeId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("UpdatedUtc")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SqlChallengeId");
 
                     b.HasIndex("OwnerId", "ChallengeKey")
                         .IsUnique();
@@ -236,7 +241,12 @@ namespace Dashboard.Migrations
                     b.Property<DateTime>("CreatedUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("SqlChallengeId")
+                        .HasColumnType("int");
+
                     b.HasKey("ChallengeKey");
+
+                    b.HasIndex("SqlChallengeId");
 
                     b.ToTable("InactiveChallenges");
                 });
@@ -985,6 +995,14 @@ namespace Dashboard.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Dashboard.Persistance.Entities.CodeChallengeCard", b =>
+                {
+                    b.HasOne("Dashboard.Persistance.Entities.SqlChallenge", null)
+                        .WithMany()
+                        .HasForeignKey("SqlChallengeId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
             modelBuilder.Entity("Dashboard.Persistance.Entities.EmailMessage", b =>
                 {
                     b.HasOne("Dashboard.Persistance.Entities.JobApplication", "JobApplication")
@@ -993,6 +1011,14 @@ namespace Dashboard.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("JobApplication");
+                });
+
+            modelBuilder.Entity("Dashboard.Persistance.Entities.InactiveChallenge", b =>
+                {
+                    b.HasOne("Dashboard.Persistance.Entities.SqlChallenge", null)
+                        .WithMany()
+                        .HasForeignKey("SqlChallengeId")
+                        .OnDelete(DeleteBehavior.Cascade);
                 });
 
             modelBuilder.Entity("Dashboard.Persistance.Entities.Label", b =>

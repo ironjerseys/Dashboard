@@ -59,6 +59,19 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             .HasIndex(card => new { card.OwnerId, card.ChallengeKey })
             .IsUnique();
 
+        // Supprimer un défi SQL supprime les cartes de révision et l'état "désactivé" qui le concernent.
+        builder.Entity<CodeChallengeCard>()
+            .HasOne<SqlChallenge>()
+            .WithMany()
+            .HasForeignKey(card => card.SqlChallengeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<InactiveChallenge>()
+            .HasOne<SqlChallenge>()
+            .WithMany()
+            .HasForeignKey(i => i.SqlChallengeId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         builder.Entity<MediaAsset>().HasIndex(x => x.CreatedUtc);
 
         builder.Entity<ReminderSetting>()
