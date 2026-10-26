@@ -484,6 +484,29 @@ namespace Dashboard.Migrations
                     b.ToTable("JobPostingsV2", (string)null);
                 });
 
+            modelBuilder.Entity("Dashboard.Persistance.Entities.JobRoleFilterV2", b =>
+                {
+                    b.Property<string>("Role")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("ExcludeTerms")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("IncludeTerms")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Role");
+
+                    b.ToTable("JobRoleFiltersV2", (string)null);
+                });
+
             modelBuilder.Entity("Dashboard.Persistance.Entities.JobScrapeRunV2", b =>
                 {
                     b.Property<int>("Id")

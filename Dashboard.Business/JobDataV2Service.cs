@@ -1,4 +1,5 @@
 using Dashboard.Persistance.DbContext;
+using Dashboard.Persistance.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Dashboard.Business;
@@ -25,8 +26,19 @@ public record JobRunV2RoleCount(int RunId, string Role, int Count);
 public record JobRunV2RoleCityCount(int RunId, string Role, string City, int Count);
 public record JobSearchV2Issue(string Role, string City, string Site, int ResultCount, bool Succeeded, bool IsCapped, string? Error);
 
+// Dernier run, pour un poste : offres renvoyées par les sites et offres dont le titre correspond.
+public record JobRoleRelevance(string Role, int RawCount, int MatchedCount, bool IsFiltered)
+{
+    public int Percent => RawCount == 0 ? 0 : (int)Math.Round(MatchedCount * 100.0 / RawCount);
+}
+
+public record JobTitleCount(string Title, int Count);
+
 public class JobStatsV2
 {
+    // Vrai : filtre de titre + doublons entre sites retirés. Faux : résultats bruts des sites.
+    public bool Reliable { get; set; }
+
     public List<JobRunV2Info> Runs { get; set; } = [];        // du plus ancien au plus récent
     public JobRunV2Info? Latest { get; set; }
 
@@ -37,6 +49,10 @@ public class JobStatsV2
     public List<JobCountItem> LatestBySite { get; set; } = [];
     public List<JobRoleCityItem> LatestByRoleCity { get; set; } = [];
     public List<JobSearchV2Issue> LatestIssues { get; set; } = [];
+
+    // Pertinence par poste (toujours calculée, quel que soit le mode) et doublons retirés.
+    public List<JobRoleRelevance> LatestRelevance { get; set; } = [];
+    public int LatestDuplicatesRemoved { get; set; }
 
     // Évolution, run par run
     public List<JobRunV2RoleCount> TrendByRole { get; set; } = [];
@@ -49,12 +65,23 @@ public class JobStatsV2
 
 public interface IJobDataV2Service
 {
-    Task<JobStatsV2> GetStatsAsync(CancellationToken ct = default);
+    Task<JobStatsV2> GetStatsAsync(bool reliable = true, CancellationToken ct = default);
+
+    Task<List<JobRoleFilterV2>> GetFiltersAsync(CancellationToken ct = default);
+    Task SaveFilterAsync(string role, string includeTerms, string? excludeTerms, CancellationToken ct = default);
+
+    // Titres des offres trouvées par ce poste lors du dernier run (pour régler son filtre).
+    Task<List<JobTitleCount>> GetLatestTitlesAsync(string role, CancellationToken ct = default);
 }
 
 // Lecture du système Job Data V2 (tables *V2, alimentées par jobspy-scraper/scrape_jobs.py).
-// Toutes les comptes sont en offres distinctes : une offre trouvée par deux recherches d'un même
-// groupe ne compte qu'une fois dans ce groupe.
+//
+// Mode fiabilisé (par défaut) :
+// - une offre ne compte pour un poste que si son titre passe le filtre du poste (JobRoleFiltersV2) ;
+// - la même offre publiée sur LinkedIn et Indeed ne compte qu'une fois : deux offres avec le même
+//   titre et la même entreprise, dans la même ville de recherche, sont une seule offre.
+// Les filtres s'appliquent à la lecture : rien n'est supprimé en base, et ils valent aussi pour
+// l'historique. Les comptes sont toujours en offres distinctes.
 public sealed class JobDataV2Service : IJobDataV2Service
 {
     private readonly IDbContextFactory<BlogContext> _factory;
@@ -64,7 +91,9 @@ public sealed class JobDataV2Service : IJobDataV2Service
         _factory = factory;
     }
 
-    public async Task<JobStatsV2> GetStatsAsync(CancellationToken ct = default)
+    private readonly record struct Row(int RunId, string Role, string City, string Site, int PostingId, int Key, bool Remote, bool Matched);
+
+    public async Task<JobStatsV2> GetStatsAsync(bool reliable = true, CancellationToken ct = default)
     {
         await using var db = await _factory.CreateDbContextAsync(ct);
 
@@ -74,39 +103,77 @@ public sealed class JobDataV2Service : IJobDataV2Service
             .Select(r => new { r.Id, r.StartedUtc, r.IsBackfill })
             .ToListAsync(ct);
 
-        var stats = new JobStatsV2();
+        var stats = new JobStatsV2 { Reliable = reliable };
         if (runs.Count == 0)
             return stats;
 
-        var runIds = runs.Select(r => r.Id).ToList();
-        var sightings = db.JobSightingsV2.AsNoTracking().Where(s => runIds.Contains(s.Search!.RunId));
-
-        var searchCounts = await db.JobScrapeSearchesV2.AsNoTracking()
-            .Where(s => runIds.Contains(s.RunId))
-            .GroupBy(s => s.RunId)
-            .Select(g => new
-            {
-                RunId = g.Key,
-                Total = g.Count(),
-                Failed = g.Count(s => !s.Succeeded),
-                Capped = g.Count(s => s.IsCapped)
-            })
-            .ToDictionaryAsync(x => x.RunId, ct);
-
-        var offerCounts = await sightings
-            .GroupBy(s => s.Search!.RunId)
-            .Select(g => new { RunId = g.Key, Count = g.Select(s => s.JobPostingId).Distinct().Count() })
-            .ToDictionaryAsync(x => x.RunId, x => x.Count, ct);
-
-        // Premier run (par date) où chaque offre a été vue, avec le poste qui l'a trouvée.
-        // On passe par la date et non l'Id : les runs reconstitués sont créés après coup.
-        var runIdByStart = runs.GroupBy(r => r.StartedUtc).ToDictionary(g => g.Key, g => g.First().Id);
-        var firstSeen = await sightings
-            .GroupBy(s => s.JobPostingId)
-            .Select(g => g.Min(s => s.Search!.Run!.StartedUtc))
+        var searches = await db.JobScrapeSearchesV2.AsNoTracking()
+            .Where(s => s.Run!.Status == "Completed")
+            .Select(s => new { s.Id, s.RunId, s.Role, s.City, s.Site, s.Succeeded, s.IsCapped })
             .ToListAsync(ct);
-        var newByRun = firstSeen
-            .GroupBy(d => runIdByStart.TryGetValue(d, out var id) ? id : 0)
+        var searchById = searches.ToDictionary(s => s.Id);
+
+        var sightings = await db.JobSightingsV2.AsNoTracking()
+            .Where(s => s.Search!.Run!.Status == "Completed")
+            .Select(s => new { s.SearchId, s.JobPostingId })
+            .ToListAsync(ct);
+
+        var postings = await db.JobPostingsV2.AsNoTracking()
+            .Select(p => new { p.Id, p.Title, p.Company, p.IsRemote })
+            .ToDictionaryAsync(p => p.Id, ct);
+
+        var matchers = await LoadMatchersAsync(db, ct);
+
+        // ----- Une ligne par (recherche, offre), avec la clé de comptage -----
+        var normTitle = new Dictionary<int, string>();
+        var matchCache = new Dictionary<(string, int), bool>();
+        var keyIds = new Dictionary<string, int>();
+        var rows = new List<Row>(sightings.Count);
+
+        foreach (var si in sightings)
+        {
+            var search = searchById[si.SearchId];
+            if (!postings.TryGetValue(si.JobPostingId, out var p)) continue;
+
+            if (!matchCache.TryGetValue((search.Role, p.Id), out var matched))
+            {
+                matched = !matchers.TryGetValue(search.Role, out var m) || m.Matches(p.Title);
+                matchCache[(search.Role, p.Id)] = matched;
+            }
+
+            int key = p.Id;
+            if (reliable)
+            {
+                if (!normTitle.TryGetValue(p.Id, out var nt))
+                    normTitle[p.Id] = nt = JobTitleMatcher.Normalize(p.Title) + "|" + JobTitleMatcher.Normalize(p.Company);
+                var k = nt + "|" + search.City;
+                if (!keyIds.TryGetValue(k, out key))
+                    keyIds[k] = key = keyIds.Count;
+            }
+
+            rows.Add(new Row(search.RunId, search.Role, search.City, search.Site, p.Id, key, p.IsRemote == true, matched));
+        }
+
+        var kept = reliable ? rows.Where(r => r.Matched).ToList() : rows;
+        static int Distinct(IEnumerable<Row> rs) => rs.Select(r => r.Key).Distinct().Count();
+
+        // ----- Runs -----
+        var searchCounts = searches.GroupBy(s => s.RunId).ToDictionary(g => g.Key, g => new
+        {
+            Total = g.Count(),
+            Failed = g.Count(s => !s.Succeeded),
+            Capped = g.Count(s => s.IsCapped)
+        });
+        var offerCounts = kept.GroupBy(r => r.RunId).ToDictionary(g => g.Key, Distinct);
+
+        // Premier run (par date) où chaque offre a été vue. Par date et non par Id : les runs
+        // reconstitués sont créés après coup.
+        var startById = runs.ToDictionary(r => r.Id, r => r.StartedUtc);
+        var runIdByStart = runs.GroupBy(r => r.StartedUtc).ToDictionary(g => g.Key, g => g.First().Id);
+        var newByRun = kept
+            .GroupBy(r => r.Key)
+            .Select(g => g.Min(r => startById[r.RunId]))
+            .GroupBy(d => runIdByStart[d])
             .ToDictionary(g => g.Key, g => g.Count());
 
         DateTime? previous = null;
@@ -126,37 +193,32 @@ public sealed class JobDataV2Service : IJobDataV2Service
             previous = r.StartedUtc;
         }
 
+        // ----- Photo du dernier run -----
         stats.Latest = stats.Runs[^1];
         int latestId = stats.Latest.Id;
-        var latest = sightings.Where(s => s.Search!.RunId == latestId);
+        var latest = kept.Where(r => r.RunId == latestId).ToList();
 
-        stats.LatestRemoteCount = await latest
-            .Where(s => s.JobPosting!.IsRemote == true)
-            .Select(s => s.JobPostingId).Distinct().CountAsync(ct);
+        stats.LatestRemoteCount = Distinct(latest.Where(r => r.Remote));
+        stats.LatestByRole = CountBy(latest, r => r.Role);
+        stats.LatestByCity = CountBy(latest, r => r.City);
+        stats.LatestBySite = CountBy(latest, r => r.Site);
+        stats.LatestByRoleCity = latest
+            .GroupBy(r => (r.Role, r.City))
+            .Select(g => new JobRoleCityItem(g.Key.Role, g.Key.City, Distinct(g)))
+            .ToList();
 
-        stats.LatestByRole = (await latest
-                .GroupBy(s => s.Search!.Role)
-                .Select(g => new { g.Key, Count = g.Select(s => s.JobPostingId).Distinct().Count() })
-                .ToListAsync(ct))
-            .OrderByDescending(x => x.Count).Select(x => new JobCountItem(x.Key, x.Count)).ToList();
-
-        stats.LatestByCity = (await latest
-                .GroupBy(s => s.Search!.City)
-                .Select(g => new { g.Key, Count = g.Select(s => s.JobPostingId).Distinct().Count() })
-                .ToListAsync(ct))
-            .OrderByDescending(x => x.Count).Select(x => new JobCountItem(x.Key, x.Count)).ToList();
-
-        stats.LatestBySite = (await latest
-                .GroupBy(s => s.Search!.Site)
-                .Select(g => new { g.Key, Count = g.Select(s => s.JobPostingId).Distinct().Count() })
-                .ToListAsync(ct))
-            .OrderByDescending(x => x.Count).Select(x => new JobCountItem(x.Key, x.Count)).ToList();
-
-        stats.LatestByRoleCity = (await latest
-                .GroupBy(s => new { s.Search!.Role, s.Search.City })
-                .Select(g => new { g.Key.Role, g.Key.City, Count = g.Select(s => s.JobPostingId).Distinct().Count() })
-                .ToListAsync(ct))
-            .Select(x => new JobRoleCityItem(x.Role, x.City, x.Count)).ToList();
+        var latestAll = rows.Where(r => r.RunId == latestId).ToList();
+        stats.LatestRelevance = latestAll
+            .GroupBy(r => r.Role)
+            .Select(g => new JobRoleRelevance(
+                g.Key,
+                g.Select(r => r.PostingId).Distinct().Count(),
+                g.Where(r => r.Matched).Select(r => r.PostingId).Distinct().Count(),
+                matchers.ContainsKey(g.Key)))
+            .OrderByDescending(x => x.MatchedCount)
+            .ToList();
+        if (reliable)
+            stats.LatestDuplicatesRemoved = latest.Select(r => r.PostingId).Distinct().Count() - Distinct(latest);
 
         stats.LatestIssues = await db.JobScrapeSearchesV2.AsNoTracking()
             .Where(s => s.RunId == latestId && (!s.Succeeded || s.IsCapped))
@@ -164,39 +226,111 @@ public sealed class JobDataV2Service : IJobDataV2Service
             .Select(s => new JobSearchV2Issue(s.Role, s.City, s.Site, s.ResultCount, s.Succeeded, s.IsCapped, s.Error))
             .ToListAsync(ct);
 
-        stats.TrendByRole = (await sightings
-                .GroupBy(s => new { s.Search!.RunId, s.Search.Role })
-                .Select(g => new { g.Key.RunId, g.Key.Role, Count = g.Select(s => s.JobPostingId).Distinct().Count() })
-                .ToListAsync(ct))
-            .Select(x => new JobRunV2RoleCount(x.RunId, x.Role, x.Count)).ToList();
+        // ----- Évolution -----
+        stats.TrendByRole = kept
+            .GroupBy(r => (r.RunId, r.Role))
+            .Select(g => new JobRunV2RoleCount(g.Key.RunId, g.Key.Role, Distinct(g)))
+            .ToList();
 
-        stats.TrendByRoleCity = (await sightings
-                .GroupBy(s => new { s.Search!.RunId, s.Search.Role, s.Search.City })
-                .Select(g => new { g.Key.RunId, g.Key.Role, g.Key.City, Count = g.Select(s => s.JobPostingId).Distinct().Count() })
-                .ToListAsync(ct))
-            .Select(x => new JobRunV2RoleCityCount(x.RunId, x.Role, x.City, x.Count)).ToList();
+        stats.TrendByRoleCity = kept
+            .GroupBy(r => (r.RunId, r.Role, r.City))
+            .Select(g => new JobRunV2RoleCityCount(g.Key.RunId, g.Key.Role, g.Key.City, Distinct(g)))
+            .ToList();
 
         // Nouvelles offres par run et par poste : une offre est "nouvelle" pour un poste lors du
-        // premier run où ce poste l'a trouvée.
-        var firstByRole = await sightings
-            .GroupBy(s => new { s.JobPostingId, s.Search!.Role })
-            .Select(g => new { g.Key.Role, First = g.Min(s => s.Search!.Run!.StartedUtc) })
-            .ToListAsync(ct);
-        // Premier run de chaque poste : il ramasse d'un coup tout le stock des 30 derniers jours,
-        // ce ne sont pas des "nouvelles" offres. Ce run est exclu (pas de valeur dans le graphe).
-        var roleFirstRun = await db.JobScrapeSearchesV2.AsNoTracking()
-            .Where(s => runIds.Contains(s.RunId))
+        // premier run où ce poste l'a trouvée. Le premier run de chaque poste ramasse d'un coup
+        // tout son stock : ce ne sont pas des "nouvelles" offres, ce run est exclu.
+        var roleFirstRun = searches
             .GroupBy(s => s.Role)
-            .Select(g => new { Role = g.Key, First = g.Min(s => s.Run!.StartedUtc) })
-            .ToDictionaryAsync(x => x.Role, x => x.First, ct);
-
+            .ToDictionary(g => g.Key, g => g.Min(s => startById[s.RunId]));
         stats.RoleFirstRunUtc = roleFirstRun;
-        stats.NewByRole = firstByRole
-            .Where(x => !roleFirstRun.TryGetValue(x.Role, out var first) || x.First != first)
-            .GroupBy(x => (RunId: runIdByStart.TryGetValue(x.First, out var id) ? id : 0, x.Role))
+
+        stats.NewByRole = kept
+            .GroupBy(r => (r.Key, r.Role))
+            .Select(g => (g.Key.Role, First: g.Min(r => startById[r.RunId])))
+            .Where(x => x.First != roleFirstRun[x.Role])
+            .GroupBy(x => (RunId: runIdByStart[x.First], x.Role))
             .Select(g => new JobRunV2RoleCount(g.Key.RunId, g.Key.Role, g.Count()))
             .ToList();
 
         return stats;
+    }
+
+    private static List<JobCountItem> CountBy(IEnumerable<Row> rows, Func<Row, string> label) =>
+        rows.GroupBy(label)
+            .Select(g => new JobCountItem(g.Key, g.Select(r => r.Key).Distinct().Count()))
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+    private static async Task<Dictionary<string, JobTitleMatcher>> LoadMatchersAsync(BlogContext db, CancellationToken ct)
+    {
+        var filters = await db.JobRoleFiltersV2.AsNoTracking().ToListAsync(ct);
+        return filters
+            .Select(f => (f.Role, Matcher: new JobTitleMatcher(f.IncludeTerms, f.ExcludeTerms)))
+            .Where(x => x.Matcher.IsFiltered)
+            .ToDictionary(x => x.Role, x => x.Matcher, StringComparer.OrdinalIgnoreCase);
+    }
+
+    // ----- Filtres de titre -----
+
+    public async Task<List<JobRoleFilterV2>> GetFiltersAsync(CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await db.JobRoleFiltersV2.AsNoTracking().OrderBy(f => f.Role).ToListAsync(ct);
+    }
+
+    public async Task SaveFilterAsync(string role, string includeTerms, string? excludeTerms, CancellationToken ct = default)
+    {
+        role = role.Trim();
+        var include = string.Join("\n", JobTitleMatcher.SplitTerms(includeTerms));
+        var exclude = string.Join("\n", JobTitleMatcher.SplitTerms(excludeTerms));
+
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var filter = await db.JobRoleFiltersV2.FirstOrDefaultAsync(f => f.Role == role, ct);
+
+        // Aucun terme inclus = plus de filtre pour ce poste.
+        if (include.Length == 0)
+        {
+            if (filter is not null)
+            {
+                db.JobRoleFiltersV2.Remove(filter);
+                await db.SaveChangesAsync(ct);
+            }
+            return;
+        }
+
+        if (filter is null)
+        {
+            filter = new JobRoleFilterV2 { Role = role };
+            db.JobRoleFiltersV2.Add(filter);
+        }
+        filter.IncludeTerms = include;
+        filter.ExcludeTerms = exclude.Length == 0 ? null : exclude;
+        filter.UpdatedUtc = DateTime.UtcNow;
+        await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<List<JobTitleCount>> GetLatestTitlesAsync(string role, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+
+        var latestId = await db.JobScrapeSearchesV2.AsNoTracking()
+            .Where(s => s.Role == role && s.Run!.Status == "Completed")
+            .OrderByDescending(s => s.Run!.StartedUtc)
+            .Select(s => (int?)s.RunId)
+            .FirstOrDefaultAsync(ct);
+        if (latestId is null) return [];
+
+        var titles = await db.JobSightingsV2.AsNoTracking()
+            .Where(s => s.Search!.RunId == latestId && s.Search.Role == role)
+            .Select(s => new { s.JobPostingId, s.JobPosting!.Title })
+            .Distinct()
+            .ToListAsync(ct);
+
+        return titles
+            .GroupBy(t => t.Title.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => new JobTitleCount(g.First().Title.Trim(), g.Count()))
+            .OrderByDescending(t => t.Count).ThenBy(t => t.Title)
+            .ToList();
     }
 }

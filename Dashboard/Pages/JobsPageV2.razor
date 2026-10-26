@@ -1,23 +1,62 @@
 @page "/job-data-v2"
 
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
+@using Dashboard.Components.Jobs
 
 @inherits LocalizedComponentBase
 @inject IJobDataV2Service JobService
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
 
 @rendermode RenderMode.InteractiveServer
 
 <PageTitle>Job Data V2</PageTitle>
 
-<div class="mb-4">
-    <h1 class="mb-1">@Language.Translate("Offres d'emploi (V2)", "Job Listings (V2)")</h1>
-    <p class="text-muted mb-0">
-        @Language.Translate(
-            "Chaque run garde la photo complète du marché : les offres en ligne publiées dans les 30 derniers jours. Les chiffres se comparent d'un run à l'autre, quel que soit l'écart entre deux runs.",
-            "Each run keeps a full snapshot of the market: listings online and posted within the last 30 days. Numbers are comparable from run to run, whatever the gap between runs.")
-    </p>
+<div class="mb-4 d-flex flex-wrap align-items-start justify-content-between gap-3">
+    <div style="max-width:52rem;">
+        <h1 class="mb-1">@Language.Translate("Offres d'emploi (V2)", "Job Listings (V2)")</h1>
+        <p class="text-muted mb-0">
+            @Language.Translate(
+                "Chaque run garde la photo complète du marché : les offres en ligne publiées dans les 30 derniers jours. Les chiffres se comparent d'un run à l'autre, quel que soit l'écart entre deux runs.",
+                "Each run keeps a full snapshot of the market: listings online and posted within the last 30 days. Numbers are comparable from run to run, whatever the gap between runs.")
+        </p>
+    </div>
+
+    <div class="text-end">
+        <div class="btn-group" role="group" aria-label="Mode">
+            <button type="button" class="btn btn-sm @(_reliable ? "btn-primary" : "btn-outline-secondary")"
+                    @onclick="() => SetModeAsync(true)" disabled="@_busy">
+                <i class="bi bi-shield-check me-1"></i>@Language.Translate("Fiabilisé", "Reliable")
+            </button>
+            <button type="button" class="btn btn-sm @(!_reliable ? "btn-primary" : "btn-outline-secondary")"
+                    @onclick="() => SetModeAsync(false)" disabled="@_busy">
+                @Language.Translate("Brut", "Raw")
+            </button>
+        </div>
+        @if (_isAdmin)
+        {
+            <button type="button" class="icon-btn ms-2 align-middle" title="@Language.Translate("Filtres de titre", "Title filters")"
+                    aria-label="@Language.Translate("Filtres de titre", "Title filters")" @onclick="() => _filtersOpen = true">
+                <i class="bi bi-funnel"></i>
+            </button>
+        }
+        <div class="small text-muted mt-1 ms-auto" style="max-width:24rem;">
+            @if (_reliable)
+            {
+                @Language.Translate(
+                    "Seules les offres dont le titre correspond au poste comptent ; une même offre sur LinkedIn et Indeed compte une fois.",
+                    "Only listings whose title matches the role count; the same listing on LinkedIn and Indeed counts once.")
+            }
+            else
+            {
+                @Language.Translate(
+                    "Tout ce que les sites renvoient, y compris les postes voisins et les doublons entre sites.",
+                    "Everything the sites return, including related roles and cross-site duplicates.")
+            }
+        </div>
+    </div>
 </div>
 
 @if (_error is not null)
@@ -138,6 +177,86 @@ else
             }
         </div>
     }
+
+    <!-- Classement des postes : qui recrute le plus ? -->
+    <div class="card mb-4">
+        <div class="card-header">@Language.Translate("Classement des postes — dernier run", "Role ranking — latest run")</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm mb-2 align-middle">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>@Language.Translate("Poste", "Role")</th>
+                            <th class="text-end">@Language.Translate("Offres", "Listings")</th>
+                            <th style="min-width:9rem;"></th>
+                            <th class="text-end">@Language.Translate("Renvoyées par les sites", "Returned by the sites")</th>
+                            <th class="text-end">@Language.Translate("Titre pertinent", "Relevant title")</th>
+                            <th>@Language.Translate("Fiabilité", "Reliability")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var rank = 0;
+                            var max = Math.Max(1, _stats.LatestByRole.Select(x => x.Count).DefaultIfEmpty(0).Max());
+                        }
+                        @foreach (var item in _stats.LatestByRole)
+                        {
+                            rank++;
+                            var rel = _stats.LatestRelevance.FirstOrDefault(r => r.Role == item.Label);
+                            var failed = _stats.LatestIssues.Count(i => i.Role == item.Label && !i.Succeeded);
+                            var capped = _stats.LatestIssues.Count(i => i.Role == item.Label && i.Succeeded && i.IsCapped);
+                            var width = (item.Count * 100.0 / max).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+                            <tr>
+                                <td class="text-muted">@rank</td>
+                                <td class="fw-semibold">@item.Label</td>
+                                <td class="text-end fw-semibold">@item.Count.ToString("N0")</td>
+                                <td>
+                                    <div style="height:8px;border-radius:4px;background:@RoleColor(item.Label);width:@(width)%;"></div>
+                                </td>
+                                <td class="text-end text-muted">@(rel?.RawCount.ToString("N0") ?? "—")</td>
+                                <td class="text-end">
+                                    @if (rel is null || !rel.IsFiltered)
+                                    {
+                                        <span class="text-muted">@Language.Translate("non filtré", "not filtered")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="@(rel.Percent < 30 ? "text-warning" : "")">@rel.Percent %</span>
+                                    }
+                                </td>
+                                <td class="small">
+                                    @if (failed > 0)
+                                    {
+                                        <span class="text-warning me-2"><i class="bi bi-exclamation-triangle me-1"></i>@Language.Translate($"{failed} recherche(s) en échec", $"{failed} failed search(es)")</span>
+                                    }
+                                    @if (capped > 0)
+                                    {
+                                        <span class="text-info"><i class="bi bi-arrow-bar-up me-1"></i>@Language.Translate($"{capped} plafonnée(s)", $"{capped} capped")</span>
+                                    }
+                                    @if (failed == 0 && capped == 0)
+                                    {
+                                        <span class="text-success"><i class="bi bi-check-circle me-1"></i>OK</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="small text-muted mb-0">
+                @Language.Translate(
+                    "« Renvoyées par les sites » : tout ce que LinkedIn et Indeed ont renvoyé pour la recherche, y compris des postes voisins. « Titre pertinent » : la part dont le titre passe le filtre du poste. Une recherche en échec ou plafonnée sous-estime le poste.",
+                    "'Returned by the sites': everything LinkedIn and Indeed returned for the search, including related roles. 'Relevant title': the share whose title passes the role's filter. A failed or capped search underestimates the role.")
+                @if (_stats.Reliable && _stats.LatestDuplicatesRemoved > 0)
+                {
+                    @Language.Translate(
+                        $" Doublons entre sites retirés : {_stats.LatestDuplicatesRemoved:N0}.",
+                        $" Cross-site duplicates removed: {_stats.LatestDuplicatesRemoved:N0}.")
+                }
+            </p>
+        </div>
+    </div>
 
     <!-- Évolution par poste -->
     <div class="row g-4 mb-4">
@@ -297,6 +416,12 @@ else
     </div>
 }
 
+@if (_isAdmin)
+{
+    <JobRoleFiltersModal IsOpen="_filtersOpen" IsOpenChanged="v => _filtersOpen = v"
+                         Roles="_roles" Saved="ReloadAsync" />
+}
+
 @code {
     private static readonly string[] Palette =
         ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac"];
@@ -306,6 +431,9 @@ else
     private JobStatsV2? _stats;
     private bool _chartsDrawn;
     private bool _showIssues;
+    private bool _reliable = true;
+    private bool _isAdmin;
+    private bool _filtersOpen;
 
     private List<string> _roles = [];
     private List<string> _cities = [];
@@ -332,16 +460,37 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        _isAdmin = auth.User.IsInRole("Admin");
+        await ReloadAsync();
+    }
+
+    private async Task SetModeAsync(bool reliable)
+    {
+        if (_reliable == reliable) return;
+        _reliable = reliable;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
         _busy = true;
+        _error = null;
+        _chartsDrawn = false;
+        StateHasChanged();
         try
         {
-            _stats = await JobService.GetStatsAsync();
+            _stats = await JobService.GetStatsAsync(_reliable);
 
-            // Rôles / villes connus sur tous les runs (un rôle ajouté récemment apparaît aussi).
-            _roles = _stats.TrendByRole.Select(x => x.Role).Distinct().OrderBy(x => x).ToList();
-            _cities = _stats.TrendByRoleCity.Select(x => x.City).Distinct().OrderBy(x => x).ToList();
-            _selectedRoles.UnionWith(_roles);
-            _selectedCities.UnionWith(_cities);
+            // Rôles / villes de tous les runs (y compris ceux sans offre pertinente). Les nouveaux
+            // sont cochés ; les choix existants sont conservés.
+            var roles = _stats.RoleFirstRunUtc.Keys.OrderBy(x => x).ToList();
+            var cities = _stats.TrendByRoleCity.Select(x => x.City)
+                .Concat(_stats.LatestByCity.Select(x => x.Label)).Distinct().OrderBy(x => x).ToList();
+            _selectedRoles.UnionWith(roles.Except(_roles));
+            _selectedCities.UnionWith(cities.Except(_cities));
+            _roles = roles;
+            _cities = cities;
         }
         catch (Exception ex)
         {
