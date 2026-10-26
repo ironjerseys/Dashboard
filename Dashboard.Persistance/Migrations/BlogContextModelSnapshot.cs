@@ -407,6 +407,180 @@ namespace Dashboard.Migrations
                     b.ToTable("JobPostings");
                 });
 
+            modelBuilder.Entity("Dashboard.Persistance.Entities.JobPostingV2", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Company")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTime?>("DatePosted")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FirstSeenUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Interval")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<bool?>("IsRemote")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JobLevel")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("JobType")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("JobUrl")
+                        .IsRequired()
+                        .HasMaxLength(800)
+                        .HasColumnType("nvarchar(800)");
+
+                    b.Property<string>("JobUrlDirect")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<DateTime>("LastSeenUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<decimal?>("MaxAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal?>("MinAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Site")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobUrl")
+                        .IsUnique();
+
+                    b.ToTable("JobPostingsV2", (string)null);
+                });
+
+            modelBuilder.Entity("Dashboard.Persistance.Entities.JobScrapeRunV2", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("FinishedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("HoursOld")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsBackfill")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ResultsPerSite")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartedUtc");
+
+                    b.ToTable("JobScrapeRunsV2", (string)null);
+                });
+
+            modelBuilder.Entity("Dashboard.Persistance.Entities.JobScrapeSearchV2", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
+                    b.Property<bool>("IsCapped")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ResultCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<int>("RunId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Site")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("Succeeded")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId", "Role", "City", "Site")
+                        .IsUnique();
+
+                    b.ToTable("JobScrapeSearchesV2", (string)null);
+                });
+
+            modelBuilder.Entity("Dashboard.Persistance.Entities.JobSightingV2", b =>
+                {
+                    b.Property<int>("SearchId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("JobPostingId")
+                        .HasColumnType("int");
+
+                    b.HasKey("SearchId", "JobPostingId");
+
+                    b.HasIndex("JobPostingId");
+
+                    b.ToTable("JobSightingsV2", (string)null);
+                });
+
             modelBuilder.Entity("Dashboard.Persistance.Entities.Label", b =>
                 {
                     b.Property<int>("Id")
@@ -1073,6 +1247,36 @@ namespace Dashboard.Migrations
                         .OnDelete(DeleteBehavior.Cascade);
                 });
 
+            modelBuilder.Entity("Dashboard.Persistance.Entities.JobScrapeSearchV2", b =>
+                {
+                    b.HasOne("Dashboard.Persistance.Entities.JobScrapeRunV2", "Run")
+                        .WithMany("Searches")
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Run");
+                });
+
+            modelBuilder.Entity("Dashboard.Persistance.Entities.JobSightingV2", b =>
+                {
+                    b.HasOne("Dashboard.Persistance.Entities.JobPostingV2", "JobPosting")
+                        .WithMany()
+                        .HasForeignKey("JobPostingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Dashboard.Persistance.Entities.JobScrapeSearchV2", "Search")
+                        .WithMany()
+                        .HasForeignKey("SearchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("JobPosting");
+
+                    b.Navigation("Search");
+                });
+
             modelBuilder.Entity("Dashboard.Persistance.Entities.LeitnerCard", b =>
                 {
                     b.HasOne("Dashboard.Persistance.Entities.QuestionTechnique", "Question")
@@ -1153,6 +1357,11 @@ namespace Dashboard.Migrations
             modelBuilder.Entity("Dashboard.Persistance.Entities.JobApplication", b =>
                 {
                     b.Navigation("Emails");
+                });
+
+            modelBuilder.Entity("Dashboard.Persistance.Entities.JobScrapeRunV2", b =>
+                {
+                    b.Navigation("Searches");
                 });
 #pragma warning restore 612, 618
         }
