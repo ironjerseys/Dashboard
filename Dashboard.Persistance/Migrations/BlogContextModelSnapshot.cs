@@ -406,15 +406,10 @@ namespace Dashboard.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
-                    b.Property<int?>("QuestionTechniqueId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
                         .IsUnique();
-
-                    b.HasIndex("QuestionTechniqueId");
 
                     b.ToTable("Labels");
                 });
@@ -995,6 +990,21 @@ namespace Dashboard.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("QuestionLabels", b =>
+                {
+                    b.Property<int>("QuestionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LabelId")
+                        .HasColumnType("int");
+
+                    b.HasKey("QuestionId", "LabelId");
+
+                    b.HasIndex("LabelId");
+
+                    b.ToTable("QuestionLabels");
+                });
+
             modelBuilder.Entity("Dashboard.Persistance.Entities.CodeChallengeCard", b =>
                 {
                     b.HasOne("Dashboard.Persistance.Entities.SqlChallenge", null)
@@ -1019,13 +1029,6 @@ namespace Dashboard.Migrations
                         .WithMany()
                         .HasForeignKey("SqlChallengeId")
                         .OnDelete(DeleteBehavior.Cascade);
-                });
-
-            modelBuilder.Entity("Dashboard.Persistance.Entities.Label", b =>
-                {
-                    b.HasOne("Dashboard.Persistance.Entities.QuestionTechnique", null)
-                        .WithMany("Labels")
-                        .HasForeignKey("QuestionTechniqueId");
                 });
 
             modelBuilder.Entity("Dashboard.Persistance.Entities.LeitnerCard", b =>
@@ -1090,14 +1093,24 @@ namespace Dashboard.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("QuestionLabels", b =>
+                {
+                    b.HasOne("Dashboard.Persistance.Entities.Label", null)
+                        .WithMany()
+                        .HasForeignKey("LabelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Dashboard.Persistance.Entities.QuestionTechnique", null)
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Dashboard.Persistance.Entities.JobApplication", b =>
                 {
                     b.Navigation("Emails");
-                });
-
-            modelBuilder.Entity("Dashboard.Persistance.Entities.QuestionTechnique", b =>
-                {
-                    b.Navigation("Labels");
                 });
 #pragma warning restore 612, 618
         }
