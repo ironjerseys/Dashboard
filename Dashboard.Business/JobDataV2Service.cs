@@ -42,6 +42,9 @@ public class JobStatsV2
     public List<JobRunV2RoleCount> TrendByRole { get; set; } = [];
     public List<JobRunV2RoleCityCount> TrendByRoleCity { get; set; } = [];
     public List<JobRunV2RoleCount> NewByRole { get; set; } = [];
+
+    // Date du premier run de chaque poste (son premier run n'a pas de "nouvelles" offres).
+    public Dictionary<string, DateTime> RoleFirstRunUtc { get; set; } = new();
 }
 
 public interface IJobDataV2Service
@@ -179,7 +182,17 @@ public sealed class JobDataV2Service : IJobDataV2Service
             .GroupBy(s => new { s.JobPostingId, s.Search!.Role })
             .Select(g => new { g.Key.Role, First = g.Min(s => s.Search!.Run!.StartedUtc) })
             .ToListAsync(ct);
+        // Premier run de chaque poste : il ramasse d'un coup tout le stock des 30 derniers jours,
+        // ce ne sont pas des "nouvelles" offres. Ce run est exclu (pas de valeur dans le graphe).
+        var roleFirstRun = await db.JobScrapeSearchesV2.AsNoTracking()
+            .Where(s => runIds.Contains(s.RunId))
+            .GroupBy(s => s.Role)
+            .Select(g => new { Role = g.Key, First = g.Min(s => s.Run!.StartedUtc) })
+            .ToDictionaryAsync(x => x.Role, x => x.First, ct);
+
+        stats.RoleFirstRunUtc = roleFirstRun;
         stats.NewByRole = firstByRole
+            .Where(x => !roleFirstRun.TryGetValue(x.Role, out var first) || x.First != first)
             .GroupBy(x => (RunId: runIdByStart.TryGetValue(x.First, out var id) ? id : 0, x.Role))
             .Select(g => new JobRunV2RoleCount(g.Key.RunId, g.Key.Role, g.Count()))
             .ToList();

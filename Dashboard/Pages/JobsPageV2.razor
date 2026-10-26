@@ -207,8 +207,8 @@ else
                 <div class="card-body">
                     <p class="small text-muted mb-2">
                         @Language.Translate(
-                            "Offres vues pour la première fois lors du run, divisées par le nombre de jours depuis le run précédent.",
-                            "Listings seen for the first time in the run, divided by the number of days since the previous run.")
+                            "Offres vues pour la première fois lors du run, divisées par le nombre de jours depuis le run précédent. Le premier run d'un poste n'a pas de valeur : il ramasse tout son stock d'un coup.",
+                            "Listings seen for the first time in the run, divided by the number of days since the previous run. A role's first run has no value: it picks up its whole stock at once.")
                     </p>
                     <div style="height:300px;">
                         <canvas id="v2NewPerDayChart"></canvas>
@@ -403,15 +403,18 @@ else
 
             await DrawCityTrendChartAsync();
 
-            // Nouvelles offres par jour, par poste (pas de valeur pour le tout premier run)
+            // Nouvelles offres par jour, par poste. Pas de valeur avant ni pendant le premier run
+            // du poste : ce run ramasse tout son stock d'un coup.
             var newByRole = _stats.NewByRole.ToDictionary(x => (x.RunId, x.Role), x => x.Count);
             var newDatasets = _roles.Select(role => new
             {
                 label = role,
                 color = RoleColor(role),
-                data = _stats.Runs.Select(r => r.DaysSincePrevious is > 0 && newByRole.TryGetValue((r.Id, role), out var c)
-                    ? (double?)Math.Round(c / r.DaysSincePrevious.Value, 1)
-                    : null).ToArray()
+                data = _stats.Runs.Select(r =>
+                    r.DaysSincePrevious is > 0
+                    && _stats.RoleFirstRunUtc.TryGetValue(role, out var first) && r.StartedUtc > first
+                        ? (double?)Math.Round(newByRole.GetValueOrDefault((r.Id, role)) / r.DaysSincePrevious.Value, 1)
+                        : null).ToArray()
             }).ToArray();
             await JS.InvokeVoidAsync("JobCharts.multiLine", "v2NewPerDayChart", labels, newDatasets);
 
