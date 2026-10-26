@@ -3,9 +3,11 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Web
 @using Microsoft.JSInterop
+@using Dashboard.Components.Jobs
 
 @inherits LocalizedComponentBase
 @inject IJobPostingService JobService
+@inject IJobDataSettingsService SettingsService
 @inject ScraperTriggerService Scraper
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IJSRuntime JS
@@ -21,6 +23,10 @@
     @if (_isAdmin)
     {
         <div class="text-end">
+            <button type="button" class="icon-btn me-2 align-middle" title="@Language.Translate("Paramètres", "Settings")"
+                    aria-label="@Language.Translate("Paramètres", "Settings")" @onclick="() => _settingsOpen = true">
+                <i class="bi bi-sliders"></i>
+            </button>
             <button class="btn btn-primary" @onclick="RunScraperAsync" disabled="@(_scraperRunning || _scraperBusy)">
                 @if (_scraperRunning)
                 {
@@ -95,22 +101,27 @@
         </div>
 
         <!-- Row 1 : évolution par rôle -->
+        @if (IsVisible("role-trend"))
+        {
         <div class="row g-4 mb-4">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header">@Language.Translate("Évolution (par run de scraping)", "Trend (by scraping run)")</div>
+                    <div class="card-header">@ChartTitle("role-trend")</div>
                     <div class="card-body" style="height:340px;">
                         <canvas id="weekChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
+        }
 
         <!-- Row 2 : évolution par ville -->
+        @if (IsVisible("city-trend"))
+        {
         <div class="row g-4 mb-4">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header">@Language.Translate("Évolution par ville (par run de scraping)", "Trend by city (by scraping run)")</div>
+                    <div class="card-header">@ChartTitle("city-trend")</div>
                     <div class="card-body">
                         <!-- Filtres : ne s'appliquent qu'à ce graphe -->
                         <div class="mb-3">
@@ -154,32 +165,46 @@
                 </div>
             </div>
         </div>
+        }
 
         <!-- Row 3 -->
+        @if (RowVisible(3))
+        {
         <div class="row g-4 mb-4">
-            <div class="col-md-6">
+            @if (IsVisible("by-role"))
+            {
+            <div class="@ColClass("by-role")">
                 <div class="card h-100">
-                    <div class="card-header">@Language.Translate("Offres par rôle", "Listings by role")</div>
+                    <div class="card-header">@ChartTitle("by-role")</div>
                     <div class="card-body">
                         <canvas id="roleChart"></canvas>
                     </div>
                 </div>
             </div>
-            <div class="col-md-6">
+            }
+            @if (IsVisible("by-city"))
+            {
+            <div class="@ColClass("by-city")">
                 <div class="card h-100">
-                    <div class="card-header">@Language.Translate("Offres par ville", "Listings by city")</div>
+                    <div class="card-header">@ChartTitle("by-city")</div>
                     <div class="card-body">
                         <canvas id="cityChart"></canvas>
                     </div>
                 </div>
             </div>
+            }
         </div>
+        }
 
         <!-- Row 4 -->
+        @if (RowVisible(4))
+        {
         <div class="row g-4">
-            <div class="col-md-4">
+            @if (IsVisible("by-site"))
+            {
+            <div class="@ColClass("by-site")">
                 <div class="card h-100">
-                    <div class="card-header">@Language.Translate("Répartition par site", "Distribution by source")</div>
+                    <div class="card-header">@ChartTitle("by-site")</div>
                     <div class="card-body d-flex align-items-center justify-content-center">
                         <div style="width:100%;max-width:220px;">
                             <canvas id="siteChart"></canvas>
@@ -187,20 +212,76 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-8">
+            }
+            @if (IsVisible("role-city"))
+            {
+            <div class="@ColClass("role-city")">
                 <div class="card h-100">
-                    <div class="card-header">@Language.Translate("Offres par rôle et par ville", "Listings by role and city")</div>
+                    <div class="card-header">@ChartTitle("role-city")</div>
                     <div class="card-body" style="height: @($"{Math.Max(280, _stats.ByCity.Count * _stats.ByRole.Count * 22 + 60)}px")">
                         <canvas id="roleCityChart"></canvas>
                     </div>
                 </div>
             </div>
+            }
         </div>
+        }
+
+        @if (ChartDefs.All(c => !IsVisible(c.Key)))
+        {
+            <div class="alert alert-info">@Language.Translate("Tous les graphes sont masqués.", "All charts are hidden.")</div>
+        }
     }
 
-
+@if (_isAdmin)
+{
+    <JobDataSettingsModal IsOpen="_settingsOpen"
+                          IsOpenChanged="open => _settingsOpen = open"
+                          Charts="ChartOptions"
+                          HiddenCharts="_hiddenCharts"
+                          HiddenChartsChanged="OnHiddenChartsChanged" />
+}
 
 @code {
+    // Graphes de la page. Row = ligne d'affichage ; si un graphe est seul visible sur sa ligne,
+    // il prend toute la largeur. Key = clé stockée dans HiddenJobCharts.
+    private sealed record ChartDef(string Key, string TitleFr, string TitleEn, int Row, string ColClass);
+
+    private static readonly ChartDef[] ChartDefs =
+    [
+        new("role-trend", "Évolution (par run de scraping)", "Trend (by scraping run)", 1, "col-12"),
+        new("city-trend", "Évolution par ville (par run de scraping)", "Trend by city (by scraping run)", 2, "col-12"),
+        new("by-role", "Offres par rôle", "Listings by role", 3, "col-md-6"),
+        new("by-city", "Offres par ville", "Listings by city", 3, "col-md-6"),
+        new("by-site", "Répartition par site", "Distribution by source", 4, "col-md-4"),
+        new("role-city", "Offres par rôle et par ville", "Listings by role and city", 4, "col-md-8"),
+    ];
+
+    private HashSet<string> _hiddenCharts = new();
+    private bool _settingsOpen;
+
+    private bool IsVisible(string key) => !_hiddenCharts.Contains(key);
+    private bool RowVisible(int row) => ChartDefs.Any(c => c.Row == row && IsVisible(c.Key));
+
+    private string ChartTitle(string key)
+    {
+        var def = ChartDefs.First(c => c.Key == key);
+        return Language.Translate(def.TitleFr, def.TitleEn);
+    }
+
+    private string ColClass(string key)
+    {
+        var def = ChartDefs.First(c => c.Key == key);
+        bool alone = ChartDefs.Count(c => c.Row == def.Row && IsVisible(c.Key)) == 1;
+        return alone ? "col-12" : def.ColClass;
+    }
+
+    private IReadOnlyList<JobDataSettingsModal.ChartOption> ChartOptions =>
+        ChartDefs.Select(c => new JobDataSettingsModal.ChartOption(c.Key, ChartTitle(c.Key))).ToList();
+
+    // Un graphe réaffiché a un nouveau canvas : on redessine tout au prochain rendu.
+    private void OnHiddenChartsChanged() => _chartsDrawn = false;
+
     // Même palette que jobcharts.js : une couleur fixe par rôle / ville, stable quand on filtre.
     private static readonly string[] Palette =
         ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac"];
@@ -279,6 +360,7 @@
         try
         {
             _stats = await JobService.GetStatsAsync();
+            _hiddenCharts = await SettingsService.GetHiddenChartsAsync();
 
             // Les nouveaux rôles / villes (ex. après un run) sont cochés par défaut ; les choix existants sont conservés.
             var newRoles = _stats.ByRole.Select(x => x.Label).Except(_roles);

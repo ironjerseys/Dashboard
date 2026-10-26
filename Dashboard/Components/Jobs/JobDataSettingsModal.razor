@@ -1,0 +1,212 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using global::Dashboard.Persistance.Entities
+
+@inherits LocalizedComponentBase
+@namespace Dashboard.Components.Jobs
+
+@inject IJobDataSettingsService SettingsService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@if (IsOpen)
+{
+    <div class="modal fade show" style="display:block;" tabindex="-1" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg" role="document" @onclick:stopPropagation="true">
+            <div class="modal-content glass-modal text-white">
+
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">
+                        <i class="bi bi-sliders me-2"></i>@Language.Translate("Paramètres", "Settings")
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" aria-label="Close"
+                            @onclick="CloseAsync" disabled="@_busy"></button>
+                </div>
+
+                <div class="modal-body">
+                    @if (_loading)
+                    {
+                        <div class="jd-hint">@Language.Translate("Chargement…", "Loading…")</div>
+                    }
+                    else
+                    {
+                        <!-- Postes recherchés par le scraper -->
+                        <h6 class="mb-1 text-white">@Language.Translate("Postes recherchés", "Searched job titles")</h6>
+                        <p class="small jd-hint mb-2">
+                            @Language.Translate(
+                                "Le scraper cherche chacun de ces postes dans chaque ville. Un poste ajouté apparaît dans les graphes après le prochain scraping et ne peut pas être supprimé ici.",
+                                "The scraper searches each of these titles in every city. An added title shows up in the charts after the next scrape and cannot be removed here.")
+                        </p>
+
+                        <ul class="list-group list-group-flush mb-3">
+                            @foreach (var role in _roles)
+                            {
+                                <li class="list-group-item bg-transparent text-white border-secondary px-0 py-2" @key="role.Id">@role.SearchTerm</li>
+                            }
+                        </ul>
+
+                        <label class="form-label small mb-1 text-white" for="new-role-term">@Language.Translate("Ajouter un poste", "Add a job title")</label>
+                        <div class="input-group mb-2">
+                            <input id="new-role-term" class="form-control" placeholder="Product Owner" maxlength="128"
+                                   @bind="_newTerm" @bind:event="oninput" @onkeydown="OnTermKeyDownAsync" disabled="@_busy" />
+                            <button class="btn btn-primary" @onclick="AddRoleAsync" disabled="@(_busy || string.IsNullOrWhiteSpace(_newTerm))">
+                                <i class="bi bi-plus-lg me-1"></i>@Language.Translate("Ajouter", "Add")
+                            </button>
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(_roleMessage))
+                        {
+                            <div class="alert @(_roleMessageIsError ? "alert-danger" : "alert-success") py-2 mb-0">@_roleMessage</div>
+                        }
+
+                        <hr class="my-4" />
+
+                        <!-- Graphes affichés -->
+                        <h6 class="mb-1 text-white">@Language.Translate("Graphes affichés", "Visible charts")</h6>
+                        <p class="small jd-hint mb-2">
+                            @Language.Translate("S'applique à tous les visiteurs de la page.", "Applies to every visitor of the page.")
+                        </p>
+
+                        @foreach (var chart in Charts)
+                        {
+                            var id = $"chart-toggle-{chart.Key}";
+                            <div class="form-check form-switch mb-2" @key="chart.Key">
+                                <input class="form-check-input" type="checkbox" role="switch" id="@id"
+                                       checked="@(!HiddenCharts.Contains(chart.Key))"
+                                       @onchange="e => SetChartVisibleAsync(chart.Key, e.Value is true)"
+                                       disabled="@_busy" />
+                                <label class="form-check-label text-white" for="@id">@chart.Title</label>
+                            </div>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(_chartError))
+                        {
+                            <div class="alert alert-danger py-2 mt-2 mb-0">@_chartError</div>
+                        }
+                    }
+                </div>
+
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseAsync" disabled="@_busy">
+                        @Language.Translate("Fermer", "Close")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show" @onclick="CloseAsync"></div>
+
+    <style>
+        .jd-hint {
+            color: rgba(255,255,255,.7);
+        }
+
+        .glass-modal {
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(20, 20, 22, .88);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,.55);
+        }
+    </style>
+}
+
+@code {
+    public sealed record ChartOption(string Key, string Title);
+
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+
+    // Graphes de la page (clé + titre traduit) et clés actuellement masquées.
+    [Parameter] public IReadOnlyList<ChartOption> Charts { get; set; } = Array.Empty<ChartOption>();
+    [Parameter] public HashSet<string> HiddenCharts { get; set; } = new();
+    [Parameter] public EventCallback HiddenChartsChanged { get; set; }
+
+    private bool _wasOpen;
+    private bool _loading;
+    private bool _busy;
+    private List<ScraperRole> _roles = new();
+    private string? _newTerm;
+    private string? _roleMessage;
+    private bool _roleMessageIsError;
+    private string? _chartError;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Recharge la liste à chaque ouverture.
+        if (IsOpen && !_wasOpen)
+        {
+            _roleMessage = null;
+            _chartError = null;
+            _loading = true;
+            try { _roles = await SettingsService.GetRolesAsync(); }
+            finally { _loading = false; }
+        }
+        _wasOpen = IsOpen;
+    }
+
+    private async Task<bool> IsAdminAsync()
+    {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return auth.User.IsInRole("Admin");
+    }
+
+    private async Task AddRoleAsync()
+    {
+        if (!await IsAdminAsync()) return;
+
+        _busy = true;
+        _roleMessage = null;
+        try
+        {
+            var result = await SettingsService.AddRoleAsync(_newTerm ?? "");
+            _roleMessageIsError = result != AddScraperRoleResult.Added;
+            _roleMessage = result switch
+            {
+                AddScraperRoleResult.Added => Language.Translate($"« {_newTerm!.Trim()} » ajouté.", $"\"{_newTerm!.Trim()}\" added."),
+                AddScraperRoleResult.AlreadyExists => Language.Translate("Ce poste est déjà dans la liste.", "This title is already in the list."),
+                AddScraperRoleResult.TooLong => Language.Translate("Texte trop long.", "Text is too long."),
+                _ => Language.Translate("Saisis un poste.", "Enter a job title.")
+            };
+
+            if (result == AddScraperRoleResult.Added)
+            {
+                _newTerm = null;
+                _roles = await SettingsService.GetRolesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _roleMessageIsError = true;
+            _roleMessage = ex.Message;
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task OnTermKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !_busy && !string.IsNullOrWhiteSpace(_newTerm))
+            await AddRoleAsync();
+    }
+
+    private async Task SetChartVisibleAsync(string key, bool visible)
+    {
+        if (!await IsAdminAsync()) return;
+
+        _busy = true;
+        _chartError = null;
+        try
+        {
+            await SettingsService.SetChartVisibleAsync(key, visible);
+            if (visible) HiddenCharts.Remove(key); else HiddenCharts.Add(key);
+            await HiddenChartsChanged.InvokeAsync();
+        }
+        catch (Exception ex) { _chartError = ex.Message; }
+        finally { _busy = false; }
+    }
+
+    private async Task CloseAsync()
+    {
+        if (_busy) return;
+        await IsOpenChanged.InvokeAsync(false);
+    }
+}
