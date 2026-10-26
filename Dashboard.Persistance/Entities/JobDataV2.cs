@@ -80,3 +80,18 @@ public class JobSightingV2
     public int JobPostingId { get; set; }
     public JobPostingV2? JobPosting { get; set; }
 }
+
+// Filtre de titre d'un poste : une offre ne compte pour ce poste que si son titre contient
+// un des termes inclus et aucun des termes exclus (voir Dashboard.Business/JobTitleMatcher.cs).
+// Appliqué à l'affichage : les offres brutes restent en base. Pas de ligne = pas de filtre.
+public class JobRoleFilterV2
+{
+    // Même valeur que JobScrapeSearchV2.Role (= ScraperRoles.SearchTerm).
+    public string Role { get; set; } = "";
+
+    // Un terme par ligne.
+    public string IncludeTerms { get; set; } = "";
+    public string? ExcludeTerms { get; set; }
+
+    public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
+}

@@ -1,0 +1,219 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+
+@inherits LocalizedComponentBase
+@namespace Dashboard.Components.Jobs
+
+@inject IJobDataV2Service JobService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@if (IsOpen)
+{
+    <div class="modal fade show" style="display:block;" tabindex="-1" aria-modal="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl" role="document" @onclick:stopPropagation="true">
+            <div class="modal-content glass-modal text-white">
+
+                <div class="modal-header border-0">
+                    <h5 class="modal-title">
+                        <i class="bi bi-funnel me-2"></i>@Language.Translate("Filtres de titre", "Title filters")
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" aria-label="Close" @onclick="CloseAsync" disabled="@_busy"></button>
+                </div>
+
+                <div class="modal-body">
+                    <p class="small jd-hint mb-3">
+                        @Language.Translate(
+                            "Une offre ne compte pour un poste que si son titre contient au moins un terme inclus et aucun terme exclu. Un terme par ligne ; majuscules, accents et pluriel en « s » ignorés ; mots entiers (« ba » ne trouve pas « MBA »). Aucun terme inclus = poste non filtré. S'applique aussi à l'historique, rien n'est supprimé en base.",
+                            "A listing only counts for a role if its title contains at least one included term and no excluded term. One term per line; case, accents and plural \"s\" are ignored; whole words (\"ba\" does not match \"MBA\"). No included term = role not filtered. Also applies to past runs; nothing is deleted from the database.")
+                    </p>
+
+                    <div class="mb-3" style="max-width:360px;">
+                        <label class="form-label small mb-1 text-white" for="filter-role">@Language.Translate("Poste", "Role")</label>
+                        <select id="filter-role" class="form-select" value="@_role" @onchange="e => SelectRoleAsync(e.Value?.ToString())" disabled="@_busy">
+                            @foreach (var role in Roles)
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                    </div>
+
+                    @if (_loading)
+                    {
+                        <div class="jd-hint">@Language.Translate("Chargement…", "Loading…")</div>
+                    }
+                    else if (_role is not null)
+                    {
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1 text-white" for="filter-include">@Language.Translate("Termes inclus", "Included terms")</label>
+                                <textarea id="filter-include" class="form-control font-monospace" rows="9"
+                                          @bind="_include" @bind:event="oninput" @bind:after="Recompute" disabled="@_busy"></textarea>
+
+                                <label class="form-label small mb-1 mt-3 text-white" for="filter-exclude">@Language.Translate("Termes exclus", "Excluded terms")</label>
+                                <textarea id="filter-exclude" class="form-control font-monospace" rows="4"
+                                          @bind="_exclude" @bind:event="oninput" @bind:after="Recompute" disabled="@_busy"></textarea>
+
+                                <button class="btn btn-primary mt-3" @onclick="SaveAsync" disabled="@_busy">
+                                    <i class="bi bi-check-lg me-1"></i>@Language.Translate("Enregistrer", "Save")
+                                </button>
+                                @if (!string.IsNullOrWhiteSpace(_message))
+                                {
+                                    <div class="alert @(_messageIsError ? "alert-danger" : "alert-success") py-2 mt-2 mb-0">@_message</div>
+                                }
+                            </div>
+
+                            <div class="col-md-8">
+                                @if (_titles.Count == 0)
+                                {
+                                    <div class="jd-hint">@Language.Translate("Aucune offre pour ce poste dans le dernier run.", "No listing for this role in the latest run.")</div>
+                                }
+                                else
+                                {
+                                    <div class="fw-semibold mb-2">
+                                        @Language.Translate(
+                                            $"Dernier run : {_keptCount} offres gardées sur {_totalCount} ({Pct(_keptCount, _totalCount)} %).",
+                                            $"Latest run: {_keptCount} of {_totalCount} listings kept ({Pct(_keptCount, _totalCount)}%).")
+                                    </div>
+                                    <div class="row g-3">
+                                        <div class="col-lg-6">
+                                            <div class="small text-success mb-1"><i class="bi bi-check-circle me-1"></i>@Language.Translate("Gardées", "Kept")</div>
+                                            <ul class="list-unstyled small mb-0 jd-titles">
+                                                @foreach (var t in _kept.Take(60))
+                                                {
+                                                    <li><span class="jd-hint me-1">@t.Count×</span>@t.Title</li>
+                                                }
+                                            </ul>
+                                        </div>
+                                        <div class="col-lg-6">
+                                            <div class="small text-danger mb-1"><i class="bi bi-x-circle me-1"></i>@Language.Translate("Rejetées", "Rejected")</div>
+                                            <ul class="list-unstyled small mb-0 jd-titles">
+                                                @foreach (var t in _rejected.Take(60))
+                                                {
+                                                    <li><span class="jd-hint me-1">@t.Count×</span>@t.Title</li>
+                                                }
+                                            </ul>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseAsync" disabled="@_busy">@Language.Translate("Fermer", "Close")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop fade show" @onclick="CloseAsync"></div>
+
+    <style>
+        .jd-hint { color: rgba(255,255,255,.7); }
+        .jd-titles { max-height: 420px; overflow-y: auto; }
+        .jd-titles li { padding: 1px 0; }
+        .glass-modal {
+            border-radius: 18px;
+            border: 1px solid rgba(255,255,255,.12);
+            background: rgba(20, 20, 22, .88);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 60px rgba(0,0,0,.55);
+        }
+    </style>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    [Parameter] public IReadOnlyList<string> Roles { get; set; } = Array.Empty<string>();
+
+    // Appelé à la fermeture si un filtre a été enregistré (la page recalcule ses stats).
+    [Parameter] public EventCallback Saved { get; set; }
+
+    private bool _wasOpen;
+    private bool _loading;
+    private bool _busy;
+    private bool _changed;
+    private string? _role;
+    private string? _include;
+    private string? _exclude;
+    private string? _message;
+    private bool _messageIsError;
+
+    private Dictionary<string, global::Dashboard.Persistance.Entities.JobRoleFilterV2> _filters = new(StringComparer.OrdinalIgnoreCase);
+    private List<JobTitleCount> _titles = [];
+    private List<JobTitleCount> _kept = [];
+    private List<JobTitleCount> _rejected = [];
+    private int _keptCount;
+    private int _totalCount;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (IsOpen && !_wasOpen)
+        {
+            _changed = false;
+            _filters = (await JobService.GetFiltersAsync()).ToDictionary(f => f.Role, StringComparer.OrdinalIgnoreCase);
+            await SelectRoleAsync(_role is not null && Roles.Contains(_role) ? _role : Roles.FirstOrDefault());
+        }
+        _wasOpen = IsOpen;
+    }
+
+    private async Task SelectRoleAsync(string? role)
+    {
+        _role = role;
+        _message = null;
+        if (role is null) return;
+
+        _filters.TryGetValue(role, out var f);
+        _include = f?.IncludeTerms;
+        _exclude = f?.ExcludeTerms;
+
+        _loading = true;
+        try { _titles = await JobService.GetLatestTitlesAsync(role); }
+        finally { _loading = false; }
+        Recompute();
+    }
+
+    private void Recompute()
+    {
+        var matcher = new JobTitleMatcher(_include, _exclude);
+        _kept = _titles.Where(t => matcher.Matches(t.Title)).ToList();
+        _rejected = _titles.Where(t => !matcher.Matches(t.Title)).ToList();
+        _keptCount = _kept.Sum(t => t.Count);
+        _totalCount = _titles.Sum(t => t.Count);
+    }
+
+    private static int Pct(int a, int b) => b == 0 ? 0 : (int)Math.Round(a * 100.0 / b);
+
+    private async Task SaveAsync()
+    {
+        var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (!auth.User.IsInRole("Admin") || _role is null) return;
+
+        _busy = true;
+        _message = null;
+        try
+        {
+            await JobService.SaveFilterAsync(_role, _include ?? "", _exclude);
+            _filters = (await JobService.GetFiltersAsync()).ToDictionary(f => f.Role, StringComparer.OrdinalIgnoreCase);
+            _changed = true;
+            _messageIsError = false;
+            _message = string.IsNullOrWhiteSpace(_include)
+                ? Language.Translate("Enregistré : ce poste n'est plus filtré.", "Saved: this role is no longer filtered.")
+                : Language.Translate("Enregistré.", "Saved.");
+        }
+        catch (Exception ex)
+        {
+            _messageIsError = true;
+            _message = ex.Message;
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task CloseAsync()
+    {
+        if (_busy) return;
+        await IsOpenChanged.InvokeAsync(false);
+        if (_changed) await Saved.InvokeAsync();
+    }
+}

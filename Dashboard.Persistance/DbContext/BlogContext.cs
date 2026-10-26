@@ -26,6 +26,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<JobScrapeSearchV2> JobScrapeSearchesV2 => Set<JobScrapeSearchV2>();
     public DbSet<JobPostingV2> JobPostingsV2 => Set<JobPostingV2>();
     public DbSet<JobSightingV2> JobSightingsV2 => Set<JobSightingV2>();
+    public DbSet<JobRoleFilterV2> JobRoleFiltersV2 => Set<JobRoleFilterV2>();
     public DbSet<HiddenJobChart> HiddenJobCharts => Set<HiddenJobChart>();
     public DbSet<ReminderSetting> ReminderSettings => Set<ReminderSetting>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
@@ -202,6 +203,15 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             e.HasIndex(s => s.JobPostingId);
             e.HasOne(s => s.Search).WithMany().HasForeignKey(s => s.SearchId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(s => s.JobPosting).WithMany().HasForeignKey(s => s.JobPostingId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<JobRoleFilterV2>(e =>
+        {
+            e.ToTable("JobRoleFiltersV2");
+            e.HasKey(f => f.Role);
+            e.Property(f => f.Role).HasMaxLength(128);
+            e.Property(f => f.IncludeTerms).HasMaxLength(4000);
+            e.Property(f => f.ExcludeTerms).HasMaxLength(4000);
         });
 
         builder.Entity<MechanicJobPosting>(e =>
