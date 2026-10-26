@@ -40,12 +40,13 @@ namespace Dashboard.Migrations
                 column: "LabelId");
 
             // Reprise des liens existants (Labels.QuestionTechniqueId) avant de supprimer la colonne.
+            // EXEC : compilé à l'exécution, pour que le script idempotent (un seul batch) reste valide.
             migrationBuilder.Sql(@"
-INSERT INTO [QuestionLabels] (QuestionId, LabelId)
+EXEC(N'INSERT INTO [QuestionLabels] (QuestionId, LabelId)
 SELECT l.QuestionTechniqueId, l.Id
 FROM [Labels] l
 WHERE l.QuestionTechniqueId IS NOT NULL
-  AND EXISTS (SELECT 1 FROM [QuizQuestions] q WHERE q.Id = l.QuestionTechniqueId);");
+  AND EXISTS (SELECT 1 FROM [QuizQuestions] q WHERE q.Id = l.QuestionTechniqueId);');");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_Labels_QuizQuestions_QuestionTechniqueId",
