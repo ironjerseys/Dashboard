@@ -1,0 +1,478 @@
+@page "/job-data-v2"
+
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+
+@inherits LocalizedComponentBase
+@inject IJobDataV2Service JobService
+@inject IJSRuntime JS
+
+@rendermode RenderMode.InteractiveServer
+
+<PageTitle>Job Data V2</PageTitle>
+
+<div class="mb-4">
+    <h1 class="mb-1">@Language.Translate("Offres d'emploi (V2)", "Job Listings (V2)")</h1>
+    <p class="text-muted mb-0">
+        @Language.Translate(
+            "Chaque run garde la photo complète du marché : les offres en ligne publiées dans les 30 derniers jours. Les chiffres se comparent d'un run à l'autre, quel que soit l'écart entre deux runs.",
+            "Each run keeps a full snapshot of the market: listings online and posted within the last 30 days. Numbers are comparable from run to run, whatever the gap between runs.")
+    </p>
+</div>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger">@_error</div>
+}
+else if (_busy)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">@Language.Translate("Chargement des stats…", "Loading stats…")</p>
+    </div>
+}
+else if (_stats?.Latest is null)
+{
+    <div class="alert alert-info">
+        @Language.Translate(
+            "Aucun run V2 en base. Lance le scraper, ou joue scripts/backfill-job-data-v2.sql pour reprendre l'historique.",
+            "No V2 run in the database yet. Run the scraper, or run scripts/backfill-job-data-v2.sql to import the history.")
+    </div>
+}
+else
+{
+    var latest = _stats.Latest;
+
+    <!-- KPI : photo du dernier run -->
+    <div class="stat-bar mb-3">
+        <div class="stat-bar-item accent">
+            <i class="bi bi-briefcase stat-bar-icon"></i>
+            <div>
+                <div class="stat-bar-num">@latest.OfferCount.ToString("N0")</div>
+                <div class="stat-bar-label">@Language.Translate("Offres en ligne (dernier run)", "Listings online (latest run)")</div>
+            </div>
+        </div>
+        <div class="stat-bar-item">
+            <i class="bi bi-house-door stat-bar-icon"></i>
+            <div>
+                <div class="stat-bar-num">@RemotePct%</div>
+                <div class="stat-bar-label">Remote</div>
+            </div>
+        </div>
+        <div class="stat-bar-item">
+            <i class="bi bi-stars stat-bar-icon"></i>
+            <div>
+                <div class="stat-bar-num">@latest.NewOfferCount.ToString("N0")</div>
+                <div class="stat-bar-label">@Language.Translate("Nouvelles depuis le run précédent", "New since previous run")</div>
+            </div>
+        </div>
+        <div class="stat-bar-item">
+            <i class="bi bi-clock-history stat-bar-icon"></i>
+            <div>
+                <div class="stat-bar-num" style="font-size:1.15rem;">@latest.StartedUtc.ToString("dd/MM/yyyy")</div>
+                <div class="stat-bar-label">@Language.Translate("Dernier run", "Latest run")@(latest.IsBackfill ? " *" : "")</div>
+            </div>
+        </div>
+    </div>
+
+    @if (latest.FailedSearchCount > 0 || latest.CappedSearchCount > 0)
+    {
+        <div class="alert @(latest.FailedSearchCount > 0 ? "alert-warning" : "alert-info") mb-4">
+            @if (latest.FailedSearchCount > 0)
+            {
+                <div class="fw-semibold">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    @Language.Translate(
+                        $"{latest.FailedSearchCount} recherche(s) sur {latest.SearchCount} ont échoué lors du dernier run : leurs chiffres sont partiels.",
+                        $"{latest.FailedSearchCount} of {latest.SearchCount} searches failed in the latest run: their numbers are partial.")
+                </div>
+            }
+            @if (latest.CappedSearchCount > 0)
+            {
+                <div class="fw-semibold">
+                    <i class="bi bi-arrow-bar-up me-1"></i>
+                    @Language.Translate(
+                        $"{latest.CappedSearchCount} recherche(s) ont atteint le plafond de résultats : le vrai nombre d'offres est peut-être plus grand.",
+                        $"{latest.CappedSearchCount} searches hit the result cap: the real number of listings may be higher.")
+                </div>
+            }
+            <button class="btn btn-link btn-sm p-0 mt-1" @onclick="() => _showIssues = !_showIssues">
+                @(_showIssues ? Language.Translate("Masquer le détail", "Hide details") : Language.Translate("Voir le détail", "Show details"))
+            </button>
+            @if (_showIssues)
+            {
+                <div class="table-responsive mt-2">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>@Language.Translate("Poste", "Role")</th>
+                                <th>@Language.Translate("Ville", "City")</th>
+                                <th>Site</th>
+                                <th class="text-end">@Language.Translate("Offres", "Listings")</th>
+                                <th>@Language.Translate("Problème", "Issue")</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var issue in _stats.LatestIssues)
+                            {
+                                <tr>
+                                    <td>@issue.Role</td>
+                                    <td>@issue.City</td>
+                                    <td>@issue.Site</td>
+                                    <td class="text-end">@issue.ResultCount</td>
+                                    <td class="small">
+                                        @if (!issue.Succeeded)
+                                        {
+                                            @(issue.Error ?? Language.Translate("Échec", "Failed"))
+                                        }
+                                        else
+                                        {
+                                            @Language.Translate("Plafond atteint", "Cap reached")
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Évolution par poste -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">@Language.Translate("Offres en ligne par run, par poste", "Listings online by run, by role")</div>
+                <div class="card-body" style="height:340px;">
+                    <canvas id="v2RoleTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Évolution par ville, filtrable -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">@Language.Translate("Offres en ligne par run, par ville", "Listings online by run, by city")</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            <strong class="me-2" style="min-width:4rem;">@Language.Translate("Rôles", "Roles")</strong>
+                            @foreach (var role in _roles)
+                            {
+                                var id = $"v2role-{_roles.IndexOf(role)}";
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="checkbox" id="@id"
+                                           checked="@_selectedRoles.Contains(role)"
+                                           @onchange="e => ToggleAsync(_selectedRoles, role, (bool)e.Value!)" />
+                                    <label class="form-check-label" for="@id">@role</label>
+                                </div>
+                            }
+                            <button class="btn btn-link btn-sm p-0 ms-auto" @onclick="() => SetAllAsync(_selectedRoles, _roles, true)">@Language.Translate("Tous", "All")</button>
+                            <span class="text-muted">/</span>
+                            <button class="btn btn-link btn-sm p-0" @onclick="() => SetAllAsync(_selectedRoles, _roles, false)">@Language.Translate("Aucun", "None")</button>
+                        </div>
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <strong class="me-2" style="min-width:4rem;">@Language.Translate("Villes", "Cities")</strong>
+                            @foreach (var city in _cities)
+                            {
+                                var id = $"v2city-{_cities.IndexOf(city)}";
+                                <div class="form-check form-check-inline mb-0">
+                                    <input class="form-check-input" type="checkbox" id="@id"
+                                           checked="@_selectedCities.Contains(city)"
+                                           @onchange="e => ToggleAsync(_selectedCities, city, (bool)e.Value!)" />
+                                    <label class="form-check-label" for="@id">@city</label>
+                                </div>
+                            }
+                            <button class="btn btn-link btn-sm p-0 ms-auto" @onclick="() => SetAllAsync(_selectedCities, _cities, true)">@Language.Translate("Toutes", "All")</button>
+                            <span class="text-muted">/</span>
+                            <button class="btn btn-link btn-sm p-0" @onclick="() => SetAllAsync(_selectedCities, _cities, false)">@Language.Translate("Aucune", "None")</button>
+                        </div>
+                    </div>
+                    <div style="height:340px;">
+                        <canvas id="v2CityTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Nouvelles offres par jour -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">@Language.Translate("Nouvelles offres par jour, par poste", "New listings per day, by role")</div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        @Language.Translate(
+                            "Offres vues pour la première fois lors du run, divisées par le nombre de jours depuis le run précédent.",
+                            "Listings seen for the first time in the run, divided by the number of days since the previous run.")
+                    </p>
+                    <div style="height:300px;">
+                        <canvas id="v2NewPerDayChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Photo du dernier run -->
+    <h2 class="h5 mb-3">@Language.Translate("Dernier run", "Latest run") — @latest.StartedUtc.ToString("dd/MM/yyyy")</h2>
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">@Language.Translate("Offres par poste", "Listings by role")</div>
+                <div class="card-body"><canvas id="v2RoleChart"></canvas></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">@Language.Translate("Offres par ville", "Listings by city")</div>
+                <div class="card-body"><canvas id="v2CityChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header">@Language.Translate("Répartition par site", "Distribution by source")</div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <div style="width:100%;max-width:220px;"><canvas id="v2SiteChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card h-100">
+                <div class="card-header">@Language.Translate("Offres par poste et par ville", "Listings by role and city")</div>
+                <div class="card-body" style="height: @($"{Math.Max(280, _stats.LatestByCity.Count * _stats.LatestByRole.Count * 22 + 60)}px")">
+                    <canvas id="v2RoleCityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Liste des runs -->
+    <div class="card mb-4">
+        <div class="card-header">Runs</div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm mb-2">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th class="text-end">@Language.Translate("Offres en ligne", "Listings online")</th>
+                            <th class="text-end">@Language.Translate("Nouvelles", "New")</th>
+                            <th class="text-end">@Language.Translate("Nouvelles / jour", "New / day")</th>
+                            <th class="text-end">@Language.Translate("Recherches", "Searches")</th>
+                            <th class="text-end">@Language.Translate("Échecs", "Failed")</th>
+                            <th class="text-end">@Language.Translate("Plafonnées", "Capped")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var run in _stats.Runs.AsEnumerable().Reverse())
+                        {
+                            <tr>
+                                <td>@run.StartedUtc.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td>@(run.IsBackfill ? Language.Translate("Reconstitué *", "Reconstructed *") : Language.Translate("Réel", "Real"))</td>
+                                <td class="text-end">@run.OfferCount.ToString("N0")</td>
+                                <td class="text-end">@run.NewOfferCount.ToString("N0")</td>
+                                <td class="text-end">@(run.NewOffersPerDay?.ToString("N1") ?? "—")</td>
+                                <td class="text-end">@run.SearchCount</td>
+                                <td class="text-end @(run.FailedSearchCount > 0 ? "text-warning fw-semibold" : "")">@run.FailedSearchCount</td>
+                                <td class="text-end">@run.CappedSearchCount</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p class="small text-muted mb-0">
+                @Language.Translate(
+                    "* Run reconstitué à partir de l'ancien système : une offre y est comptée entre sa première apparition et 30 jours après sa publication. ⚠ dans les graphes = run avec des recherches en échec.",
+                    "* Run reconstructed from the old system: a listing is counted from its first appearance until 30 days after it was posted. ⚠ in the charts = run with failed searches.")
+            </p>
+        </div>
+    </div>
+}
+
+@code {
+    private static readonly string[] Palette =
+        ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac"];
+
+    private bool _busy;
+    private string? _error;
+    private JobStatsV2? _stats;
+    private bool _chartsDrawn;
+    private bool _showIssues;
+
+    private List<string> _roles = [];
+    private List<string> _cities = [];
+    private readonly HashSet<string> _selectedRoles = [];
+    private readonly HashSet<string> _selectedCities = [];
+
+    private int RemotePct => _stats?.Latest is { OfferCount: > 0 } l
+        ? (int)Math.Round(_stats.LatestRemoteCount * 100.0 / l.OfferCount)
+        : 0;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Language.OnChange += OnLangChange;
+    }
+
+    private void OnLangChange() => _chartsDrawn = false;
+
+    public override void Dispose()
+    {
+        Language.OnChange -= OnLangChange;
+        base.Dispose();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _busy = true;
+        try
+        {
+            _stats = await JobService.GetStatsAsync();
+
+            // Rôles / villes connus sur tous les runs (un rôle ajouté récemment apparaît aussi).
+            _roles = _stats.TrendByRole.Select(x => x.Role).Distinct().OrderBy(x => x).ToList();
+            _cities = _stats.TrendByRoleCity.Select(x => x.City).Distinct().OrderBy(x => x).ToList();
+            _selectedRoles.UnionWith(_roles);
+            _selectedCities.UnionWith(_cities);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_stats?.Latest is not null && !_chartsDrawn)
+        {
+            _chartsDrawn = true;
+            await DrawChartsAsync();
+        }
+    }
+
+    private async Task ToggleAsync(HashSet<string> set, string value, bool selected)
+    {
+        if (selected) set.Add(value); else set.Remove(value);
+        await DrawCityTrendChartAsync();
+    }
+
+    private async Task SetAllAsync(HashSet<string> set, List<string> all, bool selected)
+    {
+        set.Clear();
+        if (selected) set.UnionWith(all);
+        await DrawCityTrendChartAsync();
+    }
+
+    private string RoleColor(string role) => Palette[Math.Max(0, _roles.IndexOf(role)) % Palette.Length];
+    private string CityColor(string city) => Palette[Math.Max(0, _cities.IndexOf(city)) % Palette.Length];
+
+    // Libellé d'un run sur l'axe : * = reconstitué, ⚠ = recherches en échec.
+    private string[] RunLabels() => _stats!.Runs
+        .Select(r => r.StartedUtc.ToString("dd/MM/yy") + (r.IsBackfill ? " *" : "") + (r.IsIncomplete ? " ⚠" : ""))
+        .ToArray();
+
+    private async Task DrawChartsAsync()
+    {
+        if (_stats?.Latest is null) return;
+
+        try
+        {
+            var labels = RunLabels();
+
+            // Offres en ligne par run, par poste
+            var byRole = _stats.TrendByRole.ToDictionary(x => (x.RunId, x.Role), x => x.Count);
+            var roleDatasets = _roles.Select(role => new
+            {
+                label = role,
+                color = RoleColor(role),
+                data = _stats.Runs.Select(r => byRole.TryGetValue((r.Id, role), out var c) ? (int?)c : null).ToArray()
+            }).ToArray();
+            await JS.InvokeVoidAsync("JobCharts.multiLine", "v2RoleTrendChart", labels, roleDatasets);
+
+            await DrawCityTrendChartAsync();
+
+            // Nouvelles offres par jour, par poste (pas de valeur pour le tout premier run)
+            var newByRole = _stats.NewByRole.ToDictionary(x => (x.RunId, x.Role), x => x.Count);
+            var newDatasets = _roles.Select(role => new
+            {
+                label = role,
+                color = RoleColor(role),
+                data = _stats.Runs.Select(r => r.DaysSincePrevious is > 0 && newByRole.TryGetValue((r.Id, role), out var c)
+                    ? (double?)Math.Round(c / r.DaysSincePrevious.Value, 1)
+                    : null).ToArray()
+            }).ToArray();
+            await JS.InvokeVoidAsync("JobCharts.multiLine", "v2NewPerDayChart", labels, newDatasets);
+
+            // Photo du dernier run
+            await JS.InvokeVoidAsync("JobCharts.bar", "v2RoleChart",
+                _stats.LatestByRole.Select(x => x.Label).ToArray(),
+                _stats.LatestByRole.Select(x => x.Count).ToArray(),
+                Language.Translate("Offres", "Listings"),
+                _stats.LatestByRole.Select(x => RoleColor(x.Label)).ToArray());
+
+            await JS.InvokeVoidAsync("JobCharts.bar", "v2CityChart",
+                _stats.LatestByCity.Select(x => x.Label).ToArray(),
+                _stats.LatestByCity.Select(x => x.Count).ToArray(),
+                Language.Translate("Offres", "Listings"),
+                _stats.LatestByCity.Select(x => CityColor(x.Label)).ToArray());
+
+            await JS.InvokeVoidAsync("JobCharts.doughnut", "v2SiteChart",
+                _stats.LatestBySite.Select(x => x.Label).ToArray(),
+                _stats.LatestBySite.Select(x => x.Count).ToArray());
+
+            var roles = _stats.LatestByRole.Select(x => x.Label).ToList();
+            var cities = _stats.LatestByCity.Select(x => x.Label).ToList();
+            var lookup = _stats.LatestByRoleCity.ToDictionary(x => (x.Role, x.City), x => x.Count);
+            var roleCityDatasets = roles.Select(role => new
+            {
+                label = role,
+                color = RoleColor(role),
+                data = cities.Select(city => lookup.TryGetValue((role, city), out var c) ? c : 0).ToArray()
+            }).ToArray();
+            await JS.InvokeVoidAsync("JobCharts.groupedBar", "v2RoleCityChart", cities.ToArray(), roleCityDatasets);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error rendering job charts V2: {ex.Message}");
+        }
+    }
+
+    // Une courbe par ville cochée, sommée sur les postes cochés.
+    private async Task DrawCityTrendChartAsync()
+    {
+        if (_stats?.Latest is null) return;
+
+        var byCity = _stats.TrendByRoleCity
+            .Where(x => _selectedRoles.Contains(x.Role) && _selectedCities.Contains(x.City))
+            .GroupBy(x => (x.RunId, x.City))
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Count));
+
+        var datasets = _cities.Where(_selectedCities.Contains).Select(city => new
+        {
+            label = city,
+            color = CityColor(city),
+            data = _stats.Runs.Select(r => byCity.TryGetValue((r.Id, city), out var c) ? c : 0).ToArray()
+        }).ToArray();
+
+        try
+        {
+            await JS.InvokeVoidAsync("JobCharts.multiLine", "v2CityTrendChart", RunLabels(), datasets);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error rendering city trend chart V2: {ex.Message}");
+        }
+    }
+}
