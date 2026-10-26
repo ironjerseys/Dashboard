@@ -45,6 +45,16 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             e.Property(l => l.Name).HasMaxLength(64).IsRequired();
         });
 
+        // Un label (theme) regroupe plusieurs questions, une question peut avoir plusieurs labels.
+        builder.Entity<QuestionTechnique>()
+            .HasMany(q => q.Labels)
+            .WithMany()
+            .UsingEntity<Dictionary<string, object>>(
+                "QuestionLabels",
+                right => right.HasOne<Label>().WithMany().HasForeignKey("LabelId").OnDelete(DeleteBehavior.Cascade),
+                left => left.HasOne<QuestionTechnique>().WithMany().HasForeignKey("QuestionId").OnDelete(DeleteBehavior.Cascade),
+                join => join.HasKey("QuestionId", "LabelId"));
+
         builder.Entity<LeitnerCard>()
             .HasIndex(card => new { card.OwnerId, card.QuizQuestionId })
             .IsUnique();
