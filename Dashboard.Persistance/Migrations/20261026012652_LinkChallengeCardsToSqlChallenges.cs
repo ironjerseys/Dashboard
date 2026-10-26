@@ -24,17 +24,18 @@ namespace Dashboard.Migrations
 
             // Nettoyage avant la clé étrangère : on supprime les lignes "sql-{id}" dont le
             // défi n'existe plus (ex : sql-1), puis on renseigne SqlChallengeId pour les autres.
+            // EXEC : compilé à l'exécution, pour que le script idempotent (un seul batch) reste valide.
             foreach (string table in new[] { "CodeChallengeCards", "InactiveChallenges" })
             {
                 migrationBuilder.Sql($@"
-DELETE t FROM [{table}] t
-WHERE t.ChallengeKey LIKE 'sql-%'
-  AND NOT EXISTS (SELECT 1 FROM [SqlChallenges] s WHERE CONCAT('sql-', s.Id) = t.ChallengeKey);");
+EXEC(N'DELETE t FROM [{table}] t
+WHERE t.ChallengeKey LIKE ''sql-%''
+  AND NOT EXISTS (SELECT 1 FROM [SqlChallenges] s WHERE CONCAT(''sql-'', s.Id) = t.ChallengeKey);');");
 
                 migrationBuilder.Sql($@"
-UPDATE t SET t.SqlChallengeId = s.Id
+EXEC(N'UPDATE t SET t.SqlChallengeId = s.Id
 FROM [{table}] t
-JOIN [SqlChallenges] s ON CONCAT('sql-', s.Id) = t.ChallengeKey;");
+JOIN [SqlChallenges] s ON CONCAT(''sql-'', s.Id) = t.ChallengeKey;');");
             }
 
             migrationBuilder.CreateIndex(
