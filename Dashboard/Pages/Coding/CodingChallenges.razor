@@ -31,6 +31,10 @@
     {
         <div class="text-muted">Loading…</div>
     }
+    else if (Challenges.Length == 0)
+    {
+        <div class="alert alert-warning">No coding challenge available.</div>
+    }
     else
     {
         <div class="row g-3">
@@ -96,20 +100,8 @@
     private string _userId = string.Empty;
     private Dictionary<string, CodeChallengeCardInfo> _cards = new();
 
-    private record ChallengeCard(string Key, string Title, string Description, string Href, string Icon);
-
-    private static readonly ChallengeCard[] Challenges =
-    {
-        new("singleton", "Singleton Pattern",
-            "Implement a thread-safe singleton with a private constructor and a single shared instance.",
-            "/coding/singleton", "bi-box"),
-        new("two-sum", "Two Sum",
-            "Return the indices of the two numbers that add up to a target. A classic interview warm-up.",
-            "/coding/two-sum", "bi-plus-slash-minus"),
-        new("three-sum", "Three Sum",
-            "Find all unique triplets that sum to zero. A very common interview question.",
-            "/coding/three-sum", "bi-collection"),
-    };
+    // Défis actifs uniquement (un administrateur peut en désactiver depuis /quiz/manage).
+    private CodingChallengeInfo[] Challenges = Array.Empty<CodingChallengeInfo>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,6 +109,9 @@
         var user = authState.User;
         _isAuthenticated = user.Identity?.IsAuthenticated ?? false;
         _userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+        var inactiveKeys = await ReviewService.GetInactiveKeysAsync();
+        Challenges = CodingChallengeCatalog.All.Where(c => !inactiveKeys.Contains(c.Key)).ToArray();
 
         if (_isAuthenticated && !string.IsNullOrWhiteSpace(_userId))
         {

@@ -17,6 +17,7 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<LeitnerReview> LeitnerReviews => Set<LeitnerReview>();
     public DbSet<CodeChallengeCard> CodeChallengeCards => Set<CodeChallengeCard>();
     public DbSet<SqlChallenge> SqlChallenges => Set<SqlChallenge>();
+    public DbSet<InactiveChallenge> InactiveChallenges => Set<InactiveChallenge>();
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<JobPosting> JobPostings => Set<JobPosting>();
     public DbSet<MechanicJobPosting> MechanicJobPostings => Set<MechanicJobPosting>();

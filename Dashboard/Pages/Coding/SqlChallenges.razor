@@ -111,7 +111,10 @@
         _isAuthenticated = user.Identity?.IsAuthenticated ?? false;
         _userId = user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
-        _challenges = await SqlService.GetAllAsync();
+        var inactiveKeys = await ReviewService.GetInactiveKeysAsync();
+        _challenges = (await SqlService.GetAllAsync())
+            .Where(c => !inactiveKeys.Contains(CodingChallengeCatalog.SqlKey(c.Id)))
+            .ToList();
 
         if (_isAuthenticated && !string.IsNullOrWhiteSpace(_userId))
         {
