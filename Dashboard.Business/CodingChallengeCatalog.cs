@@ -1,4 +1,4 @@
-namespace Dashboard.Services;
+namespace Dashboard.Business;
 
 public sealed record CodingChallengeInfo(string Key, string Title, string Description, string Href, string Icon);
 
@@ -20,4 +20,11 @@ public static class CodingChallengeCatalog
     };
 
     public static string SqlKey(int sqlChallengeId) => $"sql-{sqlChallengeId}";
+
+    // "sql-12" -> 12 ; null pour une clé de défi de code.
+    public static int? ParseSqlId(string challengeKey) =>
+        challengeKey.StartsWith("sql-", StringComparison.Ordinal)
+        && int.TryParse(challengeKey.AsSpan(4), out int id)
+            ? id
+            : null;
 }

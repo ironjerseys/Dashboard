@@ -76,6 +76,7 @@ public class CodeChallengeReviewService : ICodeChallengeReviewService
             {
                 OwnerId = ownerId,
                 ChallengeKey = challengeKey,
+                SqlChallengeId = CodingChallengeCatalog.ParseSqlId(challengeKey),
                 Box = 1,
                 NextDueDate = todayUtc,
                 CreatedUtc = DateTime.UtcNow,
@@ -106,6 +107,7 @@ public class CodeChallengeReviewService : ICodeChallengeReviewService
             {
                 OwnerId = ownerId,
                 ChallengeKey = challengeKey,
+                SqlChallengeId = CodingChallengeCatalog.ParseSqlId(challengeKey),
                 Box = 1,
                 NextDueDate = todayUtc,
                 CreatedUtc = DateTime.UtcNow,
@@ -142,6 +144,16 @@ public class CodeChallengeReviewService : ICodeChallengeReviewService
             .Where(c => !dbContext.InactiveChallenges.Any(i => i.ChallengeKey == c.ChallengeKey))
             .Select(c => c.ChallengeKey)
             .ToListAsync(cancellationToken);
+
+        // Les cartes SQL disparaissent avec leur défi (cascade). Pour les défis de code,
+        // qui n'ont pas de table, on ignore les cartes absentes du catalogue.
+        HashSet<string> codingKeys = CodingChallengeCatalog.All
+            .Select(c => c.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
+        dueKeys = dueKeys
+            .Where(k => CodingChallengeCatalog.ParseSqlId(k) is not null || codingKeys.Contains(k))
+            .ToList();
 
         int sql = dueKeys.Count(k => k.StartsWith("sql-", StringComparison.Ordinal));
         int coding = dueKeys.Count - sql;
@@ -184,7 +196,11 @@ public class CodeChallengeReviewService : ICodeChallengeReviewService
             .ToListAsync(cancellationToken);
 
         foreach (string key in challengeKeys.Distinct().Except(alreadyInactive))
-            dbContext.InactiveChallenges.Add(new InactiveChallenge { ChallengeKey = key });
+            dbContext.InactiveChallenges.Add(new InactiveChallenge
+            {
+                ChallengeKey = key,
+                SqlChallengeId = CodingChallengeCatalog.ParseSqlId(key)
+            });
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
