@@ -10,6 +10,8 @@
 @using Microsoft.AspNetCore.Components.Web
 
 @inject IDbQuizService QuizService
+@inject ISqlChallengeService SqlService
+@inject ICodeChallengeReviewService ChallengeService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 @rendermode RenderMode.InteractiveServer
@@ -21,7 +23,7 @@
     <div class="mb-4">
         <a href="/quiz/all" class="text-decoration-none small">&larr; Technical Questions</a>
         <h1 class="mb-1 mt-2">Manage questions</h1>
-        <p class="text-muted mb-0">Create, edit and delete technical questions.</p>
+        <p class="text-muted mb-0">Create, edit and delete technical questions. Activate or deactivate questions, coding and SQL challenges.</p>
     </div>
 
     @if (!_isAdmin)
@@ -32,7 +34,7 @@
     {
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
             <span class="text-muted">
-                @_questions.Count question(s) &bull; @ActiveCount active &bull; @(_questions.Count - ActiveCount) inactive
+                @_items.Count item(s) &bull; @ActiveCount active &bull; @(_items.Count - ActiveCount) inactive
             </span>
             <button class="btn" @onclick="OpenCreateModal" disabled="@_busy">+ New question</button>
         </div>
@@ -40,6 +42,12 @@
         <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
             <input class="form-control" style="max-width:22rem" placeholder="Search question, answer or label…"
                    @bind="_search" @bind:event="oninput" @bind:after="OnFilterChanged" />
+            <select class="form-select" style="max-width:12rem" @bind="_typeFilter" @bind:after="OnFilterChanged">
+                <option value="all">All types</option>
+                <option value="question">Questions (@_questions.Count)</option>
+                <option value="coding">Coding (@_items.Count(i => i.Kind == ItemKind.Coding))</option>
+                <option value="sql">SQL (@_items.Count(i => i.Kind == ItemKind.Sql))</option>
+            </select>
             <select class="form-select" style="max-width:10rem" @bind="_statusFilter" @bind:after="OnFilterChanged">
                 <option value="all">All</option>
                 <option value="active">Active</option>
@@ -52,13 +60,13 @@
             <div class="alert alert-danger">@_error</div>
         }
 
-        @if (_busy && _questions.Count == 0)
+        @if (_busy && _items.Count == 0)
         {
             <div class="text-muted">Loading…</div>
         }
         else if (_rows.Count == 0)
         {
-            <div class="alert alert-info">No question matches.</div>
+            <div class="alert alert-info">No item matches.</div>
         }
         else
         {
@@ -85,77 +93,96 @@
             </div>
         }
 
-        @foreach (var question in PageRows)
+        @foreach (var item in PageRows)
         {
-            <div class="card p-3 mb-3 @(question.IsActive ? "" : "opacity-50")" @key="question.Id">
+            var question = item.Question;
+            <div class="card p-3 mb-3 @(item.IsActive ? "" : "opacity-50")" @key="item.Key">
                 <div class="d-flex justify-content-between gap-3 flex-wrap">
                     <div class="form-check mb-0 flex-shrink-0">
                         <input class="form-check-input" type="checkbox" title="Select"
-                               checked="@_selected.Contains(question.Id)"
-                               @onchange="e => ToggleSelected(question.Id, e.Value is true)"
+                               checked="@_selected.Contains(item.Key)"
+                               @onchange="e => ToggleSelected(item.Key, e.Value is true)"
                                disabled="@_busy" />
                     </div>
                     <div class="flex-grow-1 min-w-0">
-                        <div class="fw-semibold mb-2">
-                            @if (!question.IsActive)
-                            {
-                                <span class="badge bg-secondary me-2">Inactive</span>
-                            }
-                            @QuizRender.RenderQuestionText(question.QuestionText)
-                        </div>
-
-                        <ol class="mb-2 ps-3">
-                            @for (int ci = 0; ci < 4; ci++)
-                            {
-                                var isCorrect = question.CorrectAnswer == ci;
-                                <li class="@(isCorrect ? "text-success fw-semibold" : "")">
-                                    @QuizRender.RenderInlineHtmlOrText(QuizRender.GetChoiceText(question, ci))
-                                </li>
-                            }
-                        </ol>
-
-                        @if (!string.IsNullOrWhiteSpace(question.Explanation))
+                        @if (question is null)
                         {
-                            <div class="mt-2">
-                                <div class="text-muted small fw-semibold mb-1">Explanation</div>
-                                @if (QuizRender.LooksLikeHtml(question.Explanation))
+                            <div class="fw-semibold mb-2">
+                                @if (!item.IsActive)
                                 {
-                                    <div class="quiz-html">@((MarkupString)(question.Explanation ?? string.Empty))</div>
+                                    <span class="badge bg-secondary me-2">Inactive</span>
                                 }
-                                else
+                                <span class="badge @(item.Kind == ItemKind.Sql ? "bg-info" : "bg-primary") me-2">@(item.Kind == ItemKind.Sql ? "SQL" : "Coding")</span>
+                                <a href="@item.Href" class="text-decoration-none">@item.Title</a>
+                            </div>
+                            <div class="text-muted small">@item.Description</div>
+                        }
+                        else
+                        {
+                            <div class="fw-semibold mb-2">
+                                @if (!item.IsActive)
                                 {
-                                    <div class="text-muted">@question.Explanation</div>
+                                    <span class="badge bg-secondary me-2">Inactive</span>
+                                }
+                                @QuizRender.RenderQuestionText(question.QuestionText)
+                            </div>
+
+                            <ol class="mb-2 ps-3">
+                                @for (int ci = 0; ci < 4; ci++)
+                                {
+                                    var isCorrect = question.CorrectAnswer == ci;
+                                    <li class="@(isCorrect ? "text-success fw-semibold" : "")">
+                                        @QuizRender.RenderInlineHtmlOrText(QuizRender.GetChoiceText(question, ci))
+                                    </li>
+                                }
+                            </ol>
+
+                            @if (!string.IsNullOrWhiteSpace(question.Explanation))
+                            {
+                                <div class="mt-2">
+                                    <div class="text-muted small fw-semibold mb-1">Explanation</div>
+                                    @if (QuizRender.LooksLikeHtml(question.Explanation))
+                                    {
+                                        <div class="quiz-html">@((MarkupString)(question.Explanation ?? string.Empty))</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-muted">@question.Explanation</div>
+                                    }
+                                </div>
+                            }
+
+                            <div class="small text-muted mt-2">
+                                Correct answer: <strong>@(question.CorrectAnswer + 1)</strong>
+                                @if (question.Labels.Count > 0)
+                                {
+                                    <span class="mx-2">&bull;</span>
+                                    <span>@string.Join(", ", question.Labels.Select(l => l.Name))</span>
                                 }
                             </div>
                         }
-
-                        <div class="small text-muted mt-2">
-                            Correct answer: <strong>@(question.CorrectAnswer + 1)</strong>
-                            @if (question.Labels.Count > 0)
-                            {
-                                <span class="mx-2">&bull;</span>
-                                <span>@string.Join(", ", question.Labels.Select(l => l.Name))</span>
-                            }
-                        </div>
                     </div>
 
                     <div class="d-flex gap-2 align-items-start flex-shrink-0">
-                        <div class="form-check form-switch mb-0 mt-2" title="@(question.IsActive ? "Active — click to deactivate" : "Inactive — click to activate")">
+                        <div class="form-check form-switch mb-0 mt-2" title="@(item.IsActive ? "Active — click to deactivate" : "Inactive — click to activate")">
                             <input class="form-check-input" type="checkbox" role="switch"
-                                   checked="@question.IsActive"
-                                   @onchange="e => SetActiveAsync(question, e.Value is true)"
+                                   checked="@item.IsActive"
+                                   @onchange="e => SetActiveAsync(item, e.Value is true)"
                                    disabled="@_busy" />
                         </div>
-                        <button class="btn" title="Edit"
-                                @onclick="() => OpenEditModal(question)"
-                                disabled="@_busy">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button class="btn" title="Delete"
-                                @onclick="() => AskDelete(question)"
-                                disabled="@_busy">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        @if (question is not null)
+                        {
+                            <button class="btn" title="Edit"
+                                    @onclick="() => OpenEditModal(question)"
+                                    disabled="@_busy">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn" title="Delete"
+                                    @onclick="() => AskDelete(question)"
+                                    disabled="@_busy">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        }
                     </div>
                 </div>
             </div>
@@ -216,10 +243,29 @@
     private bool _busy;
     private string? _error;
     private List<QuestionTechnique> _questions = new();
-    private List<QuestionTechnique> _rows = new();
-    private readonly HashSet<int> _selected = new();
+    private List<ManageItem> _items = new();
+    private List<ManageItem> _rows = new();
+    private readonly HashSet<string> _selected = new();
     private string? _search;
+    private string _typeFilter = "all";
     private string _statusFilter = "all";
+
+    private enum ItemKind { Question, Coding, Sql }
+
+    // Une ligne de la liste : une question technique, ou un defi de code / SQL.
+    // Les defis n'ont ni edition ni suppression ici, seulement l'activation.
+    private sealed class ManageItem
+    {
+        public required string Key { get; init; }
+        public required ItemKind Kind { get; init; }
+        public QuestionTechnique? Question { get; init; }
+        public string Title { get; init; } = "";
+        public string Description { get; init; } = "";
+        public string Href { get; init; } = "";
+        public bool IsActive { get; set; }
+    }
+
+    private static string QuestionKey(int id) => $"q-{id}";
     private int _page = 1;
     private bool _editorOpen;
     private string _editorTitle = "";
@@ -247,25 +293,64 @@
         try
         {
             _questions = await QuizService.GetQuestionsAsync();
-            _selected.IntersectWith(_questions.Select(q => q.Id));
+            var sqlChallenges = await SqlService.GetAllAsync();
+            var inactiveKeys = await ChallengeService.GetInactiveKeysAsync();
+
+            _items = _questions
+                .Select(q => new ManageItem
+                {
+                    Key = QuestionKey(q.Id),
+                    Kind = ItemKind.Question,
+                    Question = q,
+                    IsActive = q.IsActive
+                })
+                .Concat(CodingChallengeCatalog.All.Select(c => new ManageItem
+                {
+                    Key = c.Key,
+                    Kind = ItemKind.Coding,
+                    Title = c.Title,
+                    Description = c.Description,
+                    Href = c.Href,
+                    IsActive = !inactiveKeys.Contains(c.Key)
+                }))
+                .Concat(sqlChallenges.Select(c => new ManageItem
+                {
+                    Key = CodingChallengeCatalog.SqlKey(c.Id),
+                    Kind = ItemKind.Sql,
+                    Title = c.Title,
+                    Description = c.Prompt,
+                    Href = $"/coding/sql/{c.Id}",
+                    IsActive = !inactiveKeys.Contains(CodingChallengeCatalog.SqlKey(c.Id))
+                }))
+                .ToList();
+
+            _selected.IntersectWith(_items.Select(i => i.Key));
             ApplyView();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _busy = false; }
     }
 
-    private int ActiveCount => _questions.Count(q => q.IsActive);
+    private int ActiveCount => _items.Count(i => i.IsActive);
     private int PageCount => Math.Max(1, (int)Math.Ceiling(_rows.Count / (double)PageSize));
-    private IEnumerable<QuestionTechnique> PageRows => _rows.Skip((_page - 1) * PageSize).Take(PageSize);
-    private bool AllRowsSelected => _rows.Count > 0 && _rows.All(q => _selected.Contains(q.Id));
+    private IEnumerable<ManageItem> PageRows => _rows.Skip((_page - 1) * PageSize).Take(PageSize);
+    private bool AllRowsSelected => _rows.Count > 0 && _rows.All(i => _selected.Contains(i.Key));
 
     private void ApplyView()
     {
-        IEnumerable<QuestionTechnique> rows = _statusFilter switch
+        IEnumerable<ManageItem> rows = _typeFilter switch
         {
-            "active" => _questions.Where(q => q.IsActive),
-            "inactive" => _questions.Where(q => !q.IsActive),
-            _ => _questions
+            "question" => _items.Where(i => i.Kind == ItemKind.Question),
+            "coding" => _items.Where(i => i.Kind == ItemKind.Coding),
+            "sql" => _items.Where(i => i.Kind == ItemKind.Sql),
+            _ => _items
+        };
+
+        rows = _statusFilter switch
+        {
+            "active" => rows.Where(i => i.IsActive),
+            "inactive" => rows.Where(i => !i.IsActive),
+            _ => rows
         };
 
         if (!string.IsNullOrWhiteSpace(_search))
@@ -284,10 +369,16 @@
         ApplyView();
     }
 
-    private static bool MatchesSearch(QuestionTechnique q, string term) =>
-        new[] { q.QuestionText, q.Choice0, q.Choice1, q.Choice2, q.Choice3 }
-            .Any(text => QuizRender.ToPlainText(text).Contains(term, StringComparison.OrdinalIgnoreCase))
-        || q.Labels.Any(l => l.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+    private static bool MatchesSearch(ManageItem item, string term)
+    {
+        if (item.Question is not { } q)
+            return item.Title.Contains(term, StringComparison.OrdinalIgnoreCase)
+                || item.Description.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+        return new[] { q.QuestionText, q.Choice0, q.Choice1, q.Choice2, q.Choice3 }
+                   .Any(text => QuizRender.ToPlainText(text).Contains(term, StringComparison.OrdinalIgnoreCase))
+               || q.Labels.Any(l => l.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
 
     private void GoToPage(int page) => _page = Math.Clamp(page, 1, PageCount);
 
@@ -313,29 +404,28 @@
         }
     }
 
-    private void ToggleSelected(int id, bool selected)
+    private void ToggleSelected(string key, bool selected)
     {
-        if (selected) _selected.Add(id);
-        else _selected.Remove(id);
+        if (selected) _selected.Add(key);
+        else _selected.Remove(key);
     }
 
     // "Select all" porte sur tous les resultats filtres, toutes pages confondues.
     private void ToggleSelectAll(ChangeEventArgs e)
     {
-        if (e.Value is true) _selected.UnionWith(_rows.Select(q => q.Id));
-        else _selected.ExceptWith(_rows.Select(q => q.Id));
+        if (e.Value is true) _selected.UnionWith(_rows.Select(i => i.Key));
+        else _selected.ExceptWith(_rows.Select(i => i.Key));
     }
 
     private void ClearSelection() => _selected.Clear();
 
-    private async Task SetActiveAsync(QuestionTechnique question, bool isActive)
+    private async Task SetActiveAsync(ManageItem item, bool isActive)
     {
         _error = null;
         try
         {
             _busy = true;
-            await QuizService.SetActiveAsync(new[] { question.Id }, isActive);
-            question.IsActive = isActive;
+            await SaveActiveAsync(new[] { item }, isActive);
             ApplyView();
         }
         catch (Exception ex) { _error = ex.Message; }
@@ -348,14 +438,31 @@
         try
         {
             _busy = true;
-            await QuizService.SetActiveAsync(_selected.ToList(), isActive);
-            foreach (var question in _questions.Where(q => _selected.Contains(q.Id)))
-                question.IsActive = isActive;
+            await SaveActiveAsync(_items.Where(i => _selected.Contains(i.Key)).ToList(), isActive);
             _selected.Clear();
             ApplyView();
         }
         catch (Exception ex) { _error = ex.Message; }
         finally { _busy = false; }
+    }
+
+    // Les questions ont leur colonne IsActive ; les defis passent par la table des defis inactifs.
+    private async Task SaveActiveAsync(IReadOnlyCollection<ManageItem> items, bool isActive)
+    {
+        var questionIds = items.Where(i => i.Question is not null).Select(i => i.Question!.Id).ToList();
+        var challengeKeys = items.Where(i => i.Question is null).Select(i => i.Key).ToList();
+
+        if (questionIds.Count > 0)
+            await QuizService.SetActiveAsync(questionIds, isActive);
+        if (challengeKeys.Count > 0)
+            await ChallengeService.SetActiveAsync(challengeKeys, isActive);
+
+        foreach (var item in items)
+        {
+            item.IsActive = isActive;
+            if (item.Question is not null)
+                item.Question.IsActive = isActive;
+        }
     }
 
     private void OpenCreateModal()

@@ -35,6 +35,15 @@ public interface ICodeChallengeReviewService
         string ownerId,
         DateOnly todayUtc,
         CancellationToken cancellationToken = default);
+
+    // Clés des défis désactivés par un administrateur (code et SQL confondus).
+    Task<HashSet<string>> GetInactiveKeysAsync(CancellationToken cancellationToken = default);
+
+    // Active ou désactive des défis pour tout le monde.
+    Task SetActiveAsync(
+        IReadOnlyCollection<string> challengeKeys,
+        bool isActive,
+        CancellationToken cancellationToken = default);
 }
 
 public class CodeChallengeReviewService : ICodeChallengeReviewService
@@ -130,12 +139,54 @@ public class CodeChallengeReviewService : ICodeChallengeReviewService
         List<string> dueKeys = await dbContext.CodeChallengeCards
             .AsNoTracking()
             .Where(c => c.OwnerId == ownerId && c.NextDueDate <= todayUtc)
+            .Where(c => !dbContext.InactiveChallenges.Any(i => i.ChallengeKey == c.ChallengeKey))
             .Select(c => c.ChallengeKey)
             .ToListAsync(cancellationToken);
 
         int sql = dueKeys.Count(k => k.StartsWith("sql-", StringComparison.Ordinal));
         int coding = dueKeys.Count - sql;
         return (coding, sql);
+    }
+
+    public async Task<HashSet<string>> GetInactiveKeysAsync(CancellationToken cancellationToken = default)
+    {
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        List<string> keys = await dbContext.InactiveChallenges
+            .AsNoTracking()
+            .Select(i => i.ChallengeKey)
+            .ToListAsync(cancellationToken);
+
+        return keys.ToHashSet(StringComparer.Ordinal);
+    }
+
+    public async Task SetActiveAsync(
+        IReadOnlyCollection<string> challengeKeys,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        if (challengeKeys.Count == 0)
+            return;
+
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        if (isActive)
+        {
+            await dbContext.InactiveChallenges
+                .Where(i => challengeKeys.Contains(i.ChallengeKey))
+                .ExecuteDeleteAsync(cancellationToken);
+            return;
+        }
+
+        List<string> alreadyInactive = await dbContext.InactiveChallenges
+            .Where(i => challengeKeys.Contains(i.ChallengeKey))
+            .Select(i => i.ChallengeKey)
+            .ToListAsync(cancellationToken);
+
+        foreach (string key in challengeKeys.Distinct().Except(alreadyInactive))
+            dbContext.InactiveChallenges.Add(new InactiveChallenge { ChallengeKey = key });
+
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static CodeChallengeCardInfo ToInfo(CodeChallengeCard card, DateOnly todayUtc) =>

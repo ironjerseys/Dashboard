@@ -246,7 +246,9 @@
         try
         {
             _allQuestions = await QuizService.GetActiveQuestionsAsync();
-            _sqlCount = (await SqlService.GetAllAsync()).Count;
+            var inactiveKeys = await ReviewService.GetInactiveKeysAsync();
+            _sqlCount = (await SqlService.GetAllAsync())
+                .Count(c => !inactiveKeys.Contains(CodingChallengeCatalog.SqlKey(c.Id)));
             Restart();
 
             if (_isAuthenticated && !string.IsNullOrWhiteSpace(_userId))

@@ -227,6 +227,20 @@ namespace Dashboard.Migrations
                     b.ToTable("EmailMessages");
                 });
 
+            modelBuilder.Entity("Dashboard.Persistance.Entities.InactiveChallenge", b =>
+                {
+                    b.Property<string>("ChallengeKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ChallengeKey");
+
+                    b.ToTable("InactiveChallenges");
+                });
+
             modelBuilder.Entity("Dashboard.Persistance.Entities.JobApplication", b =>
                 {
                     b.Property<int>("Id")
