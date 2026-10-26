@@ -1,11 +1,14 @@
 import csv
 import os
+import re
 import time
 from datetime import date, datetime, timezone
 import pandas as pd
 from jobspy import scrape_jobs
 
-ROLES = [
+# Liste de secours, utilisée seulement si la table ScraperRoles est inaccessible ou vide.
+# Les postes se gèrent depuis la page /job-data (bouton Paramètres) : ils sont lus en base.
+DEFAULT_ROLES = [
     {
         "search_term": ".NET developer",
         "google_suffix": ".NET developer C# jobs near",
@@ -42,6 +45,74 @@ ROLES = [
         "label": "support_applicatif",
     },
 ]
+
+
+
+def _connect():
+    """Connexion SQL Server via les variables d'environnement, ou None si impossible."""
+    try:
+        import pymssql
+    except ImportError:
+        print("pymssql non disponible.")
+        return None
+
+    password = os.environ.get("MSSQL_PASSWORD", "")
+    if not password:
+        print("MSSQL_PASSWORD non défini.")
+        return None
+
+    try:
+        return pymssql.connect(
+            server=os.environ.get("MSSQL_SERVER", "sql"),
+            port=int(os.environ.get("MSSQL_PORT", "1433")),
+            user=os.environ.get("MSSQL_USER", "sa"),
+            password=password,
+            database=os.environ.get("MSSQL_DATABASE", "DashboardDb"),
+            login_timeout=30,
+        )
+    except Exception as e:
+        print(f"Connexion SQL Server échouée: {e}")
+        return None
+
+
+def _slug(text):
+    return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_") or "role"
+
+
+def load_roles():
+    """Postes à chercher, lus dans la table ScraperRoles (repli sur DEFAULT_ROLES)."""
+    conn = _connect()
+    if conn is None:
+        print("Postes : liste par défaut (base inaccessible).")
+        return DEFAULT_ROLES
+
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT SearchTerm, GooglePhrase FROM ScraperRoles ORDER BY Id")
+        rows = cursor.fetchall()
+    except Exception as e:
+        print(f"Lecture de ScraperRoles impossible: {e}")
+        rows = []
+    finally:
+        conn.close()
+
+    if not rows:
+        print("Postes : liste par défaut (table ScraperRoles vide ou absente).")
+        return DEFAULT_ROLES
+
+    roles = [
+        {
+            "search_term": term,
+            "google_suffix": phrase or f"{term} jobs near",
+            "label": _slug(term),
+        }
+        for term, phrase in rows
+    ]
+    print(f"Postes lus en base ({len(roles)}): {', '.join(r['search_term'] for r in roles)}")
+    return roles
+
+
+ROLES = load_roles()
 
 LOCATIONS = [
     {"location": "Vancouver, BC",      "country_indeed": "Canada",  "city_label": "vancouver"},
@@ -166,31 +237,9 @@ def _safe_date(val):
 
 
 def insert_to_db(df: pd.DataFrame) -> bool:
-    try:
-        import pymssql
-    except ImportError:
-        print("pymssql non disponible, passage au fallback CSV.")
-        return False
-
-    server   = os.environ.get("MSSQL_SERVER", "sql")
-    port     = int(os.environ.get("MSSQL_PORT", "1433"))
-    user     = os.environ.get("MSSQL_USER", "sa")
-    password = os.environ.get("MSSQL_PASSWORD", "")
-    database = os.environ.get("MSSQL_DATABASE", "DashboardDb")
-
-    if not password:
-        print("MSSQL_PASSWORD non défini, passage au fallback CSV.")
-        return False
-
-    try:
-        conn = pymssql.connect(
-            server=server, port=port,
-            user=user, password=password,
-            database=database,
-            login_timeout=30,
-        )
-    except Exception as e:
-        print(f"Connexion SQL Server échouée: {e}\nPassage au fallback CSV.")
+    conn = _connect()
+    if conn is None:
+        print("Passage au fallback CSV.")
         return False
 
     cursor = conn.cursor()

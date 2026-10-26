@@ -232,6 +232,20 @@ namespace Dashboard.Migrations
                     b.ToTable("EmailMessages");
                 });
 
+            modelBuilder.Entity("Dashboard.Persistance.Entities.HiddenJobChart", b =>
+                {
+                    b.Property<string>("ChartKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ChartKey");
+
+                    b.ToTable("HiddenJobCharts");
+                });
+
             modelBuilder.Entity("Dashboard.Persistance.Entities.InactiveChallenge", b =>
                 {
                     b.Property<string>("ChallengeKey")
@@ -744,6 +758,34 @@ namespace Dashboard.Migrations
                         .IsUnique();
 
                     b.ToTable("ReminderSettings");
+                });
+
+            modelBuilder.Entity("Dashboard.Persistance.Entities.ScraperRole", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("GooglePhrase")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("SearchTerm")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SearchTerm")
+                        .IsUnique();
+
+                    b.ToTable("ScraperRoles");
                 });
 
             modelBuilder.Entity("Dashboard.Persistance.Entities.SqlChallenge", b =>

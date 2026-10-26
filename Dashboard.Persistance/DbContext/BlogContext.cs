@@ -21,6 +21,8 @@ public class BlogContext : IdentityDbContext<IdentityUser>
     public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<JobPosting> JobPostings => Set<JobPosting>();
     public DbSet<MechanicJobPosting> MechanicJobPostings => Set<MechanicJobPosting>();
+    public DbSet<ScraperRole> ScraperRoles => Set<ScraperRole>();
+    public DbSet<HiddenJobChart> HiddenJobCharts => Set<HiddenJobChart>();
     public DbSet<ReminderSetting> ReminderSettings => Set<ReminderSetting>();
     public DbSet<EmailMessage> EmailMessages => Set<EmailMessage>();
     public DbSet<MailboxSyncState> MailboxSyncStates => Set<MailboxSyncState>();
@@ -83,6 +85,8 @@ public class BlogContext : IdentityDbContext<IdentityUser>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.Entity<MediaAsset>().HasIndex(x => x.CreatedUtc);
+
+        builder.Entity<ScraperRole>().HasIndex(r => r.SearchTerm).IsUnique();
 
         builder.Entity<ReminderSetting>()
             .HasIndex(r => r.OwnerId)
