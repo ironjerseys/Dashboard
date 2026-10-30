@@ -21,6 +21,16 @@ public sealed record ApplicationRow(
     public bool IsTechnical { get; } = JobRole.IsTechnical(Position);
 }
 
+/// <summary>Champs modifiables a la main depuis la page des candidatures.</summary>
+public sealed record ApplicationEdit(
+    string Company,
+    string? Position,
+    string? Location,
+    JobApplicationStatus Status,
+    DateTime? AppliedUtc,
+    string? JobUrl,
+    string? Notes);
+
 public interface IJobApplicationService
 {
     /// <summary>
@@ -52,6 +62,12 @@ public interface IJobApplicationService
 
     /// <summary>Correction manuelle quand l'analyse s'est trompee.</summary>
     Task SetStatusAsync(int applicationId, JobApplicationStatus status, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Correction manuelle des informations (ville ou poste absents du mail...). Les mails suivants ne
+    /// remplissent que les champs vides, ils n'ecrasent donc pas ces corrections.
+    /// </summary>
+    Task UpdateAsync(int applicationId, ApplicationEdit edit, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Doublon (ex. "AutoTrader.ca" et "Trader Corporation") : les mails et les informations de
@@ -178,6 +194,39 @@ public sealed class JobApplicationService : IJobApplicationService
         await dbContext.JobApplications
             .Where(a => a.Id == applicationId)
             .ExecuteUpdateAsync(s => s.SetProperty(a => a.Status, status), cancellationToken);
+    }
+
+    public async Task UpdateAsync(int applicationId, ApplicationEdit edit, CancellationToken cancellationToken = default)
+    {
+        string company = Clean(edit.Company, 256)
+            ?? throw new ArgumentException("Company is required.", nameof(edit));
+
+        await using BlogContext dbContext = await _dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+        JobApplication application = await dbContext.JobApplications.FirstAsync(a => a.Id == applicationId, cancellationToken);
+
+        application.Company = company;
+        application.Position = Clean(edit.Position, 256);
+        application.Location = Clean(edit.Location, 256);
+        application.Status = edit.Status;
+        application.AppliedUtc = edit.AppliedUtc;
+        application.JobUrl = Clean(edit.JobUrl, 2048);
+        application.Notes = Clean(edit.Notes, 2000);
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>Espaces retires, vide ramene a null, tronque a la taille de la colonne.</summary>
+    private static string? Clean(string? value, int maxLength)
+    {
+        string? trimmed = value?.Trim();
+
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return null;
+        }
+
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength];
     }
 
     public async Task MergeAsync(int sourceId, int targetId, CancellationToken cancellationToken = default)
