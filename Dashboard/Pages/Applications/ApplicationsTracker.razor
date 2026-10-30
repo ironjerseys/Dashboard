@@ -355,12 +355,71 @@ else
                                     Language.Translate("En cours : depuis combien de temps elle attend. Terminée : délai jusqu'à la réponse.",
                                                        "Open: how long it has been waiting. Closed: how long the answer took."))
                         @SortHeader(SortColumn.Emails, "Mails", "Emails", "text-end")
+                        <th style="width:1%"></th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var row in PageRows)
                     {
                         var id = row.Id;
+                        @if (_editId == id && _edit is { } edit)
+                        {
+                            <tr class="table-active" @onkeydown="EditKeyDownAsync">
+                                <td>
+                                    <input class="form-control form-control-sm @(string.IsNullOrWhiteSpace(edit.Company) ? "is-invalid" : "")"
+                                           maxlength="256" @bind="edit.Company" @bind:event="oninput"
+                                           placeholder="@Language.Translate("Entreprise", "Company")" />
+                                </td>
+                                <td>
+                                    <input class="form-control form-control-sm" maxlength="256" @bind="edit.Position" @bind:event="oninput"
+                                           placeholder="@Language.Translate("Poste", "Position")" />
+                                </td>
+                                <td>
+                                    <input class="form-control form-control-sm" maxlength="256" @bind="edit.Location" @bind:event="oninput"
+                                           placeholder="@Language.Translate("Ville, province", "City, province")" />
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" @bind="edit.Status">
+                                        @foreach (var s in Enum.GetValues<JobApplicationStatus>())
+                                        {
+                                            <option value="@s">@StatusLabel(s)</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td>
+                                    <input type="date" class="form-control form-control-sm" @bind="edit.AppliedDate" @bind:format="yyyy-MM-dd" />
+                                </td>
+                                <td class="text-muted small">@row.LastEventUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                <td class="small">@AgeCell(row)</td>
+                                <td class="text-end text-muted">@row.EmailCount</td>
+                                <td class="text-nowrap">
+                                    <button class="btn btn-sm btn-primary" disabled="@(Busy || string.IsNullOrWhiteSpace(edit.Company))"
+                                            @onclick="() => SaveEditAsync(id)" title="@Language.Translate("Enregistrer (Entrée)", "Save (Enter)")">
+                                        <i class="bi bi-check-lg"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-secondary" @onclick="CancelEdit"
+                                            title="@Language.Translate("Annuler (Échap)", "Cancel (Esc)")">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="table-active">
+                                <td colspan="9">
+                                    <div class="row g-2">
+                                        <div class="col-md-5">
+                                            <input class="form-control form-control-sm" maxlength="2048" @bind="edit.JobUrl" @bind:event="oninput" @onkeydown="EditKeyDownAsync"
+                                                   placeholder="@Language.Translate("Lien vers l'offre", "Job posting link")" />
+                                        </div>
+                                        <div class="col-md-7">
+                                            <textarea class="form-control form-control-sm" rows="2" maxlength="2000" @bind="edit.Notes" @bind:event="oninput"
+                                                      placeholder="@Language.Translate("Notes", "Notes")"></textarea>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
                         <tr role="button" @onclick="() => ToggleApplicationAsync(id)">
                             <td class="fw-semibold">@row.Company</td>
                             <td>@(row.Position ?? "—")</td>
@@ -376,12 +435,18 @@ else
                             <td class="text-muted small">@row.LastEventUtc.ToLocalTime().ToString("dd/MM/yyyy")</td>
                             <td class="small">@AgeCell(row)</td>
                             <td class="text-end text-muted">@row.EmailCount</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-secondary px-3 py-1" @onclick="() => StartEdit(row)" @onclick:stopPropagation="true"
+                                        title="@Language.Translate("Modifier", "Edit")">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                            </td>
                         </tr>
 
                         @if (_openApplicationId == id)
                         {
                             <tr>
-                                <td colspan="8" class="bg-body-tertiary">
+                                <td colspan="9" class="bg-body-tertiary">
                                     <div class="d-flex align-items-center gap-3 mb-2 small flex-wrap">
                                         <div class="d-flex align-items-center gap-2">
                                             <span class="text-muted">@Language.Translate("Corriger le statut", "Fix status") :</span>
@@ -444,6 +509,7 @@ else
                                     }
                                 </td>
                             </tr>
+                        }
                         }
                     }
                 </tbody>
@@ -575,6 +641,24 @@ else
 
     private int? _openBodyId;
     private EmailMessage? _openBody;
+
+    /// <summary>Ligne en cours d'edition et ses valeurs, appliquees seulement a l'enregistrement.</summary>
+    private int? _editId;
+    private EditModel? _edit;
+
+    private sealed class EditModel
+    {
+        public string Company { get; set; } = string.Empty;
+        public string? Position { get; set; }
+        public string? Location { get; set; }
+        public JobApplicationStatus Status { get; set; }
+        public DateTime? AppliedDate { get; set; }
+        public string? JobUrl { get; set; }
+        public string? Notes { get; set; }
+
+        /// <summary>Date d'envoi d'origine : gardee telle quelle (avec son heure) si le jour n'a pas change.</summary>
+        public DateTime? OriginalAppliedUtc { get; init; }
+    }
 
     /// <summary>Les graphes sont redessines au prochain rendu : les donnees ont change.</summary>
     private bool _chartsDirty;
@@ -1116,6 +1200,64 @@ else
         }
 
         await RunBusyAsync(() => Applications.SetStatusAsync(id, status));
+    }
+
+    private void StartEdit(ApplicationRow row)
+    {
+        _editId = row.Id;
+        _edit = new EditModel
+        {
+            Company = row.Company,
+            Position = row.Position,
+            Location = row.Location,
+            Status = row.Status,
+            AppliedDate = row.AppliedUtc?.ToLocalTime().Date,
+            JobUrl = row.JobUrl,
+            Notes = row.Notes,
+            OriginalAppliedUtc = row.AppliedUtc
+        };
+    }
+
+    private void CancelEdit()
+    {
+        _editId = null;
+        _edit = null;
+    }
+
+    private async Task EditKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            CancelEdit();
+        }
+        else if (e.Key == "Enter" && !e.ShiftKey && _editId is { } id)
+        {
+            await SaveEditAsync(id);
+        }
+    }
+
+    private async Task SaveEditAsync(int id)
+    {
+        if (_edit is not { } edit || string.IsNullOrWhiteSpace(edit.Company) || Busy)
+        {
+            return;
+        }
+
+        DateTime? appliedUtc = edit.AppliedDate switch
+        {
+            null => null,
+            { } day when edit.OriginalAppliedUtc is { } original && original.ToLocalTime().Date == day.Date => original,
+            // Midi local : le jour affiche reste le meme quel que soit le fuseau.
+            { } day => DateTime.SpecifyKind(day.Date.AddHours(12), DateTimeKind.Local).ToUniversalTime()
+        };
+
+        var update = new ApplicationEdit(edit.Company, edit.Position, edit.Location, edit.Status, appliedUtc, edit.JobUrl, edit.Notes);
+
+        await RunBusyAsync(async () =>
+        {
+            await Applications.UpdateAsync(id, update);
+            CancelEdit();
+        });
     }
 
     /// <summary>Candidatures de la meme entreprise en tete de liste.</summary>
